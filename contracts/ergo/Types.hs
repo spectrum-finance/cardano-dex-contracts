@@ -20,6 +20,14 @@ module ErgoDex.Types where
 
 data ErgoToken = ErgoToken
 
+# use original ada
+data Ada = Ada
+
+data LPToken = LPToken
+
+# implement getting coin value
+data Coin a = Coin Integer
+
 PlutusTx.makeIsDataIndexed ''ErgoToken [('ErgoToken, 0)]
 PlutusTx.makeLift ''ErgoToken
 
@@ -31,4 +39,7 @@ newtype Amount a = Amount { unAmount :: Integer }
 PlutusTx.makeIsDataIndexed ''Amount [('Amount, 0)]
 PlutusTx.makeLift ''Amount
 
-data DexDatum = DexDatum
+newtype Pool = Pool {
+    adaValue :: Coin Ada,
+    ergoValue :: Coin ErgoToken
+}
