@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
@@ -16,20 +17,30 @@
 {-# options_ghc -fno-strictness            #-}
 {-# options_ghc -fno-specialise            #-}
 
-module ErgoDex.Types where
+module Types where
+
+import           Ledger
+import           Ledger.Value        (AssetClass (..), assetClass, assetClassValue, assetClassValueOf)
+import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
+import qualified PlutusTx
+import           PlutusTx.Prelude
+import qualified Prelude             as Haskell
+import           Text.Printf         (PrintfArg)
 
 data ErgoToken = ErgoToken
 
-# use original ada
-data Ada = Ada
-
 data LPToken = LPToken
 
-# implement getting coin value
-data Coin a = Coin Integer
+deriving anyclass instance ToSchema AssetClass
 
 PlutusTx.makeIsDataIndexed ''ErgoToken [('ErgoToken, 0)]
 PlutusTx.makeLift ''ErgoToken
+
+newtype Coin a = Coin { unCoin :: AssetClass }
+  deriving stock   (Haskell.Show, Generic)
+  deriving newtype (ToJSON, FromJSON, ToSchema, Eq, Haskell.Eq, Haskell.Ord)
+PlutusTx.makeIsDataIndexed ''Coin [('Coin, 0)]
+PlutusTx.makeLift ''Coin
 
 newtype Amount a = Amount { unAmount :: Integer }
   deriving stock   (Haskell.Show, Generic)
@@ -39,7 +50,7 @@ newtype Amount a = Amount { unAmount :: Integer }
 PlutusTx.makeIsDataIndexed ''Amount [('Amount, 0)]
 PlutusTx.makeLift ''Amount
 
-newtype Pool = Pool {
+data Pool = Pool {
     adaValue :: Coin Ada,
     ergoValue :: Coin ErgoToken
 }

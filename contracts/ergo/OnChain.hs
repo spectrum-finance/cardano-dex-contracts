@@ -22,12 +22,13 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 
-module Ergo.OnChain where
+module OnChain where
 
 import           Control.Monad          (void)
 import           Data.Aeson             (FromJSON, ToJSON)
 import           GHC.Generics           (Generic)
-import           Ledger                 (Address, Validator, ValidatorCtx, Value)
+import           Ledger                 (Address, Validator, Value)
+import           Ledger.Contexts        (ScriptContext(..))
 import qualified Ledger.Constraints     as Constraints
 import qualified Ledger.Typed.Scripts   as Scripts
 import Plutus.Contract
@@ -48,9 +49,10 @@ import           Plutus.Trace.Emulator  (EmulatorTrace)
 import qualified Plutus.Trace.Emulator  as Trace
 import qualified PlutusTx
 import           PlutusTx.Prelude
+import           Ledger
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
-import           ErgoDex.Types
+import           Types
 
 import qualified Ledger
 import qualified Ledger.Ada             as Ada
@@ -58,5 +60,5 @@ import qualified Ledger.Ada             as Ada
 import qualified Data.ByteString.Char8  as C
 import qualified Prelude
 
-checkTokenSwap :: Pool -> ValidatorCtx -> Bool
-checkTokenSwap :: Pool (ergo, ada) ctx = true
+checkTokenSwap :: Pool -> ScriptContext -> Bool
+checkTokenSwap :: pool ctx = true
