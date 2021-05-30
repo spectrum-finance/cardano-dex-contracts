@@ -59,11 +59,16 @@ import           Wallet.Emulator        (Wallet (..))
 import ErgoDex.Types
 import qualified Prelude
 
+--todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
+
 findOwnInput' :: ScriptContext -> TxInInfo
 findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
 
 valueWithin :: TxInInfo -> Value
 valueWithin = txOutValue . txInInfoResolved
+
+feeNum :: Integer
+feeNum = 997
 
 proxyDatumHash :: DatumHash
 proxyDatumHash = datumHashFromString "proxyDatumHash"
@@ -87,10 +92,12 @@ inputsLockedByDatumHash hash sCtx = [ proxyInput
                                     , txOutDatumHash (txInInfoResolved proxyInput) == Just (hash)
                                     ]
 
+
 checkTokenSwap :: ErgoDexPool -> Redeemer -> ScriptContext -> Bool
 checkTokenSwap ErgoDexPool{..} _ sCtx =
     traceIfFalse "Expected Ergo or Ada coin to be present in input" inputContainsErgoOrAda &&
-    traceIfFalse "Expected correct value of Ergo and Ada in pool output" correctValueSwap
+    traceIfFalse "Expected correct value of Ergo and Ada in pool output" correctValueSwap &&
+    traceIfFalse "Value of LP Token should't change" Bool
   where
 
     ownInput :: TxInInfo
@@ -136,9 +143,90 @@ checkTokenSwap ErgoDexPool{..} _ sCtx =
     correctValueSwap :: Bool
     correctValueSwap =
       let
+        outputWithValueToSwap = txInInfoResolved ownInput
+        isErgoSwap = isUnity (txOutValue outputWithValueToSwap) ergoCoin
         currentAdaValue = assetClassValueOf (txOutValue currentPoolOutput) (unCoin adaCoin)
         currentErgoValue = assetClassValueOf (txOutValue currentPoolOutput) (unCoin ergoCoin)
         newAdaValue = assetClassValueOf (txOutValue newOutputWithPoolContract) (unCoin adaCoin)
         newErgoValue = assetClassValueOf (txOutValue newOutputWithPoolContract) (unCoin ergoCoin)
+        correctNewAdaValue = if isErgoSwap then currentAdaValue - adaRate proxyInputsWithAda else currentAdaValue + proxyInputsWithAda
+        correctNewErgoValue = if isErgoSwap then currentErgoValue + proxyInputsWithErgo else currentErgoValue - ergoRate proxyInputsWithErgo
       in
-        (newErgoValue == currentErgoValue + proxyInputsWithErgo) && (newAdaValue == currentAdaValue + proxyInputsWithAda)
+        (newErgoValue == correctNewErgoValue) && (newAdaValue == correctNewAdaValue)
+
+    -- formula from https://github.com/ergoplatform/eips/blob/eip14/eip-0014.md#simple-swap-proxy-contract
+
+
+
+    ergoRate :: Integer -> Integer
+    ergoRate adaValueToSwap =
+      let
+        currentPoolValue = txOutValue currentPoolOutput
+        ergoReserved = unAmount $ amountOf currentPoolValue ergoCoin
+        adaReserved = unAmount $ amountOf currentPoolValue adaCoin
+      in ergoReserved * adaValueToSwap * feeNum `div` (adaReserved * 1000 + adaValueToSwap * feeNum)
+
+    adaRate :: Integer -> Integer
+    adaRate ergoValueToSwap =
+      let
+        currentPoolValue = txOutValue currentPoolOutput
+        ergoReserved = unAmount $ amountOf currentPoolValue ergoCoin
+        adaReserved = unAmount $ amountOf currentPoolValue adaCoin
+      in adaReserved * ergoValueToSwap * feeNum `div` (ergoReserved * 1000 + ergoValueToSwap * feeNum)
+
+    getTrue :: Bool
+    getTrue = True
+
+checkCorrectPoolBootstrapping :: ErgoDexPool -> Redeemer -> ScriptContext -> Bool
+checkCorrectPoolBootstrapping ErgoDexPool{..} _ sCtx =
+  traceIfFalse "Incorrect conditions of lp token" lpTokenCond &&
+  traceIfFalse "Ergo and Ada should be in ouptut" isErgoAndAdaCoinExists
+  where
+
+    ownInput :: TxInInfo
+    ownInput = findOwnInput' sCtx
+
+    newOutputWithPoolContract :: TxOut
+    newOutputWithPoolContract = case [ output
+                                     | output <- getContinuingOutputs sCtx
+                                     , txOutDatumHash output == Just (snd $ ownHashes sCtx)
+                                     ] of
+      [output]   -> output
+      otherwise  -> traceError "expected exactly one output of ergo dex"
+
+    lpTokenCond :: Bool
+    lpTokenCond =
+      let
+       lpTokenExsit = isUnity (txOutValue newOutputWithPoolContract) lpToken
+       lpTokenAmount = amountOf (txOutValue newOutputWithPoolContract) lpToken
+       adaAmount = unAmount (amountOf (txOutValue newOutputWithPoolContract) adaCoin)
+       ergoAmount = unAmount (amountOf (txOutValue newOutputWithPoolContract) ergoCoin)
+      in
+        lpTokenExsit && lpTokenAmount == sqrt (fromIntegral $ adaAmount * ergoAmount)
+
+    isErgoAndAdaCoinExists :: Bool
+    isErgoAndAdaCoinExists =
+      let
+        isErgoExists = isUnity (txOutValue newOutputWithPoolContract) ergoCoin
+        isAdaExists = isUnity (txOutValue newOutputWithPoolContract) adaCoin
+        adaAmount = amountOf (txOutValue newOutputWithPoolContract) adaCoin
+        ergoAmount = amountOf (txOutValue newOutputWithPoolContract) ergoCoin
+      in
+        isErgoExists && isAdaExists && adaAmount > 0 && ergoAmount > 0
+
+checkCorrectDepositing :: ErgoDexPool -> Redeemer -> ScriptContext -> Bool
+checkCorrectDepositing ErgoDexPool{..} _ sCtx =
+  traceIfFalse "Incorrect lp token value" True &&
+  traceIfFalse "No ada or ergo in input" True &&
+  traceIfFalse "Incorrect pool contract output" True
+  where
+    checkLpTokenSwap :: Bool
+    checkLpTokenSwap =
+      let
+        correntLpValue = True
+      in
+        True
+
+checkCorrectRedemption :: ErgoDexPool -> Redeemer -> ScriptContext -> Bool
+checkCorrectRedemption ErgoDexPool{..} _ sCtx =
+  traceIfFalse "Incorrect lp token value" True

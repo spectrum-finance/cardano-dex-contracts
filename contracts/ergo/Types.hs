@@ -37,6 +37,9 @@ deriving anyclass instance ToSchema AssetClass
 PlutusTx.makeIsDataIndexed ''ErgoToken [('ErgoToken, 0)]
 PlutusTx.makeLift ''ErgoToken
 
+PlutusTx.makeIsDataIndexed ''LPToken [('LPToken, 0)]
+PlutusTx.makeLift ''LPToken
+
 newtype Coin a = Coin { unCoin :: AssetClass }
   deriving stock   (Haskell.Show, Generic)
   deriving newtype (ToJSON, FromJSON, ToSchema, Eq, Haskell.Eq, Haskell.Ord)
@@ -62,7 +65,8 @@ datumHashFromString str = DatumHash $ C.pack str
 
 data ErgoDexPool = ErgoDexPool {
     adaCoin :: Coin Ada,
-    ergoCoin :: Coin ErgoToken
+    ergoCoin :: Coin ErgoToken,
+    lpToken :: Coin LPToken
 } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 
 PlutusTx.makeIsDataIndexed ''ErgoDexPool [('ErgoDexPool, 0)]
