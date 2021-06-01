@@ -28,8 +28,15 @@ import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
 import qualified Data.ByteString.Char8  as C
 import ErgoDex.Types
+import ErgoDex.OnChain
 
 data ErgoDexSwapping
 instance Scripts.ScriptType ErgoDexSwapping where
     type instance RedeemerType ErgoDexSwapping = ContractAction
     type instance DatumType    ErgoDexSwapping = ErgoDexPool
+
+dexInstance :: Scripts.ScriptInstance Dex
+starterInstance = Scripts.validator @Dex
+    $$(PlutusTx.compile [|| mkDexValidator ||])
+    $$(PlutusTx.compile [|| wrap ||]) where
+        wrap = Scripts.wrapValidator @ErgoDexPool @ContractAction

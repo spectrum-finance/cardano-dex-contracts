@@ -72,12 +72,11 @@ data ErgoDexPool = ErgoDexPool {
 PlutusTx.makeIsDataIndexed ''ErgoDexPool [('ErgoDexPool, 0)]
 PlutusTx.makeLift ''ErgoDexPool
 
-data ContractAction = Create ErgoDexPool | SwapLP | AddTokens | SwapErgo | SwapAda
+data ContractAction = Create | SwapLP | AddTokens | SwapToken
     deriving Haskell.Show
-PlutusTx.makeIsDataIndexed ''ContractAction [ ('Create ,  0)
+PlutusTx.makeIsDataIndexed ''ContractAction [ ('Create ,   0)
                                             , ('SwapLP,    1)
                                             , ('AddTokens, 2)
-                                            , ('SwapErgo,  3)
-                                            , ('SwapAda,   4)
+                                            , ('SwapToken,  3)
                                             ]
 PlutusTx.makeLift ''ContractAction

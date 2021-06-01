@@ -23,7 +23,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 
-module ErgoDex.OnChain (checkTokenSwap) where
+module ErgoDex.OnChain where
 
 import           Control.Monad          (void)
 import           GHC.Generics           (Generic)
@@ -50,6 +50,16 @@ import qualified Plutus.Trace.Emulator  as Trace
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import Ledger
+    ( findOwnInput,
+      getContinuingOutputs,
+      ownHashes,
+      ScriptContext(scriptContextTxInfo),
+      TxInInfo(txInInfoResolved),
+      TxInfo(txInfoInputs),
+      DatumHash,
+      Redeemer,
+      TxOut(txOutDatumHash, txOutValue),
+      Value )
 import qualified Ledger.Ada             as Ada
 
 import qualified Prelude
@@ -57,7 +67,6 @@ import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
 
 import ErgoDex.Types
-import qualified Prelude
 
 --todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
 
@@ -85,7 +94,7 @@ proxyDatumHash = datumHashFromString "proxyDatumHash"
 {-# INLINABLE calculateValueInOutputs #-}
 calculateValueInOutputs :: [TxInInfo] -> Coin a -> Integer
 calculateValueInOutputs outputs coinValue =
-    foldl (getAmountAndSum) (0 :: Integer) outputs
+    foldl getAmountAndSum (0 :: Integer) outputs
   where
     getAmountAndSum :: Integer -> TxInInfo -> Integer
     getAmountAndSum acc out = acc + unAmount (amountOf (txOutValue $ txInInfoResolved out) coinValue)
@@ -100,15 +109,14 @@ currentContractHash = datumHashFromString "dexContractDatumHash"
 inputsLockedByDatumHash :: DatumHash -> ScriptContext -> [TxInInfo]
 inputsLockedByDatumHash hash sCtx = [ proxyInput
                                     | proxyInput <- txInfoInputs (scriptContextTxInfo sCtx)
-                                    , txOutDatumHash (txInInfoResolved proxyInput) == Just (hash)
+                                    , txOutDatumHash (txInInfoResolved proxyInput) == Just hash
                                     ]
 
 {-# INLINABLE checkTokenSwap #-}
-checkTokenSwap :: ErgoDexPool -> Redeemer -> ScriptContext -> Bool
-checkTokenSwap ErgoDexPool{..} _ sCtx =
+checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
+checkTokenSwap ErgoDexPool{..} sCtx =
     traceIfFalse "Expected Ergo or Ada coin to be present in input" inputContainsErgoOrAda &&
-    traceIfFalse "Expected correct value of Ergo and Ada in pool output" correctValueSwap &&
-    traceIfFalse "Value of LP Token should't change" Bool
+    traceIfFalse "Expected correct value of Ergo and Ada in pool output" correctValueSwap
   where
 
     ownInput :: TxInInfo
@@ -158,16 +166,16 @@ checkTokenSwap ErgoDexPool{..} _ sCtx =
         isErgoSwap = isUnity (txOutValue outputWithValueToSwap) ergoCoin
         currentAdaValue = assetClassValueOf (txOutValue currentPoolOutput) (unCoin adaCoin)
         currentErgoValue = assetClassValueOf (txOutValue currentPoolOutput) (unCoin ergoCoin)
+        currentLpValue = assetClassValueOf (txOutValue currentPoolOutput) (unCoin lpToken)
         newAdaValue = assetClassValueOf (txOutValue newOutputWithPoolContract) (unCoin adaCoin)
         newErgoValue = assetClassValueOf (txOutValue newOutputWithPoolContract) (unCoin ergoCoin)
+        newLpToken = assetClassValueOf (txOutValue newOutputWithPoolContract) (unCoin lpToken)
         correctNewAdaValue = if isErgoSwap then currentAdaValue - adaRate proxyInputsWithAda else currentAdaValue + proxyInputsWithAda
         correctNewErgoValue = if isErgoSwap then currentErgoValue + proxyInputsWithErgo else currentErgoValue - ergoRate proxyInputsWithErgo
       in
-        (newErgoValue == correctNewErgoValue) && (newAdaValue == correctNewAdaValue)
+        newErgoValue == correctNewErgoValue && newAdaValue == correctNewAdaValue && currentLpValue == newLpToken
 
     -- formula from https://github.com/ergoplatform/eips/blob/eip14/eip-0014.md#simple-swap-proxy-contract
-
-
 
     ergoRate :: Integer -> Integer
     ergoRate adaValueToSwap =
@@ -189,8 +197,8 @@ checkTokenSwap ErgoDexPool{..} _ sCtx =
     getTrue = True
 
 {-# INLINABLE checkCorrectPoolBootstrapping #-}
-checkCorrectPoolBootstrapping :: ErgoDexPool -> Redeemer -> ScriptContext -> Bool
-checkCorrectPoolBootstrapping ErgoDexPool{..} _ sCtx =
+checkCorrectPoolBootstrapping :: ErgoDexPool -> ScriptContext -> Bool
+checkCorrectPoolBootstrapping ErgoDexPool{..} sCtx =
   traceIfFalse "Incorrect conditions of lp token" lpTokenCond &&
   traceIfFalse "Ergo and Ada should be in ouptut" isErgoAndAdaCoinExists
   where
@@ -210,11 +218,12 @@ checkCorrectPoolBootstrapping ErgoDexPool{..} _ sCtx =
     lpTokenCond =
       let
        lpTokenExsit = isUnity (txOutValue newOutputWithPoolContract) lpToken
-       lpTokenAmount = amountOf (txOutValue newOutputWithPoolContract) lpToken
+       lpTokenAmount = unAmount (amountOf (txOutValue newOutputWithPoolContract) lpToken)
        adaAmount = unAmount (amountOf (txOutValue newOutputWithPoolContract) adaCoin)
        ergoAmount = unAmount (amountOf (txOutValue newOutputWithPoolContract) ergoCoin)
+       correctLpValue = adaAmount * ergoAmount
       in
-        lpTokenExsit && lpTokenAmount == sqrt (fromIntegral $ adaAmount * ergoAmount)
+        lpTokenExsit && lpTokenAmount * lpTokenAmount >= correctLpValue --check
 
     isErgoAndAdaCoinExists :: Bool
     isErgoAndAdaCoinExists =
@@ -227,8 +236,8 @@ checkCorrectPoolBootstrapping ErgoDexPool{..} _ sCtx =
         isErgoExists && isAdaExists && adaAmount > 0 && ergoAmount > 0
 
 {-# INLINABLE checkCorrectDepositing #-}
-checkCorrectDepositing :: ErgoDexPool -> Redeemer -> ScriptContext -> Bool
-checkCorrectDepositing ErgoDexPool{..} _ sCtx =
+checkCorrectDepositing :: ErgoDexPool -> ScriptContext -> Bool
+checkCorrectDepositing ErgoDexPool{..} sCtx =
   traceIfFalse "Incorrect lp token value" checkLpTokenSwap
   where
 
@@ -264,13 +273,13 @@ checkCorrectDepositing ErgoDexPool{..} _ sCtx =
         newLpDecValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) lpToken
         correctLpRew = min (ergoValueToDeposit * lpSupply `div` currentErgoReserved) (adaValueToDeposit * lpSupply `div` currentAdaReserved)
       in
-        newErgoValue == (currentErgoReserved + ergoValueToDeposit) &&
-        newAdaValue == (currentAdaReserved + adaValueToDeposit) &&
-        newLpDecValue == (currentLpReserved - correctLpRew)
+        newErgoValue == currentErgoReserved + ergoValueToDeposit &&
+        newAdaValue == currentAdaReserved + adaValueToDeposit &&
+        newLpDecValue == currentLpReserved - correctLpRew
 
 {-# INLINABLE checkCorrectRedemption #-}
-checkCorrectRedemption :: ErgoDexPool -> Redeemer -> ScriptContext -> Bool
-checkCorrectRedemption ErgoDexPool{..} _ sCtx =
+checkCorrectRedemption :: ErgoDexPool -> ScriptContext -> Bool
+checkCorrectRedemption ErgoDexPool{..} sCtx =
   traceIfFalse "Incorrect lp token value" True
   where
     newOutputWithPoolContract :: TxOut
@@ -302,9 +311,16 @@ checkCorrectRedemption ErgoDexPool{..} _ sCtx =
         newAdaValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) adaCoin
         prevLpValue = unAmount $ amountOf (txOutValue currentPoolOutput) lpToken
         newLpDecValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) lpToken
-        correctErgoRew = (lpRet * currentErgoReserved) `div` lpSupply
-        correctAdaRew =  (lpRet * currentAdaReserved) `div` lpSupply
+        correctErgoRew = lpRet * currentErgoReserved `div` lpSupply
+        correctAdaRew =  lpRet * currentAdaReserved `div` lpSupply
       in
-        newErgoValue == (currentErgoReserved - correctErgoRew) &&
-        newAdaValue == (currentAdaReserved - correctAdaRew) &&
-        newLpDecValue == (currentLpReserved + lpRet)
+        newErgoValue == currentErgoReserved - correctErgoRew &&
+        newAdaValue == currentAdaReserved - correctAdaRew &&
+        newLpDecValue == currentLpReserved + lpRet
+
+{-# INLINABLE mkDexValidator #-}
+mkDexValidator :: ErgoDexPool -> ContractAction -> ScriptContext -> Bool
+mkDexValidator pool Create sCtx    = checkCorrectPoolBootstrapping pool sCtx
+mkDexValidator pool SwapLP sCtx    = checkCorrectRedemption pool sCtx
+mkDexValidator pool AddTokens sCtx = checkCorrectDepositing pool sCtx
+mkDexValidator pool SwapToken sCtx = checkTokenSwap pool sCtx
