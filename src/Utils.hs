@@ -17,13 +17,25 @@
 {-# options_ghc -fno-strictness            #-}
 {-# options_ghc -fno-specialise            #-}
 
-module ErgoDex.Types where
+module Utils where
+
 
 import           Ledger
 import           Ledger.Value        (AssetClass (..), assetClass, assetClassValue, assetClassValueOf)
 import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
 import qualified PlutusTx
-import           PlutusTx.Prelude
+import PlutusTx.Prelude
+    ( Bool,
+      Integer,
+      String,
+      (.),
+      ($),
+      Eq(..),
+      AdditiveGroup,
+      AdditiveMonoid,
+      AdditiveSemigroup,
+      MultiplicativeSemigroup,
+      Ord )
 import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
 import qualified Data.ByteString.Char8  as C
@@ -33,12 +45,6 @@ data ErgoToken = ErgoToken
 data LPToken = LPToken
 
 deriving anyclass instance ToSchema AssetClass
-
-PlutusTx.makeIsDataIndexed ''ErgoToken [('ErgoToken, 0)]
-PlutusTx.makeLift ''ErgoToken
-
-PlutusTx.makeIsDataIndexed ''LPToken [('LPToken, 0)]
-PlutusTx.makeLift ''LPToken
 
 newtype Coin a = Coin { unCoin :: AssetClass }
   deriving stock   (Haskell.Show, Generic)
@@ -57,26 +63,12 @@ PlutusTx.makeLift ''Amount
 amountOf :: Value -> Coin a -> Amount a
 amountOf v = Amount . assetClassValueOf v . unCoin
 
+outputAmountOf :: TxOut -> Coin a -> Integer
+outputAmountOf out = assetClassValueOf (txOutValue out) . unCoin
+
 isUnity :: Value -> Coin a -> Bool
 isUnity v c = amountOf v c == 1
 
-datumHashFromString :: String -> DatumHash
-datumHashFromString str = DatumHash $ C.pack str
-
-data ErgoDexPool = ErgoDexPool {
-    adaCoin :: Coin Ada,
-    ergoCoin :: Coin ErgoToken,
-    lpToken :: Coin LPToken
-} deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
-
-PlutusTx.makeIsDataIndexed ''ErgoDexPool [('ErgoDexPool, 0)]
-PlutusTx.makeLift ''ErgoDexPool
-
-data ContractAction = Create | SwapLP | AddTokens | SwapToken
-    deriving Haskell.Show
-PlutusTx.makeIsDataIndexed ''ContractAction [ ('Create ,   0)
-                                            , ('SwapLP,    1)
-                                            , ('AddTokens, 2)
-                                            , ('SwapToken,  3)
-                                            ]
-PlutusTx.makeLift ''ContractAction
+{-# INLINABLE mkCoin #-}
+mkCoin:: CurrencySymbol -> TokenName -> Coin a
+mkCoin c = Coin . assetClass c

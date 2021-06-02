@@ -17,7 +17,7 @@
 {-# options_ghc -fno-strictness            #-}
 {-# options_ghc -fno-specialise            #-}
 
-module ErgoDex.OffChain where
+module Dex.Contract.OffChain where
 
 import           Ledger
 import           Ledger.Value        (AssetClass (..), assetClass, assetClassValue, assetClassValueOf)

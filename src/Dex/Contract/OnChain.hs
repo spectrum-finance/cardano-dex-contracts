@@ -23,7 +23,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 
-module ErgoDex.OnChain where
+module Dex.Contract.OnChain where
 
 import           Control.Monad          (void)
 import           GHC.Generics           (Generic)
@@ -66,7 +66,8 @@ import qualified Prelude
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
 
-import ErgoDex.Types
+import Dex.Types
+import Utils
 
 --todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
 
@@ -164,12 +165,12 @@ checkTokenSwap ErgoDexPool{..} sCtx =
       let
         outputWithValueToSwap = txInInfoResolved ownInput
         isErgoSwap = isUnity (txOutValue outputWithValueToSwap) ergoCoin
-        currentAdaValue = assetClassValueOf (txOutValue currentPoolOutput) (unCoin adaCoin)
-        currentErgoValue = assetClassValueOf (txOutValue currentPoolOutput) (unCoin ergoCoin)
-        currentLpValue = assetClassValueOf (txOutValue currentPoolOutput) (unCoin lpToken)
-        newAdaValue = assetClassValueOf (txOutValue newOutputWithPoolContract) (unCoin adaCoin)
-        newErgoValue = assetClassValueOf (txOutValue newOutputWithPoolContract) (unCoin ergoCoin)
-        newLpToken = assetClassValueOf (txOutValue newOutputWithPoolContract) (unCoin lpToken)
+        currentAdaValue = outputAmountOf currentPoolOutput adaCoin
+        currentErgoValue = outputAmountOf currentPoolOutput ergoCoin
+        currentLpValue = outputAmountOf currentPoolOutput lpToken
+        newAdaValue = outputAmountOf newOutputWithPoolContract adaCoin
+        newErgoValue = outputAmountOf newOutputWithPoolContract ergoCoin
+        newLpToken = outputAmountOf newOutputWithPoolContract lpToken
         correctNewAdaValue = if isErgoSwap then currentAdaValue - adaRate proxyInputsWithAda else currentAdaValue + proxyInputsWithAda
         correctNewErgoValue = if isErgoSwap then currentErgoValue + proxyInputsWithErgo else currentErgoValue - ergoRate proxyInputsWithErgo
       in
@@ -180,17 +181,15 @@ checkTokenSwap ErgoDexPool{..} sCtx =
     ergoRate :: Integer -> Integer
     ergoRate adaValueToSwap =
       let
-        currentPoolValue = txOutValue currentPoolOutput
-        ergoReserved = unAmount $ amountOf currentPoolValue ergoCoin
-        adaReserved = unAmount $ amountOf currentPoolValue adaCoin
+        ergoReserved = outputAmountOf currentPoolOutput ergoCoin
+        adaReserved = outputAmountOf currentPoolOutput adaCoin
       in ergoReserved * adaValueToSwap * feeNum `div` (adaReserved * 1000 + adaValueToSwap * feeNum)
 
     adaRate :: Integer -> Integer
     adaRate ergoValueToSwap =
       let
-        currentPoolValue = txOutValue currentPoolOutput
-        ergoReserved = unAmount $ amountOf currentPoolValue ergoCoin
-        adaReserved = unAmount $ amountOf currentPoolValue adaCoin
+        ergoReserved = outputAmountOf currentPoolOutput ergoCoin
+        adaReserved = outputAmountOf currentPoolOutput adaCoin
       in adaReserved * ergoValueToSwap * feeNum `div` (ergoReserved * 1000 + ergoValueToSwap * feeNum)
 
     getTrue :: Bool
@@ -218,9 +217,9 @@ checkCorrectPoolBootstrapping ErgoDexPool{..} sCtx =
     lpTokenCond =
       let
        lpTokenExsit = isUnity (txOutValue newOutputWithPoolContract) lpToken
-       lpTokenAmount = unAmount (amountOf (txOutValue newOutputWithPoolContract) lpToken)
-       adaAmount = unAmount (amountOf (txOutValue newOutputWithPoolContract) adaCoin)
-       ergoAmount = unAmount (amountOf (txOutValue newOutputWithPoolContract) ergoCoin)
+       lpTokenAmount = outputAmountOf newOutputWithPoolContract lpToken
+       adaAmount = outputAmountOf newOutputWithPoolContract adaCoin
+       ergoAmount = outputAmountOf newOutputWithPoolContract ergoCoin
        correctLpValue = adaAmount * ergoAmount
       in
         lpTokenExsit && lpTokenAmount * lpTokenAmount >= correctLpValue --check
@@ -230,8 +229,8 @@ checkCorrectPoolBootstrapping ErgoDexPool{..} sCtx =
       let
         isErgoExists = isUnity (txOutValue newOutputWithPoolContract) ergoCoin
         isAdaExists = isUnity (txOutValue newOutputWithPoolContract) adaCoin
-        adaAmount = amountOf (txOutValue newOutputWithPoolContract) adaCoin
-        ergoAmount = amountOf (txOutValue newOutputWithPoolContract) ergoCoin
+        adaAmount = outputAmountOf newOutputWithPoolContract adaCoin
+        ergoAmount = outputAmountOf newOutputWithPoolContract ergoCoin
       in
         isErgoExists && isAdaExists && adaAmount > 0 && ergoAmount > 0
 
@@ -262,15 +261,15 @@ checkCorrectDepositing ErgoDexPool{..} sCtx =
     checkLpTokenSwap =
       let
         outputToSpent = txInInfoResolved $ findOwnInput' sCtx
-        ergoValueToDeposit = unAmount $ amountOf (txOutValue outputToSpent) ergoCoin
-        adaValueToDeposit = unAmount $ amountOf (txOutValue outputToSpent) adaCoin
-        currentErgoReserved = unAmount $ amountOf (txOutValue currentPoolOutput) ergoCoin
-        currentAdaReserved = unAmount $ amountOf (txOutValue currentPoolOutput) adaCoin
-        currentLpReserved = unAmount $ amountOf (txOutValue currentPoolOutput) lpToken
-        newErgoValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) ergoCoin
-        newAdaValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) adaCoin
-        prevLpValue = unAmount $ amountOf (txOutValue currentPoolOutput) lpToken
-        newLpDecValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) lpToken
+        ergoValueToDeposit = outputAmountOf outputToSpent ergoCoin
+        adaValueToDeposit = outputAmountOf outputToSpent adaCoin
+        currentErgoReserved = outputAmountOf currentPoolOutput ergoCoin
+        currentAdaReserved = outputAmountOf currentPoolOutput adaCoin
+        currentLpReserved = outputAmountOfcurrentPoolOutput lpToken
+        newErgoValue = outputAmountOf newOutputWithPoolContract ergoCoin
+        newAdaValue = outputAmountOf newOutputWithPoolContract adaCoin
+        prevLpValue = outputAmountOf currentPoolOutput lpToken
+        newLpDecValue = outputAmountOf newOutputWithPoolContract lpToken
         correctLpRew = min (ergoValueToDeposit * lpSupply `div` currentErgoReserved) (adaValueToDeposit * lpSupply `div` currentAdaReserved)
       in
         newErgoValue == currentErgoReserved + ergoValueToDeposit &&
@@ -303,14 +302,14 @@ checkCorrectRedemption ErgoDexPool{..} sCtx =
     checkLpTokenSwap =
       let
         outputToSpent = txInInfoResolved $ findOwnInput' sCtx
-        lpRet = unAmount $ amountOf (txOutValue outputToSpent) lpToken
-        currentErgoReserved = unAmount $ amountOf (txOutValue currentPoolOutput) ergoCoin
-        currentAdaReserved = unAmount $ amountOf (txOutValue currentPoolOutput) adaCoin
-        currentLpReserved = unAmount $ amountOf (txOutValue currentPoolOutput) lpToken
-        newErgoValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) ergoCoin
-        newAdaValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) adaCoin
-        prevLpValue = unAmount $ amountOf (txOutValue currentPoolOutput) lpToken
-        newLpDecValue = unAmount $ amountOf (txOutValue newOutputWithPoolContract) lpToken
+        lpRet = outputAmountOf outputToSpent lpToken
+        currentErgoReserved = outputAmountOf currentPoolOutput ergoCoin
+        currentAdaReserved = outputAmountOf currentPoolOutput adaCoin
+        currentLpReserved = outputAmountOf currentPoolOutput lpToken
+        newErgoValue = outputAmountOf newOutputWithPoolContract ergoCoin
+        newAdaValue = outputAmountOf newOutputWithPoolContract adaCoin
+        prevLpValue = outputAmountOf currentPoolOutput lpToken
+        newLpDecValue = outputAmountOfnewOutputWithPoolContract lpToken
         correctErgoRew = lpRet * currentErgoReserved `div` lpSupply
         correctAdaRew =  lpRet * currentAdaReserved `div` lpSupply
       in
