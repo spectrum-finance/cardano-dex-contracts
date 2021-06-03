@@ -40,13 +40,7 @@ import           Text.Printf         (PrintfArg)
 import qualified Data.ByteString.Char8  as C
 import           Utils
 
-PlutusTx.makeIsDataIndexed ''ErgoToken [('ErgoToken, 0)]
-PlutusTx.makeLift ''ErgoToken
-
-PlutusTx.makeIsDataIndexed ''LPToken [('LPToken, 0)]
-PlutusTx.makeLift ''LPToken
-
-datumHashFromString :: String -> DatumHash 
+datumHashFromString :: String -> DatumHash
 datumHashFromString str = DatumHash $ C.pack str
 
 data ErgoDexPool = ErgoDexPool {

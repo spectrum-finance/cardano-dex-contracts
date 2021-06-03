@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -27,6 +28,7 @@ module Proxy.Contract.OnChain where
 import           Control.Monad          (void)
 import           Playground.Contract    (FromJSON, Generic, ToJSON, ToSchema)
 import           GHC.Generics           (Generic)
+import           Ledger
 import           Ledger.Value           (AssetClass (..), symbols, assetClassValueOf)
 import           Ledger.Contexts        (ScriptContext(..))
 import qualified Ledger.Constraints     as Constraints
@@ -63,8 +65,6 @@ import Ledger
       Redeemer,
       TxOut(txOutDatumHash, txOutValue),
       Value )
-import qualified Ledger.Ada             as Ada
-
 import qualified Prelude
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
@@ -97,26 +97,38 @@ findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
 
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
-checkCorrectSwap ProxyDatum{..} sCtx = 
-    traceIfFalse "Swap should satisfy conditions" checkConditions &&
-    traceIfFalse "Recepient should be correct" True
+checkCorrectSwap ProxyDatum{..} sCtx =
+    traceIfFalse "Swap should satisfy conditions" checkConditions
   where
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
+    outputWithUserKey :: TxOut
+    outputWithUserKey = case [ output
+                                     | output <- getContinuingOutputs sCtx
+                                     , txOutAddress output == (pubKeyHashAddress $ PubKeyHash userAddressBS)
+                                     ] of
+      [output]   -> output
+      otherwise  -> traceError "expected output with user pubkey"
+
     isErgoSwap :: Bool
-    isErgoSwap = 
+    isErgoSwap =
         let
           outputWithValueToSwap = txInInfoResolved ownInput
           ergoSwapCheck = isUnity (txOutValue outputWithValueToSwap) ergoToken
         in ergoSwapCheck
 
-    checkConditions :: Bool 
-    checkConditions = 
+    checkConditions :: Bool
+    checkConditions =
         let
-          outputWithUserPubKey = True
-          inputValue = True
-        in True
+          outputWithValueToSwap = txInInfoResolved ownInput
+          inputValue =
+              if (isErgoSwap) then outputAmountOf outputWithValueToSwap ergoToken else outputAmountOf outputWithValueToSwap adaToken
+          outputValue =
+              if (isErgoSwap) then outputAmountOf outputWithUserKey adaToken else outputAmountOf outputWithUserKey ergoToken
+          realRate = outputValue `div` inputValue
+          -- todo: use double, instead of integer for rate
+        in realRate <= rate * slippageTolerance
 
 
 {-# INLINABLE checkCorrectReturn #-}
@@ -127,3 +139,14 @@ checkCorrectReturn ProxyDatum{..} sCtx = True
 mkProxyValidator :: ProxyDatum -> ProxyAction -> ScriptContext -> Bool
 mkProxyValidator proxyDatum Swap sCtx   = checkCorrectSwap proxyDatum sCtx
 mkProxyValidator proxyDatum Return sCtx = checkCorrectReturn proxyDatum sCtx
+
+data ProxySwapping
+instance Scripts.ScriptType ProxySwapping where
+    type instance RedeemerType ProxySwapping = ProxyAction
+    type instance DatumType    ProxySwapping = ProxyDatum
+
+proxyInstance :: Scripts.ScriptInstance ProxySwapping
+proxyInstance = Scripts.validator @ProxySwapping
+    $$(PlutusTx.compile [|| mkProxyValidator ||])
+    $$(PlutusTx.compile [|| wrap ||]) where
+        wrap = Scripts.wrapValidator @ProxyDatum @ProxyAction

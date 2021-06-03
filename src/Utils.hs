@@ -42,7 +42,13 @@ import qualified Data.ByteString.Char8  as C
 
 data ErgoToken = ErgoToken
 
+PlutusTx.makeIsDataIndexed ''ErgoToken [('ErgoToken, 0)]
+PlutusTx.makeLift ''ErgoToken
+
 data LPToken = LPToken
+
+PlutusTx.makeIsDataIndexed ''LPToken [('LPToken, 0)]
+PlutusTx.makeLift ''LPToken
 
 deriving anyclass instance ToSchema AssetClass
 

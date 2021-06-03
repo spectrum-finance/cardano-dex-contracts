@@ -35,8 +35,8 @@ instance Scripts.ScriptType ErgoDexSwapping where
     type instance RedeemerType ErgoDexSwapping = ContractAction
     type instance DatumType    ErgoDexSwapping = ErgoDexPool
 
-dexInstance :: Scripts.ScriptInstance Dex
-starterInstance = Scripts.validator @Dex
+dexInstance :: Scripts.ScriptInstance ErgoDexSwapping
+starterInstance = Scripts.validator @ErgoDexSwapping
     $$(PlutusTx.compile [|| mkDexValidator ||])
     $$(PlutusTx.compile [|| wrap ||]) where
         wrap = Scripts.wrapValidator @ErgoDexPool @ContractAction
