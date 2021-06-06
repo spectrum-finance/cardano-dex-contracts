@@ -3,9 +3,7 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -13,7 +11,8 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
-{-# options_ghc -fno-warn-orphans          #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# options_ghc -Wno-redundant-constraints #-}
 {-# options_ghc -fno-strictness            #-}
 {-# options_ghc -fno-specialise            #-}
@@ -28,8 +27,15 @@ module Proxy.Contract.OnChain where
 import           Control.Monad          (void)
 import           Playground.Contract    (FromJSON, Generic, ToJSON, ToSchema)
 import           GHC.Generics           (Generic)
+import qualified Data.ByteString        as BS
 import           Ledger
-import           Ledger.Value           (AssetClass (..), symbols, assetClassValueOf)
+import           Ledger.Value
+    ( AssetClass (..),
+      symbols,
+      assetClassValueOf,
+      tokenName,
+      currencySymbol,
+      assetClass )
 import           Ledger.Contexts        (ScriptContext(..))
 import qualified Ledger.Constraints     as Constraints
 import qualified Ledger.Typed.Scripts   as Scripts
@@ -44,8 +50,11 @@ import Plutus.Contract
       BlockchainActions,
       Endpoint,
       Contract,
-      AsContractError,
-      ContractError )
+      AsContractError
+    )
+import PlutusTx.Prelude ( Bool(True), Integer, ByteString )
+import           Ledger.Constraints.OnChain       as Constraints
+import           Ledger.Constraints.TxConstraints as Constraints
 import           Plutus.Contract.Schema ()
 import           Plutus.Trace.Emulator  (EmulatorTrace)
 import qualified Plutus.Trace.Emulator  as Trace
@@ -64,20 +73,24 @@ import Ledger
       DatumHash,
       Redeemer,
       TxOut(txOutDatumHash, txOutValue),
-      Value )
+      Value)
 import qualified Prelude
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
 import           Utils
+import qualified PlutusTx.Builtins   as Builtins
 
 --todo: rate :: Integer -> rate :: Double ?
 --todo: remove ergoToken and adaToken from proxy datum ?
 data ProxyDatum = ProxyDatum {
     slippageTolerance :: Integer,
     rate :: Integer,
-    userAddressBS :: ByteString,
-    ergoToken :: Coin ErgoToken,
-    adaToken :: Coin Ada
+    userPubKey :: Builtins.ByteString,
+    toSwapSymbol :: Builtins.ByteString,
+    toSwapTokenName :: Builtins.ByteString,
+    -- determine the hash of second coin
+    toGetCurSymbol :: Builtins.ByteString,
+    toGetTokenName :: Builtins.ByteString
 } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 
 PlutusTx.makeIsDataIndexed ''ProxyDatum [('ProxyDatum, 0)]
@@ -98,24 +111,41 @@ findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
-    traceIfFalse "Swap should satisfy conditions" checkConditions
+    traceIfFalse "Swap should satisfy conditions" True
   where
+
+    coinA :: Coin CoinA
+    coinA =
+      let
+        tokenNameA = tokenName toSwapSymbol
+        currencySymbolA = currencySymbol toSwapTokenName
+        assetClassA = assetClass currencySymbolA tokenNameA
+      in Coin (assetClassA)
+
+    coinB :: Coin CoinB
+    coinB =
+      let
+        tokenNameB = tokenName toGetTokenName
+        currencySymbolB = currencySymbol toGetCurSymbol
+        assetClassB = assetClass currencySymbolB tokenNameB
+      in Coin (assetClassB)
+
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
     outputWithUserKey :: TxOut
     outputWithUserKey = case [ output
                                      | output <- getContinuingOutputs sCtx
-                                     , txOutAddress output == (pubKeyHashAddress $ PubKeyHash userAddressBS)
+                                     , txOutAddress output == (pubKeyHashAddress $ PubKeyHash userPubKey)
                                      ] of
       [output]   -> output
       otherwise  -> traceError "expected output with user pubkey"
 
-    isErgoSwap :: Bool
-    isErgoSwap =
+    isASwap :: Bool
+    isASwap =
         let
           outputWithValueToSwap = txInInfoResolved ownInput
-          ergoSwapCheck = isUnity (txOutValue outputWithValueToSwap) ergoToken
+          ergoSwapCheck = isUnity (txOutValue outputWithValueToSwap) coinA
         in ergoSwapCheck
 
     checkConditions :: Bool
@@ -123,9 +153,9 @@ checkCorrectSwap ProxyDatum{..} sCtx =
         let
           outputWithValueToSwap = txInInfoResolved ownInput
           inputValue =
-              if (isErgoSwap) then outputAmountOf outputWithValueToSwap ergoToken else outputAmountOf outputWithValueToSwap adaToken
+              if (isASwap) then outputAmountOf outputWithValueToSwap coinA else outputAmountOf outputWithValueToSwap coinB
           outputValue =
-              if (isErgoSwap) then outputAmountOf outputWithUserKey adaToken else outputAmountOf outputWithUserKey ergoToken
+              if (isASwap) then outputAmountOf outputWithUserKey coinB else outputAmountOf outputWithUserKey coinA
           realRate = outputValue `div` inputValue
           -- todo: use double, instead of integer for rate
         in realRate <= rate * slippageTolerance
@@ -133,7 +163,23 @@ checkCorrectSwap ProxyDatum{..} sCtx =
 
 {-# INLINABLE checkCorrectReturn #-}
 checkCorrectReturn :: ProxyDatum -> ScriptContext -> Bool
-checkCorrectReturn ProxyDatum{..} sCtx = True
+checkCorrectReturn ProxyDatum{..} sCtx =
+  checkTxConstraint (sCtx) (Constraints.MustBeSignedBy (PubKeyHash userPubKey)) &&
+  traceIfFalse "Recepient should be issuer" isReturnCorrect
+  where
+
+    ownInput :: TxInInfo
+    ownInput = findOwnInput' sCtx
+
+    isReturnCorrect :: Bool
+    isReturnCorrect =
+      let
+        value2swap = txOutValue $ txInInfoResolved ownInput
+        pubKH = PubKeyHash (userPubKey)
+      in checkTxConstraint sCtx (Constraints.MustPayToPubKey pubKH value2swap)
+
+    getTrue :: Bool
+    getTrue = True
 
 {-# INLINABLE mkProxyValidator #-}
 mkProxyValidator :: ProxyDatum -> ProxyAction -> ScriptContext -> Bool

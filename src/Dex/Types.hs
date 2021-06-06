@@ -37,6 +37,7 @@ import PlutusTx.Prelude
       Ord )
 import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
+import qualified PlutusTx.Builtins   as Builtins
 import qualified Data.ByteString.Char8  as C
 import           Utils
 
@@ -44,9 +45,15 @@ datumHashFromString :: String -> DatumHash
 datumHashFromString str = DatumHash $ C.pack str
 
 data ErgoDexPool = ErgoDexPool {
-    adaCoin :: Coin Ada,
-    ergoCoin :: Coin ErgoToken,
-    lpToken :: Coin LPToken
+    -- determine the hash of first coin
+    aCurSymbol :: Builtins.ByteString,
+    aTokenName :: Builtins.ByteString,
+    -- determine the hash of second coin
+    bCurSymbol :: Builtins.ByteString,
+    bTokenName :: Builtins.ByteString,
+    -- determine the hash of lp coin
+    lpCurSymbol :: Builtins.ByteString,
+    lpTokenName :: Builtins.ByteString
 } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 
 PlutusTx.makeIsDataIndexed ''ErgoDexPool [('ErgoDexPool, 0)]

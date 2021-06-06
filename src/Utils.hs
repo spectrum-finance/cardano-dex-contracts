@@ -40,10 +40,15 @@ import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
 import qualified Data.ByteString.Char8  as C
 
-data ErgoToken = ErgoToken
+data CoinA = CoinA
 
-PlutusTx.makeIsDataIndexed ''ErgoToken [('ErgoToken, 0)]
-PlutusTx.makeLift ''ErgoToken
+PlutusTx.makeIsDataIndexed ''CoinA [('CoinA, 0)]
+PlutusTx.makeLift ''CoinA
+
+data CoinB = CoinB
+
+PlutusTx.makeIsDataIndexed ''CoinB [('CoinB, 0)]
+PlutusTx.makeLift ''CoinB
 
 data LPToken = LPToken
 
