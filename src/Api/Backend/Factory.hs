@@ -18,71 +18,32 @@
 
 module Api.Backend.Factory where
 
-import           Control.Monad          (void)
-import           Playground.Contract    (FromJSON, Generic, ToJSON, ToSchema)
-import           GHC.Generics           (Generic)
-import qualified Data.ByteString        as BS
-import           Ledger
-import           Ledger.Value
-    ( AssetClass (..),
-      symbols,
-      assetClassValueOf,
-      tokenName,
-      currencySymbol,
-      assetClass )
-import           Ledger.Contexts        (ScriptContext(..))
-import qualified Ledger.Constraints     as Constraints
-import qualified Ledger.Typed.Scripts   as Scripts
-import Plutus.Contract
-    ( endpoint,
-      utxoAt,
-      submitTxConstraints,
-      submitTxConstraintsSpending,
-      collectFromScript,
-      select,
-      type (.\/),
-      BlockchainActions,
-      Endpoint,
-      Contract,
-      AsContractError,
-      logInfo,
-      submitTxConstraintsWith,
-      HasBlockchainActions
-    )
-import PlutusTx.Prelude ( Bool(True), Integer, ByteString )
-import           PlutusTx.IsData
+import           Control.Monad                    hiding (fmap)
+import qualified Data.Map                         as Map
+import           Data.Map                         (Map)
 import           Data.Text                        (Text, pack)
-import           Ledger.Constraints.OnChain       as Constraints
-import           Ledger.Constraints.TxConstraints as Constraints
-import           Plutus.Contract.Schema ()
-import           Plutus.Trace.Emulator  (EmulatorTrace)
-import qualified Plutus.Trace.Emulator  as Trace
-import qualified PlutusTx
-import           PlutusTx.Prelude
-import qualified Prelude             as Haskell
-import Ledger
-    ( findOwnInput,
-      getContinuingOutputs,
-      ownHashes,
-      pubKeyHashAddress,
-      Address,
-      ScriptContext(scriptContextTxInfo),
-      TxInInfo(txInInfoResolved),
-      TxInfo(txInfoInputs),
-      DatumHash,
-      Redeemer,
-      TxOut(txOutDatumHash, txOutValue),
-      Value)
-import qualified Prelude
-import           Schema                 (ToArgument, ToSchema)
-import           Wallet.Emulator        (Wallet (..))
-import           Utils
-import qualified PlutusTx.Builtins   as Builtins
-import Proxy.Contract.OnChain
-import Dex.Contract.OffChain
+import           Ledger                           hiding (singleton)
+import qualified Data.ByteString.Char8  as C
+import           Ledger.Constraints               as Constraints
+import qualified Ledger.Typed.Scripts             as Scripts
+import           Control.Monad.Freer              (Eff, Member)
 import           Playground.Contract
+import           PlutusTx.IsData
+import           Plutus.Contract                  hiding (when)
+import           Plutus.Contract.Wallet           (balanceTx)
+import qualified PlutusTx
+import           PlutusTx.Prelude                 hiding (Semigroup (..), dropWhile, flip, unless)
+import           Prelude                          as Haskell (Int, Semigroup (..), String, div, dropWhile, flip, show,
+                                                              (^))
+import           Text.Printf                      (printf)
+import           Proxy.Contract.OnChain
+import           Dex.Contract.OffChain
 import           Ledger.Scripts  (unitRedeemer)
-
+import           Ledger.Ada
+import           Wallet.Effects
+import           Control.Monad.Freer.Error      (Error, throwError)
+import           Control.Monad.Freer.Extras.Log (LogMsg, logDebug, logInfo)
+import           Wallet.Emulator.LogMessages    (TxBalanceMsg (..))
 
 -- createSwapTransaction :: TxOut -> Datum -> TxOutRef -> TxOut -> Datum -> Tx
 -- createSwapTransaction outWithProxy proxyDatum proxyTxOutRef outWithPool poolDatum = do
@@ -91,13 +52,30 @@ import           Ledger.Scripts  (unitRedeemer)
 --     ledgerTx <- submitTxConstraintsWith lookups tx
 --     logInfo $ show ledgerTx
 
-createSwapTransaction :: HasBlockchainActions s => TxOutRef -> Contract w s Text Tx
-createSwapTransaction proxyTxOutRef =  do
+createSwapTransaction :: TxOutRef -> ProxyDatum -> Datum -> TxOutTx -> Either MkTxError UnbalancedTx
+createSwapTransaction proxyTxOutRef proxyDatum datum o =
     let
-        lookups = Constraints.otherScript (Scripts.validatorScript dexInstance)
-        tx = Constraints.mustSpendScriptOutput proxyTxOutRef unitRedeemer
-    ledgerTx <- submitTxConstraintsWith lookups tx
-    return ledgerTx
+        value = lovelaceValueOf 10
+        lookups  = Constraints.scriptInstanceLookups proxyInstance <>
+                   Constraints.otherData datum <>
+                   Constraints.otherScript (Scripts.validatorScript proxyInstance) <>
+                   Constraints.unspentOutputs (Map.singleton proxyTxOutRef o)
+
+        redeemer = Redeemer $ PlutusTx.toData Swap
+
+        tx =  Constraints.mustSpendScriptOutput proxyTxOutRef redeemer <>
+              Constraints.mustPayToTheScript proxyDatum value
+
+
+        unTx = Constraints.mkTx @ProxySwapping lookups tx
+    in unTx
 
     -- ledgerTx <- submitTxConstraintsWith lookups tx
-    -- logInfo $ "created liquidity pool: " ++ show ledgerTx
+    --
+
+-- tryBalance :: ( Member WalletEffect effs
+--     , Member (Error WalletAPIError) effs
+--     , Member ChainIndexEffect effs
+--     , Member (LogMsg TxBalanceMsg) effs
+--     ) => UnbalancedTx -> PubKey -> Eff effs Tx
+-- tryBalance unTx pkNotToUse = balanceTx Map.empty pkNotToUse unTx

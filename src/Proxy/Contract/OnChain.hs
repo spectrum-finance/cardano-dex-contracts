@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE EmptyDataDecls             #-}
 {-# LANGUAGE DeriveAnyClass             #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
@@ -93,16 +94,12 @@ data ProxyDatum = ProxyDatum {
     toGetTokenName :: Builtins.ByteString
 } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 
-PlutusTx.makeIsDataIndexed ''ProxyDatum [('ProxyDatum, 0)]
-PlutusTx.makeLift ''ProxyDatum
+PlutusTx.unstableMakeIsData ''ProxyDatum
 
 data ProxyAction = Swap | Return
     deriving Haskell.Show
 
-PlutusTx.makeIsDataIndexed ''ProxyAction [ ('Swap ,   0)
-                                         , ('Return,    1)
-                                         ]
-PlutusTx.makeLift ''ProxyAction
+PlutusTx.unstableMakeIsData ''ProxyAction
 
 {-# INLINABLE findOwnInput' #-}
 findOwnInput' :: ScriptContext -> TxInInfo
@@ -196,3 +193,6 @@ proxyInstance = Scripts.validator @ProxySwapping
     $$(PlutusTx.compile [|| mkProxyValidator ||])
     $$(PlutusTx.compile [|| wrap ||]) where
         wrap = Scripts.wrapValidator @ProxyDatum @ProxyAction
+
+proxyValidator :: Validator
+proxyValidator = Scripts.validatorScript proxyInstance

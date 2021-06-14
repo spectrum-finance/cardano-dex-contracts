@@ -86,4 +86,4 @@ checkForProxyOutput tx =
                                | proxyOutput <- txOutputs tx
                                , txOutDatumHash (txInInfoResolved proxyInput) == Just hash
                                ]
-    in
+    in isEmpty possibleProxyOutputs
