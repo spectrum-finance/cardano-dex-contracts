@@ -74,6 +74,14 @@ import           Wallet.Emulator        (Wallet (..))
 
 import Dex.Types
 import Utils
+    ( amountOf,
+      isUnity,
+      outputAmountOf,
+      Amount(unAmount),
+      Coin(Coin),
+      CoinA,
+      CoinB,
+      LPToken )
 
 --todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
 
