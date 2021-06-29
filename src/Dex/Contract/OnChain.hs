@@ -72,7 +72,7 @@ import qualified Prelude
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
 
-import Dex.Types
+import Dex.Contract.Models
 import Utils
     ( amountOf,
       isUnity,

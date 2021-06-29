@@ -30,7 +30,7 @@ import qualified Prelude                as Haskell
 import qualified Ledger.Typed.Scripts   as Scripts
 import           Text.Printf         (PrintfArg)
 import qualified Data.ByteString.Char8  as C
-import Dex.Types
+import Dex.Contract.Models
 import Dex.Contract.OnChain
 
 data ErgoDexSwapping

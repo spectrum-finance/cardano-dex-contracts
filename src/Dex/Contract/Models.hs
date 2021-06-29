@@ -17,7 +17,7 @@
 {-# options_ghc -fno-strictness            #-}
 {-# options_ghc -fno-specialise            #-}
 
-module Dex.Types where
+module Dex.Contract.Models where
 
 import           Ledger
 import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)

@@ -77,7 +77,7 @@ import Ledger
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
 import           Utils
-import           Proxy.Contract.Types
+import           Proxy.Contract.Models
 
 {-# INLINABLE findOwnInput' #-}
 findOwnInput' :: ScriptContext -> TxInInfo

@@ -18,7 +18,7 @@
 {-# options_ghc -fno-strictness            #-}
 {-# options_ghc -fno-specialise            #-}
 
-module Proxy.Contract.Types where
+module Proxy.Contract.Models where
 
 import qualified PlutusTx.Builtins   as Builtins
 import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
@@ -27,7 +27,7 @@ import           PlutusTx.Prelude
 import qualified Prelude             as Haskell
 import           Ledger
 
-data ProxyAction = Swap | Return
+data ProxyAction = Swap | Return | Redeem
     deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 
 PlutusTx.unstableMakeIsData ''ProxyAction
@@ -43,7 +43,8 @@ data ProxyDatum = ProxyDatum {
     toTokenName :: Builtins.ByteString,
     -- determine the hash of second coin
     fromCurSymbol :: Builtins.ByteString,
-    fromTokenName :: Builtins.ByteString
+    fromTokenName :: Builtins.ByteString,
+    targetPoolId :: Builtins.ByteString
 } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 
 PlutusTx.unstableMakeIsData ''ProxyDatum
