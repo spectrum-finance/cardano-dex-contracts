@@ -53,7 +53,6 @@ import Plutus.Contract
       Contract,
       AsContractError
     )
-import PlutusTx.Prelude ( Bool(True), Integer, ByteString )
 import           Ledger.Constraints.OnChain       as Constraints
 import           Ledger.Constraints.TxConstraints as Constraints
 import           Plutus.Contract.Schema ()
@@ -75,31 +74,10 @@ import Ledger
       Redeemer,
       TxOut(txOutDatumHash, txOutValue),
       Value)
-import qualified Prelude
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
 import           Utils
-import qualified PlutusTx.Builtins   as Builtins
-
---todo: rate :: Integer -> rate :: Double ?
---todo: remove ergoToken and adaToken from proxy datum ?
-data ProxyDatum = ProxyDatum {
-    slippageTolerance :: Integer,
-    rate :: Integer,
-    userPubKey :: Builtins.ByteString,
-    toSwapSymbol :: Builtins.ByteString,
-    toSwapTokenName :: Builtins.ByteString,
-    -- determine the hash of second coin
-    toGetCurSymbol :: Builtins.ByteString,
-    toGetTokenName :: Builtins.ByteString
-} deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
-
-PlutusTx.unstableMakeIsData ''ProxyDatum
-
-data ProxyAction = Swap | Return
-    deriving Haskell.Show
-
-PlutusTx.unstableMakeIsData ''ProxyAction
+import           Proxy.Contract.Types
 
 {-# INLINABLE findOwnInput' #-}
 findOwnInput' :: ScriptContext -> TxInInfo
@@ -114,16 +92,16 @@ checkCorrectSwap ProxyDatum{..} sCtx =
     coinA :: Coin CoinA
     coinA =
       let
-        tokenNameA = tokenName toSwapSymbol
-        currencySymbolA = currencySymbol toSwapTokenName
+        tokenNameA = tokenName fromCurSymbol
+        currencySymbolA = currencySymbol fromTokenName
         assetClassA = assetClass currencySymbolA tokenNameA
       in Coin (assetClassA)
 
     coinB :: Coin CoinB
     coinB =
       let
-        tokenNameB = tokenName toGetTokenName
-        currencySymbolB = currencySymbol toGetCurSymbol
+        tokenNameB = tokenName toTokenName
+        currencySymbolB = currencySymbol toSymbol
         assetClassB = assetClass currencySymbolB tokenNameB
       in Coin (assetClassB)
 
@@ -153,7 +131,7 @@ checkCorrectSwap ProxyDatum{..} sCtx =
               if (isASwap) then outputAmountOf outputWithValueToSwap coinA else outputAmountOf outputWithValueToSwap coinB
           outputValue =
               if (isASwap) then outputAmountOf outputWithUserKey coinB else outputAmountOf outputWithUserKey coinA
-          realRate = outputValue `div` inputValue
+          realRate = outputValue `Haskell.div` inputValue
           -- todo: use double, instead of integer for rate
         in realRate <= rate * slippageTolerance
 
@@ -161,7 +139,7 @@ checkCorrectSwap ProxyDatum{..} sCtx =
 {-# INLINABLE checkCorrectReturn #-}
 checkCorrectReturn :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectReturn ProxyDatum{..} sCtx =
-  checkTxConstraint (sCtx) (Constraints.MustBeSignedBy (PubKeyHash userPubKey)) &&
+  checkTxConstraint (sCtx) (Constraints.MustBeSignedBy (PubKeyHash userPubKey)) PlutusTx.Prelude.&&
   traceIfFalse "Recepient should be issuer" isReturnCorrect
   where
 
@@ -184,12 +162,12 @@ mkProxyValidator proxyDatum Swap sCtx   = checkCorrectSwap proxyDatum sCtx
 mkProxyValidator proxyDatum Return sCtx = checkCorrectReturn proxyDatum sCtx
 
 data ProxySwapping
-instance Scripts.ScriptType ProxySwapping where
+instance Scripts.ValidatorTypes ProxySwapping where
     type instance RedeemerType ProxySwapping = ProxyAction
     type instance DatumType    ProxySwapping = ProxyDatum
 
-proxyInstance :: Scripts.ScriptInstance ProxySwapping
-proxyInstance = Scripts.validator @ProxySwapping
+proxyInstance :: Scripts.TypedValidator ProxySwapping
+proxyInstance = Scripts.mkTypedValidator @ProxySwapping
     $$(PlutusTx.compile [|| mkProxyValidator ||])
     $$(PlutusTx.compile [|| wrap ||]) where
         wrap = Scripts.wrapValidator @ProxyDatum @ProxyAction

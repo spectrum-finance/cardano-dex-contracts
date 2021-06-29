@@ -28,7 +28,6 @@ import qualified PlutusTx
 import PlutusTx.Prelude
     ( Bool,
       Integer,
-      String,
       (.),
       ($),
       Eq(..),
@@ -55,8 +54,6 @@ data LPToken = LPToken
 
 PlutusTx.makeIsDataIndexed ''LPToken [('LPToken, 0)]
 PlutusTx.makeLift ''LPToken
-
-deriving anyclass instance ToSchema AssetClass
 
 newtype Coin a = Coin { unCoin :: AssetClass }
   deriving stock   (Haskell.Show, Generic)

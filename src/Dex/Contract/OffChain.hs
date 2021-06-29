@@ -34,12 +34,12 @@ import Dex.Types
 import Dex.Contract.OnChain
 
 data ErgoDexSwapping
-instance Scripts.ScriptType ErgoDexSwapping where
+instance Scripts.ValidatorTypes ErgoDexSwapping where
     type instance RedeemerType ErgoDexSwapping = ContractAction
     type instance DatumType    ErgoDexSwapping = ErgoDexPool
 
-dexInstance :: Scripts.ScriptInstance ErgoDexSwapping
-dexInstance = Scripts.validator @ErgoDexSwapping
+dexInstance :: Scripts.TypedValidator ErgoDexSwapping
+dexInstance = Scripts.mkTypedValidator @ErgoDexSwapping
     $$(PlutusTx.compile [|| mkDexValidator ||])
     $$(PlutusTx.compile [|| wrap ||]) where
         wrap = Scripts.wrapValidator @ErgoDexPool @ContractAction

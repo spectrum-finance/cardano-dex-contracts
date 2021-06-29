@@ -221,14 +221,14 @@ checkTokenSwap ErgoDexPool{..} sCtx =
       let
         ergoReserved = outputAmountOf currentPoolOutput coinA
         adaReserved = outputAmountOf currentPoolOutput coinB
-      in ergoReserved * adaValueToSwap * feeNum `div` (adaReserved * 1000 + adaValueToSwap * feeNum)
+      in ergoReserved * adaValueToSwap * feeNum `Prelude.div` (adaReserved * 1000 + adaValueToSwap * feeNum)
 
     adaRate :: Integer -> Integer
     adaRate ergoValueToSwap =
       let
         ergoReserved = outputAmountOf currentPoolOutput coinA
         adaReserved = outputAmountOf currentPoolOutput coinB
-      in adaReserved * ergoValueToSwap * feeNum `div` (ergoReserved * 1000 + ergoValueToSwap * feeNum)
+      in adaReserved * ergoValueToSwap * feeNum `Prelude.div` (ergoReserved * 1000 + ergoValueToSwap * feeNum)
 
     getTrue :: Bool
     getTrue = True
@@ -356,7 +356,7 @@ checkCorrectDepositing ErgoDexPool{..} sCtx =
         newBValue = outputAmountOf newOutputWithPoolContract coinB
         prevLpValue = outputAmountOf currentPoolOutput coinLP
         newLpDecValue = outputAmountOf newOutputWithPoolContract coinLP
-        correctLpRew = min (ergoValueToDeposit * lpSupply `div` currentAReserved) (adaValueToDeposit * lpSupply `div` currentBReserved)
+        correctLpRew = min (ergoValueToDeposit * lpSupply `Prelude.div` currentAReserved) (adaValueToDeposit * lpSupply `Prelude.div` currentBReserved)
       in
         newAValue == currentAReserved + ergoValueToDeposit &&
         newBValue == currentBReserved + adaValueToDeposit &&
@@ -421,8 +421,8 @@ checkCorrectRedemption ErgoDexPool{..} sCtx =
         newBValue = outputAmountOf newOutputWithPoolContract coinB
         prevLpValue = outputAmountOf currentPoolOutput coinLP
         newLpDecValue = outputAmountOf newOutputWithPoolContract coinLP
-        correctARew = lpRet * currentAReserved `div` lpSupply
-        correctBRew =  lpRet * currentBReserved `div` lpSupply
+        correctARew = lpRet * currentAReserved `Prelude.div` lpSupply
+        correctBRew =  lpRet * currentBReserved `Prelude.div` lpSupply
       in
         newAValue == currentAReserved - correctARew &&
         newBValue == currentBReserved - correctBRew &&
