@@ -23,11 +23,11 @@ library
     hs-source-dirs: src
     
     exposed-modules: Proxy.Contract.OnChain
-                     Proxy.Contract.Types
+                     Proxy.Contract.Models
                      Utils
                      Dex.Contract.OffChain
                      Dex.Contract.OnChain
-                     Dex.Types
+                     Dex.Contract.Models
 
     build-depends: 
         plutus-ledger,
