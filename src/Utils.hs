@@ -13,8 +13,6 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# options_ghc -fno-warn-orphans          #-}
 {-# options_ghc -Wno-redundant-constraints #-}
 {-# options_ghc -fno-strictness            #-}
@@ -40,7 +38,13 @@ import PlutusTx.Prelude
       Ord )
 import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
+import           Dex.Contract.Models
 import qualified Data.ByteString.Char8  as C
+import qualified PlutusTx.Builtins   as Builtins
+import           Plutus.V1.Ledger.Address
+import           Plutus.V1.Ledger.Value
+import           Plutus.V1.Ledger.TxId
+import           Plutus.V1.Ledger.Scripts
 
 data CoinA = CoinA
 
@@ -83,3 +87,27 @@ isUnity v c = amountOf v c == 1
 {-# INLINABLE mkCoin #-}
 mkCoin:: CurrencySymbol -> TokenName -> Coin a
 mkCoin c = Coin . assetClass c
+
+getCoinAFromPool :: ErgoDexPool -> Coin CoinA
+getCoinAFromPool ErgoDexPool{..} =
+      let
+        tokenNameA = tokenName aTokenName
+        currencySymbolA = currencySymbol aCurSymbol
+        assetClassA = assetClass currencySymbolA tokenNameA
+      in Coin (assetClassA)
+
+getCoinBFromPool :: ErgoDexPool -> Coin CoinB
+getCoinBFromPool ErgoDexPool{..} =
+      let
+        tokenNameB = tokenName bTokenName
+        currencySymbolB = currencySymbol bCurSymbol
+        assetClassB = assetClass currencySymbolB tokenNameB
+      in Coin (assetClassB)
+
+getCoinLPFromPool :: ErgoDexPool -> Coin LPToken
+getCoinLPFromPool ErgoDexPool{..} =
+      let
+        tokenNameLP = tokenName lpTokenName
+        currencySymbolLP = currencySymbol lpCurSymbol
+        assetClassLP = assetClass currencySymbolLP tokenNameLP
+      in Coin (assetClassLP)
