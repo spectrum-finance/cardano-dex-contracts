@@ -38,13 +38,17 @@ data ProxyDatum = ProxyDatum {
     action :: ProxyAction,
     slippageTolerance :: Integer,
     rate :: Integer,
+    dexFeeDatum :: Integer,
     userPubKey :: Builtins.ByteString,
+    -- rename? In case of deposit we are going to get lpToken. See processor Dex.Processor.produceDepositOpData
     toSymbol :: Builtins.ByteString,
     toTokenName :: Builtins.ByteString,
     -- determine the hash of second coin
     fromCurSymbol :: Builtins.ByteString,
     fromTokenName :: Builtins.ByteString,
-    targetPoolId :: Builtins.ByteString
+    targetPoolId :: Builtins.ByteString,
+    lpTokenSymbol :: Builtins.ByteString,
+    lpTokenName :: Builtins.ByteString
 } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 
 PlutusTx.unstableMakeIsData ''ProxyDatum

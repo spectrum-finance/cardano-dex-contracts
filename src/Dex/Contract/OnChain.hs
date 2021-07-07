@@ -96,10 +96,6 @@ findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
 valueWithin :: TxInInfo -> Value
 valueWithin = txOutValue . txInInfoResolved
 
-{-# INLINABLE feeNum #-}
-feeNum :: Integer
-feeNum = 997
-
 {-# INLINABLE lpSupply #-}
 -- todo: set correct lp_supply
 lpSupply :: Integer
@@ -200,14 +196,14 @@ checkTokenSwap pool sCtx =
       let
         ergoReserved = outputAmountOf currentPoolOutput (getCoinAFromPool pool)
         adaReserved = outputAmountOf currentPoolOutput (getCoinBFromPool pool)
-      in ergoReserved * adaValueToSwap * feeNum `Prelude.div` (adaReserved * 1000 + adaValueToSwap * feeNum)
+      in ergoReserved * adaValueToSwap * (feeNum pool) `Prelude.div` (adaReserved * 1000 + adaValueToSwap * (feeNum pool))
 
     adaRate :: Integer -> Integer
     adaRate ergoValueToSwap =
       let
         ergoReserved = outputAmountOf currentPoolOutput (getCoinAFromPool pool)
         adaReserved = outputAmountOf currentPoolOutput (getCoinBFromPool pool)
-      in adaReserved * ergoValueToSwap * feeNum `Prelude.div` (ergoReserved * 1000 + ergoValueToSwap * feeNum)
+      in adaReserved * ergoValueToSwap * (feeNum pool) `Prelude.div` (ergoReserved * 1000 + ergoValueToSwap * (feeNum pool))
 
     getTrue :: Bool
     getTrue = True

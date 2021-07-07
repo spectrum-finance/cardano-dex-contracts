@@ -30,6 +30,7 @@ datumHashFromString :: String -> DatumHash
 datumHashFromString str = DatumHash $ C.pack str
 
 data ErgoDexPool = ErgoDexPool {
+    feeNum :: Integer,
     -- determine the hash of first coin
     aCurSymbol :: Builtins.ByteString,
     aTokenName :: Builtins.ByteString,
