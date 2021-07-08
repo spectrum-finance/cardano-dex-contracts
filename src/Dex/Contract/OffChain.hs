@@ -43,3 +43,6 @@ dexInstance = Scripts.mkTypedValidator @ErgoDexSwapping
     $$(PlutusTx.compile [|| mkDexValidator ||])
     $$(PlutusTx.compile [|| wrap ||]) where
         wrap = Scripts.wrapValidator @ErgoDexPool @ContractAction
+
+dexValidator :: Validator
+dexValidator = Scripts.validatorScript dexInstance

@@ -27,10 +27,12 @@ import           PlutusTx.Prelude
 import qualified Prelude             as Haskell
 import           Ledger
 
-data ProxyAction = Swap | Return | Redeem
+data ProxyAction = Swap | Deposit | Redeem
     deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 
 PlutusTx.unstableMakeIsData ''ProxyAction
+
+data Testtesttest = ABCDEF
 
 --todo: rate :: Integer -> rate :: Double ?
 --todo: remove ergoToken and adaToken from proxy datum ?
