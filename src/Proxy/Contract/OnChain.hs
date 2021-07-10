@@ -22,8 +22,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-
-module Dex.Contract.OnChain where
+module Proxy.Contract.OnChain where
 
 import           Control.Monad          (void)
 import           GHC.Generics           (Generic)
