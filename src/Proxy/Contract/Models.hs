@@ -32,8 +32,6 @@ data ProxyAction = Swap | Deposit | Redeem
 
 PlutusTx.unstableMakeIsData ''ProxyAction
 
-data Testtesttest = ABCDEF
-
 --todo: rate :: Integer -> rate :: Double ?
 --todo: remove ergoToken and adaToken from proxy datum ?
 data ProxyDatum = ProxyDatum {
