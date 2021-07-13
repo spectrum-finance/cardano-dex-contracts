@@ -53,8 +53,7 @@ import Plutus.Contract
 import           Plutus.Contract.Schema ()
 import           Plutus.Trace.Emulator  (EmulatorTrace)
 import qualified Plutus.Trace.Emulator  as Trace
-import qualified PlutusTx
-import           PlutusTx.Prelude
+import           PlutusTx.Builtins  (divideInteger, multiplyInteger, addInteger, subtractInteger)
 import Ledger
     ( findOwnInput,
       getContinuingOutputs,
@@ -68,7 +67,8 @@ import Ledger
       Value)
 import qualified Ledger.Ada             as Ada
 
-import qualified Prelude
+import qualified PlutusTx
+import           PlutusTx.Prelude
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
 
@@ -84,260 +84,131 @@ import Utils
       LPToken,
       getCoinAFromPool,
       getCoinBFromPool,
-      getCoinLPFromPool )
+      getCoinLPFromPool,
+      lpSupply,
+      findOwnInput',
+      currentContractHash,
+      inputsLockedByDatumHash,
+      valueWithin,
+      calculateValueInOutputs,
+      proxyDatumHash,
+      ownOutput)
 
 --todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
 
-{-# INLINABLE findOwnInput' #-}
-findOwnInput' :: ScriptContext -> TxInInfo
-findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
-
-{-# INLINABLE valueWithin #-}
-valueWithin :: TxInInfo -> Value
-valueWithin = txOutValue . txInInfoResolved
-
-{-# INLINABLE lpSupply #-}
--- todo: set correct lp_supply
-lpSupply :: Integer
-lpSupply = 4000000000
-
-{-# INLINABLE proxyDatumHash #-}
-proxyDatumHash :: DatumHash
-proxyDatumHash = datumHashFromString "proxyDatumHash"
-
-{-# INLINABLE calculateValueInOutputs #-}
-calculateValueInOutputs :: [TxInInfo] -> Coin a -> Integer
-calculateValueInOutputs outputs coinValue =
-    foldl getAmountAndSum (0 :: Integer) outputs
-  where
-    getAmountAndSum :: Integer -> TxInInfo -> Integer
-    getAmountAndSum acc out = acc + unAmount (amountOf (txOutValue $ txInInfoResolved out) coinValue)
-
- -- set correct contract datum hash
-{-# INLINABLE currentContractHash #-}
-currentContractHash :: DatumHash
-currentContractHash = datumHashFromString "dexContractDatumHash"
-
---refactor
-{-# INLINABLE inputsLockedByDatumHash #-}
-inputsLockedByDatumHash :: DatumHash -> ScriptContext -> [TxInInfo]
-inputsLockedByDatumHash hash sCtx = [ proxyInput
-                                    | proxyInput <- txInfoInputs (scriptContextTxInfo sCtx)
-                                    , txOutDatumHash (txInInfoResolved proxyInput) == Just hash
-                                    ]
-
 {-# INLINABLE checkTokenSwap #-}
 checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
-checkTokenSwap pool sCtx =
-    traceIfFalse "Expected A or B coin to be present in input" inputContainsAOrB &&
-    traceIfFalse "Expected correct value of A and B in pool output" correctValueSwap
+checkTokenSwap ErgoDexPool{..} sCtx =
+    traceIfFalse "Expected A or B coin to be present in input" checkSwaps
   where
 
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
-    newOutputWithPoolContract :: TxOut
-    newOutputWithPoolContract = case [ output
-                                     | output <- getContinuingOutputs sCtx
-                                     , txOutDatumHash output == Just (snd $ ownHashes sCtx)
-                                     ] of
-      [output]   -> output
-      otherwise  -> traceError "expected exactly one output of ergo dex"
+    previousValue :: Value
+    previousValue = txOutValue $ txInInfoResolved ownInput
 
-    currentPoolOutput :: TxOut
-    currentPoolOutput =
+    newValue :: Value
+    newValue = txOutValue $ ownOutput sCtx
+
+    checkCorrectnessSwap :: AssetClass -> AssetClass -> Bool
+    checkCorrectnessSwap coinX coinY =
       let
-        poolInputs = inputsLockedByDatumHash currentContractHash sCtx
-      in
-        case poolInputs of
-          [input] -> txInInfoResolved input
-          otherwise -> traceError "expected exactly one input of ergo dex"
+        previousXValue = assetClassValueOf previousValue (coinX)
+        previousYValue = assetClassValueOf previousValue (coinY)
+        newXValue = assetClassValueOf newValue (coinX)
+        newYValue = assetClassValueOf newValue (coinY)
+        coinXToSwap = newXValue - previousXValue
+        rate = newYValue `multiplyInteger` coinXToSwap `multiplyInteger` (feeNum) `divideInteger` (previousYValue `multiplyInteger` 1000 + coinXToSwap `multiplyInteger` (feeNum))
+      in newYValue == (previousYValue `multiplyInteger` rate)
 
-    proxyInputsWithB :: Integer
-    proxyInputsWithB =
-      let
-        proxyInputs = inputsLockedByDatumHash proxyDatumHash sCtx
-      in calculateValueInOutputs proxyInputs (getCoinBFromPool pool)
-
-    proxyInputsWithA :: Integer
-    proxyInputsWithA =
-      let
-        proxyInputs = inputsLockedByDatumHash proxyDatumHash sCtx
-      in calculateValueInOutputs proxyInputs (getCoinAFromPool pool)
-
-    inputContainsAOrB :: Bool
-    inputContainsAOrB =
-      let
-        input = valueWithin ownInput
-        containsA = isUnity input (getCoinBFromPool pool)
-        containsB = isUnity input (getCoinAFromPool pool)
-      in containsA || containsB
-
-    correctValueSwap :: Bool
-    correctValueSwap =
-      let
-        outputWithValueToSwap = txInInfoResolved ownInput
-        isASwap = isUnity (txOutValue outputWithValueToSwap) (getCoinAFromPool pool)
-        currentBValue = outputAmountOf currentPoolOutput (getCoinBFromPool pool)
-        currentAValue = outputAmountOf currentPoolOutput (getCoinAFromPool pool)
-        currentLpValue = outputAmountOf currentPoolOutput (getCoinLPFromPool pool)
-        newBValue = outputAmountOf newOutputWithPoolContract (getCoinBFromPool pool)
-        newAValue = outputAmountOf newOutputWithPoolContract (getCoinAFromPool pool)
-        newLpToken = outputAmountOf newOutputWithPoolContract (getCoinLPFromPool pool)
-        correctnewBValue = if isASwap then currentBValue - adaRate proxyInputsWithB else currentBValue + proxyInputsWithB
-        correctnewAValue = if isASwap then currentAValue + proxyInputsWithA else currentAValue - ergoRate proxyInputsWithA
-      in
-        newAValue == correctnewAValue && newBValue == correctnewBValue && currentLpValue == newLpToken
-
-    -- formula from https://github.com/ergoplatform/eips/blob/eip14/eip-0014.md#simple-swap-proxy-contract
-
-    ergoRate :: Integer -> Integer
-    ergoRate adaValueToSwap =
-      let
-        ergoReserved = outputAmountOf currentPoolOutput (getCoinAFromPool pool)
-        adaReserved = outputAmountOf currentPoolOutput (getCoinBFromPool pool)
-      in ergoReserved * adaValueToSwap * (feeNum pool) `Prelude.div` (adaReserved * 1000 + adaValueToSwap * (feeNum pool))
-
-    adaRate :: Integer -> Integer
-    adaRate ergoValueToSwap =
-      let
-        ergoReserved = outputAmountOf currentPoolOutput (getCoinAFromPool pool)
-        adaReserved = outputAmountOf currentPoolOutput (getCoinBFromPool pool)
-      in adaReserved * ergoValueToSwap * (feeNum pool) `Prelude.div` (ergoReserved * 1000 + ergoValueToSwap * (feeNum pool))
-
-    getTrue :: Bool
-    getTrue = True
+    checkSwaps :: Bool
+    checkSwaps = checkCorrectnessSwap xCoin yCoin || checkCorrectnessSwap yCoin xCoin
 
 {-# INLINABLE checkCorrectPoolBootstrapping #-}
 checkCorrectPoolBootstrapping :: ErgoDexPool -> ScriptContext -> Bool
-checkCorrectPoolBootstrapping pool sCtx =
-  traceIfFalse "Incorrect conditions of lp token" lpTokenCond &&
-  traceIfFalse "A and B should be in ouptut" isAAndBCoinExists
+checkCorrectPoolBootstrapping ErgoDexPool{..} sCtx =
+  traceIfFalse "Incorrect conditions of lp token" lpTokenCond
   where
 
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
-    newOutputWithPoolContract :: TxOut
-    newOutputWithPoolContract = case [ output
-                                     | output <- getContinuingOutputs sCtx
-                                     , txOutDatumHash output == Just (snd $ ownHashes sCtx)
-                                     ] of
-      [output]   -> output
-      otherwise  -> traceError "expected exactly one output of ergo dex"
+    newValue :: Value
+    newValue = txOutValue $ ownOutput sCtx
 
     lpTokenCond :: Bool
     lpTokenCond =
       let
-       lpTokenExsit = isUnity (txOutValue newOutputWithPoolContract) (getCoinLPFromPool pool)
-       lpTokenAmount = outputAmountOf newOutputWithPoolContract (getCoinLPFromPool pool)
-       adaAmount = outputAmountOf newOutputWithPoolContract (getCoinBFromPool pool)
-       ergoAmount = outputAmountOf newOutputWithPoolContract (getCoinAFromPool pool)
-       correctLpValue = adaAmount * ergoAmount
+        newXValue = assetClassValueOf newValue (xCoin)
+        newYValue = assetClassValueOf newValue (yCoin)
+        newLPValue = assetClassValueOf newValue (lpCoin)
+        correctLpValue = newXValue * newYValue
       in
-        lpTokenExsit && lpTokenAmount * lpTokenAmount >= correctLpValue --check
-
-    isAAndBCoinExists :: Bool
-    isAAndBCoinExists =
-      let
-        isAExists = isUnity (txOutValue newOutputWithPoolContract) (getCoinAFromPool pool)
-        isBExists = isUnity (txOutValue newOutputWithPoolContract) (getCoinBFromPool pool)
-        adaAmount = outputAmountOf newOutputWithPoolContract (getCoinBFromPool pool)
-        ergoAmount = outputAmountOf newOutputWithPoolContract (getCoinAFromPool pool)
-      in
-        isAExists && isBExists && adaAmount > 0 && ergoAmount > 0
+        newLPValue * newLPValue >= correctLpValue && newXValue > 0 && newYValue > 0
 
 {-# INLINABLE checkCorrectDepositing #-}
 checkCorrectDepositing :: ErgoDexPool -> ScriptContext -> Bool
-checkCorrectDepositing pool sCtx =
-  traceIfFalse "Incorrect lp token value" checkLpTokenSwap
+checkCorrectDepositing ErgoDexPool{..} sCtx =
+  traceIfFalse "Incorrect lp token value" checkDeposit
   where
 
-    newOutputWithPoolContract :: TxOut
-    newOutputWithPoolContract = case [ output
-                                     | output <- getContinuingOutputs sCtx
-                                     , txOutDatumHash output == Just (snd $ ownHashes sCtx)
-                                     ] of
-      [output]   -> output
-      otherwise  -> traceError "expected exactly one output of ergo dex"
+    ownInput :: TxInInfo
+    ownInput = findOwnInput' sCtx
 
-    currentPoolOutput :: TxOut
-    currentPoolOutput =
-      let
-        poolInputs = inputsLockedByDatumHash currentContractHash sCtx
-      in
-        case poolInputs of
-          [input] -> txInInfoResolved input
-          otherwise -> traceError "expected exactly one input of ergo dex"
+    previousValue :: Value
+    previousValue = txOutValue $ txInInfoResolved ownInput
 
-    checkLpTokenSwap :: Bool
-    checkLpTokenSwap =
+    newValue :: Value
+    newValue = txOutValue $ ownOutput sCtx
+
+    checkDeposit :: Bool
+    checkDeposit =
       let
-        at = True
-        outputToSpent = txInInfoResolved $ findOwnInput' sCtx
-        ergoValueToDeposit = outputAmountOf outputToSpent (getCoinAFromPool pool)
-        adaValueToDeposit = outputAmountOf outputToSpent (getCoinBFromPool pool)
-        currentAReserved = outputAmountOf currentPoolOutput (getCoinAFromPool pool)
-        currentBReserved = outputAmountOf currentPoolOutput (getCoinBFromPool pool)
-        currentLpReserved = outputAmountOf currentPoolOutput (getCoinLPFromPool pool)
-        newAValue = outputAmountOf newOutputWithPoolContract (getCoinAFromPool pool)
-        newBValue = outputAmountOf newOutputWithPoolContract (getCoinBFromPool pool)
-        prevLpValue = outputAmountOf currentPoolOutput (getCoinLPFromPool pool)
-        newLpDecValue = outputAmountOf newOutputWithPoolContract (getCoinLPFromPool pool)
-        correctLpRew = min (ergoValueToDeposit * lpSupply `Prelude.div` currentAReserved) (adaValueToDeposit * lpSupply `Prelude.div` currentBReserved)
-        newAValueCheck = (newAValue == (currentAReserved + ergoValueToDeposit))
-        newBValueCheck = newBValue == currentBReserved + adaValueToDeposit
-        newLpDecValueCheck = newLpDecValue == currentLpReserved - correctLpRew
-      in newAValueCheck && newBValueCheck && newLpDecValueCheck
-        -- newBValue == currentBReserved + adaValueToDeposit &&
-        -- newLpDecValue == currentLpReserved - correctLpRew
+        previousXValue = assetClassValueOf previousValue (xCoin)
+        previousYValue = assetClassValueOf previousValue (yCoin)
+        previousLPValue = assetClassValueOf previousValue (lpCoin)
+        newXValue = assetClassValueOf newValue (xCoin)
+        newYValue = assetClassValueOf newValue (yCoin)
+        newLPValue = assetClassValueOf newValue (lpCoin)
+        coinXToDeposit = newXValue - previousXValue
+        coinYToDeposit = newYValue - previousYValue
+        correctLpRew = min (coinXToDeposit * lpSupply `divideInteger` previousXValue) (coinYToDeposit * lpSupply `divideInteger` previousYValue)
+      in newLPValue == (previousLPValue - correctLpRew)
 
 {-# INLINABLE checkCorrectRedemption #-}
 checkCorrectRedemption :: ErgoDexPool -> ScriptContext -> Bool
-checkCorrectRedemption pool sCtx =
-  traceIfFalse "Incorrect lp token value" True
+checkCorrectRedemption ErgoDexPool{..} sCtx =
+  traceIfFalse "Incorrect lp token value" checkRedemption
   where
 
-    newOutputWithPoolContract :: TxOut
-    newOutputWithPoolContract = case [ output
-                                     | output <- getContinuingOutputs sCtx
-                                     , txOutDatumHash output == Just (snd $ ownHashes sCtx)
-                                     ] of
-      [output]   -> output
-      otherwise  -> traceError "expected exactly one output of dex"
+    ownInput :: TxInInfo
+    ownInput = findOwnInput' sCtx
 
-    currentPoolOutput :: TxOut
-    currentPoolOutput =
-      let
-        poolInputs = inputsLockedByDatumHash currentContractHash sCtx
-      in
-        case poolInputs of
-          [input] -> txInInfoResolved input
-          otherwise -> traceError "expected exactly one input of dex"
+    previousValue :: Value
+    previousValue = txOutValue $ txInInfoResolved ownInput
 
-    checkLpTokenSwap :: Bool
-    checkLpTokenSwap =
+    newValue :: Value
+    newValue = txOutValue $ ownOutput sCtx
+
+    checkRedemption :: Bool
+    checkRedemption =
       let
-        outputToSpent = txInInfoResolved $ findOwnInput' sCtx
-        lpRet = outputAmountOf outputToSpent (getCoinLPFromPool pool)
-        currentAReserved = outputAmountOf currentPoolOutput (getCoinAFromPool pool)
-        currentBReserved = outputAmountOf currentPoolOutput (getCoinBFromPool pool)
-        currentLpReserved = outputAmountOf currentPoolOutput (getCoinLPFromPool pool)
-        newAValue = outputAmountOf newOutputWithPoolContract (getCoinAFromPool pool)
-        newBValue = outputAmountOf newOutputWithPoolContract (getCoinBFromPool pool)
-        prevLpValue = outputAmountOf currentPoolOutput (getCoinLPFromPool pool)
-        newLpDecValue = outputAmountOf newOutputWithPoolContract (getCoinLPFromPool pool)
-        correctARew = lpRet * currentAReserved `Prelude.div` lpSupply
-        correctBRew =  lpRet * currentBReserved `Prelude.div` lpSupply
-      in
-        newAValue == currentAReserved - correctARew &&
-        newBValue == currentBReserved - correctBRew &&
-        newLpDecValue == currentLpReserved + lpRet
+        previousXValue = assetClassValueOf previousValue (xCoin)
+        previousYValue = assetClassValueOf previousValue (yCoin)
+        previousLPValue = assetClassValueOf previousValue (lpCoin)
+        newXValue = assetClassValueOf newValue (xCoin)
+        newYValue = assetClassValueOf newValue (yCoin)
+        newLPValue = assetClassValueOf newValue (lpCoin)
+        lpReturned = newLPValue - previousLPValue
+        correctXValue = lpReturned * previousXValue `divideInteger` lpSupply
+        correctYValue = lpReturned * previousYValue `divideInteger` lpSupply
+      in newXValue == correctXValue && newYValue == correctYValue
 
 {-# INLINABLE mkDexValidator #-}
 mkDexValidator :: ErgoDexPool -> ContractAction -> ScriptContext -> Bool
-mkDexValidator pool Create sCtx    = checkCorrectPoolBootstrapping pool sCtx
 mkDexValidator pool SwapLP sCtx    = checkCorrectRedemption pool sCtx
--- mkDexValidator pool AddTokens sCtx = checkCorrectDepositing pool sCtx
--- mkDexValidator pool SwapToken sCtx = checkTokenSwap pool sCtx
+mkDexValidator pool Create sCtx    = checkCorrectPoolBootstrapping pool sCtx
+mkDexValidator pool AddTokens sCtx = checkCorrectDepositing pool sCtx
+mkDexValidator pool SwapToken sCtx = checkTokenSwap pool sCtx
 mkDexValidator _ _ _ = False

@@ -35,6 +35,8 @@ import PlutusTx.Prelude
       AdditiveMonoid,
       AdditiveSemigroup,
       MultiplicativeSemigroup,
+      fromMaybe,
+      error,
       Ord )
 import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
@@ -45,6 +47,8 @@ import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
+import qualified PlutusTx
+import           PlutusTx.Prelude
 
 data CoinA = CoinA
 
@@ -75,12 +79,15 @@ newtype Amount a = Amount { unAmount :: Integer }
 PlutusTx.makeIsDataIndexed ''Amount [('Amount, 0)]
 PlutusTx.makeLift ''Amount
 
+{-# INLINABLE amountOf #-}
 amountOf :: Value -> Coin a -> Amount a
 amountOf v = Amount . assetClassValueOf v . unCoin
 
+{-# INLINABLE outputAmountOf #-}
 outputAmountOf :: TxOut -> Coin a -> Integer
-outputAmountOf out = assetClassValueOf (txOutValue out) . unCoin
+outputAmountOf out coin = unAmount $ amountOf (txOutValue out) coin
 
+{-# INLINABLE isUnity #-}
 isUnity :: Value -> Coin a -> Bool
 isUnity v c = amountOf v c == 1
 
@@ -88,11 +95,63 @@ isUnity v c = amountOf v c == 1
 mkCoin:: CurrencySymbol -> TokenName -> Coin a
 mkCoin c = Coin . assetClass c
 
+{-# INLINABLE getCoinAFromPool #-}
 getCoinAFromPool :: ErgoDexPool -> Coin CoinA
 getCoinAFromPool ErgoDexPool{..} = Coin (xCoin)
 
+{-# INLINABLE getCoinBFromPool #-}
 getCoinBFromPool :: ErgoDexPool -> Coin CoinB
 getCoinBFromPool ErgoDexPool{..} = Coin (yCoin)
 
+{-# INLINABLE getCoinLPFromPool #-}
 getCoinLPFromPool :: ErgoDexPool -> Coin LPToken
 getCoinLPFromPool ErgoDexPool{..} = Coin (lpCoin)
+
+{-# INLINABLE findOwnInput' #-}
+findOwnInput' :: ScriptContext -> TxInInfo
+findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
+
+{-# INLINABLE valueWithin #-}
+valueWithin :: TxInInfo -> Value
+valueWithin = txOutValue . txInInfoResolved
+
+{-# INLINABLE lpSupply #-}
+-- todo: set correct lp_supply
+lpSupply :: Integer
+lpSupply = 4000000000
+
+{-# INLINABLE proxyDatumHash #-}
+proxyDatumHash :: DatumHash
+proxyDatumHash = datumHashFromString "proxyDatumHash"
+
+{-# INLINABLE calculateValueInOutputs #-}
+calculateValueInOutputs :: [TxInInfo] -> Coin a -> Integer
+calculateValueInOutputs outputs coinValue =
+    foldl getAmountAndSum (0 :: Integer) outputs
+  where
+    getAmountAndSum :: Integer -> TxInInfo -> Integer
+    getAmountAndSum acc out = acc `Builtins.addInteger` unAmount (amountOf (txOutValue $ txInInfoResolved out) coinValue)
+
+ -- set correct contract datum hash
+{-# INLINABLE currentContractHash #-}
+currentContractHash :: DatumHash
+currentContractHash = datumHashFromString "dexContractDatumHash"
+
+--refactor
+{-# INLINABLE inputsLockedByDatumHash #-}
+inputsLockedByDatumHash :: DatumHash -> ScriptContext -> [TxInInfo]
+inputsLockedByDatumHash hash sCtx = [ proxyInput
+                                    | proxyInput <- txInfoInputs (scriptContextTxInfo sCtx)
+                                    , txOutDatumHash (txInInfoResolved proxyInput) == Just hash
+                                    ]
+
+{-# INLINABLE ownOutput #-}
+ownOutput :: ScriptContext -> TxOut
+ownOutput sCtx = case [ o
+                      | o <- getContinuingOutputs sCtx
+                      , txOutDatumHash o == Just (snd $ ownHashes sCtx)
+                      ] of
+                [o] -> o
+                _   -> traceError "expected exactly one output to the same liquidity pool"
+
+
