@@ -79,10 +79,6 @@ import           Wallet.Emulator        (Wallet (..))
 import           Utils
 import           Proxy.Contract.Models
 
-{-# INLINABLE findOwnInput' #-}
-findOwnInput' :: ScriptContext -> TxInInfo
-findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
-
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
@@ -136,9 +132,6 @@ checkCorrectReturn ProxyDatum{..} sCtx =
         value2swap = txOutValue $ txInInfoResolved ownInput
         pubKH = PubKeyHash (userPubKeyHash)
       in checkTxConstraint sCtx (Constraints.MustPayToPubKey pubKH value2swap)
-
-    getTrue :: Bool
-    getTrue = True
 
 {-# INLINABLE mkProxyValidator #-}
 mkProxyValidator :: ProxyDatum -> ProxyAction -> ScriptContext -> Bool
