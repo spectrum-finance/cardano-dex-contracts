@@ -32,14 +32,11 @@ datumHashFromString str = DatumHash $ C.pack str
 data ErgoDexPool = ErgoDexPool {
     feeNum :: Integer,
     -- determine the hash of first coin
-    aCurSymbol :: Builtins.ByteString,
-    aTokenName :: Builtins.ByteString,
+    xCoin :: AssetClass,
     -- determine the hash of second coin
-    bCurSymbol :: Builtins.ByteString,
-    bTokenName :: Builtins.ByteString,
+    yCoin :: AssetClass,
     -- determine the hash of lp coin
-    lpCurSymbol :: Builtins.ByteString,
-    lpTokenName :: Builtins.ByteString
+    lpCoin :: AssetClass
 } deriving (Show, Generic, ToJSON, FromJSON, ToSchema)
 
 PlutusTx.makeIsDataIndexed ''ErgoDexPool [('ErgoDexPool, 0)]

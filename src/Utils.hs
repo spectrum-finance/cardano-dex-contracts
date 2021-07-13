@@ -89,25 +89,10 @@ mkCoin:: CurrencySymbol -> TokenName -> Coin a
 mkCoin c = Coin . assetClass c
 
 getCoinAFromPool :: ErgoDexPool -> Coin CoinA
-getCoinAFromPool ErgoDexPool{..} =
-      let
-        tokenNameA = tokenName aTokenName
-        currencySymbolA = currencySymbol aCurSymbol
-        assetClassA = assetClass currencySymbolA tokenNameA
-      in Coin (assetClassA)
+getCoinAFromPool ErgoDexPool{..} = Coin (xCoin)
 
 getCoinBFromPool :: ErgoDexPool -> Coin CoinB
-getCoinBFromPool ErgoDexPool{..} =
-      let
-        tokenNameB = tokenName bTokenName
-        currencySymbolB = currencySymbol bCurSymbol
-        assetClassB = assetClass currencySymbolB tokenNameB
-      in Coin (assetClassB)
+getCoinBFromPool ErgoDexPool{..} = Coin (yCoin)
 
 getCoinLPFromPool :: ErgoDexPool -> Coin LPToken
-getCoinLPFromPool ErgoDexPool{..} =
-      let
-        tokenNameLP = tokenName lpTokenName
-        currencySymbolLP = currencySymbol lpCurSymbol
-        assetClassLP = assetClass currencySymbolLP tokenNameLP
-      in Coin (assetClassLP)
+getCoinLPFromPool ErgoDexPool{..} = Coin (lpCoin)
