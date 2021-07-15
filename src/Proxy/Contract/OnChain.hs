@@ -1,32 +1,35 @@
-{-# LANGUAGE AllowAmbiguousTypes        #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE EmptyDataDecls             #-}
 {-# LANGUAGE DeriveAnyClass             #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures             #-}
-{-# LANGUAGE MonoLocalBinds             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
-{-# LANGUAGE PartialTypeSignatures      #-}
+{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# options_ghc -Wno-redundant-constraints #-}
+{-# options_ghc -fno-strictness            #-}
+{-# options_ghc -fno-specialise            #-}
 
+-- Can be spent only in case:
+-- 1. Tx contains dex contract in input
+-- 2. Tx contains output with user pubKey
+-- 3. Swap satisfy correct conditions
 
-module Dex.Contract.OnChain where
+module Proxy.Contract.OnChain where
 
 import           Control.Monad          (void)
+import           Playground.Contract    (FromJSON, Generic, ToJSON, ToSchema)
 import           GHC.Generics           (Generic)
+import qualified Data.ByteString        as BS
+import           Ledger
 import           Ledger.Value
     ( AssetClass (..),
       symbols,
@@ -48,16 +51,22 @@ import Plutus.Contract
       BlockchainActions,
       Endpoint,
       Contract,
-      AsContractError,
-      ContractError )
+      AsContractError
+    )
+import           Ledger.Constraints.OnChain       as Constraints
+import           Ledger.Constraints.TxConstraints as Constraints
 import           Plutus.Contract.Schema ()
 import           Plutus.Trace.Emulator  (EmulatorTrace)
 import qualified Plutus.Trace.Emulator  as Trace
-import           PlutusTx.Builtins  (divideInteger, multiplyInteger, addInteger, subtractInteger)
+import qualified PlutusTx
+import qualified Prelude             as Haskell
+import           PlutusTx.Prelude
 import Ledger
     ( findOwnInput,
       getContinuingOutputs,
       ownHashes,
+      pubKeyHashAddress,
+      Address,
       ScriptContext(scriptContextTxInfo),
       TxInInfo(txInInfoResolved),
       TxInfo(txInfoInputs),
@@ -65,127 +74,80 @@ import Ledger
       Redeemer,
       TxOut(txOutDatumHash, txOutValue),
       Value)
-import qualified Ledger.Ada             as Ada
-
-import qualified PlutusTx
-import           PlutusTx.Prelude
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
+import           Utils
+import           Proxy.Contract.Models
 
-import Dex.Contract.Models
-import Utils
-    ( amountOf,
-      isUnity,
-      outputAmountOf,
-      Amount(unAmount),
-      Coin(Coin),
-      CoinA,
-      CoinB,
-      LPToken,
-      getCoinAFromPool,
-      getCoinBFromPool,
-      getCoinLPFromPool,
-      lpSupply,
-      findOwnInput',
-      currentContractHash,
-      inputsLockedByDatumHash,
-      valueWithin,
-      calculateValueInOutputs,
-      proxyDatumHash,
-      ownOutput)
-
---todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
-
-{-# INLINABLE checkTokenSwap #-}
-checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
-checkTokenSwap ErgoDexPool{..} sCtx =
-    traceIfFalse "Expected A or B coin to be present in input" checkSwaps
+{-# INLINABLE checkCorrectSwap #-}
+checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
+checkCorrectSwap ProxyDatum{..} sCtx =
+    traceIfFalse "Swap should satisfy conditions" True
   where
 
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
-    previousValue :: Value
-    previousValue = txOutValue $ txInInfoResolved ownInput
+    outputWithUserKey :: TxOut
+    outputWithUserKey = case [ output
+                                     | output <- getContinuingOutputs sCtx
+                                     , txOutAddress output == (pubKeyHashAddress $ PubKeyHash userPubKeyHash)
+                                     ] of
+      [output]   -> output
+      otherwise  -> traceError "expected output with user pubkey"
 
-    newValue :: Value
-    newValue = txOutValue $ ownOutput sCtx
+    isASwap :: Bool
+    isASwap =
+        let
+          outputWithValueToSwap = txInInfoResolved ownInput
+          ergoSwapCheck = isUnity (txOutValue outputWithValueToSwap) (Coin xProxyToken)
+        in ergoSwapCheck
 
-    checkCorrectnessSwap :: AssetClass -> AssetClass -> Bool
-    checkCorrectnessSwap coinX coinY =
-      let
-        previousXValue = assetClassValueOf previousValue (coinX)
-        previousYValue = assetClassValueOf previousValue (coinY)
-        newXValue = assetClassValueOf newValue (coinX)
-        newYValue = assetClassValueOf newValue (coinY)
-        coinXToSwap = newXValue - previousXValue
-        rate = newYValue `multiplyInteger` coinXToSwap `multiplyInteger` (feeNum) `divideInteger` (previousYValue `multiplyInteger` 1000 + coinXToSwap `multiplyInteger` (feeNum))
-      in newYValue == (previousYValue `multiplyInteger` rate)
+    checkConditions :: Bool
+    checkConditions =
+        let
+          outputWithValueToSwap = txInInfoResolved ownInput
+          inputValue =
+              if (isASwap) then outputAmountOf outputWithValueToSwap (Coin xProxyToken) else outputAmountOf outputWithValueToSwap (Coin yProxyToken)
+          outputValue =
+              if (isASwap) then outputAmountOf outputWithUserKey (Coin yProxyToken) else outputAmountOf outputWithUserKey (Coin xProxyToken)
+          realRate = outputValue `Haskell.div` inputValue
+          -- todo: use double, instead of integer for rate
+        in realRate <= rate * slippageTolerance
 
-    checkSwaps :: Bool
-    checkSwaps = checkCorrectnessSwap xCoin yCoin || checkCorrectnessSwap yCoin xCoin
 
-{-# INLINABLE checkCorrectDepositing #-}
-checkCorrectDepositing :: ErgoDexPool -> ScriptContext -> Bool
-checkCorrectDepositing ErgoDexPool{..} sCtx =
-  traceIfFalse "Incorrect lp token value" checkDeposit
+{-# INLINABLE checkCorrectReturn #-}
+checkCorrectReturn :: ProxyDatum -> ScriptContext -> Bool
+checkCorrectReturn ProxyDatum{..} sCtx =
+  checkTxConstraint (sCtx) (Constraints.MustBeSignedBy (PubKeyHash userPubKeyHash)) PlutusTx.Prelude.&&
+  traceIfFalse "Recepient should be issuer" isReturnCorrect
   where
 
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
-    previousValue :: Value
-    previousValue = txOutValue $ txInInfoResolved ownInput
-
-    newValue :: Value
-    newValue = txOutValue $ ownOutput sCtx
-
-    checkDeposit :: Bool
-    checkDeposit =
+    isReturnCorrect :: Bool
+    isReturnCorrect =
       let
-        previousXValue = assetClassValueOf previousValue (xCoin)
-        previousYValue = assetClassValueOf previousValue (yCoin)
-        previousLPValue = assetClassValueOf previousValue (lpCoin)
-        newXValue = assetClassValueOf newValue (xCoin)
-        newYValue = assetClassValueOf newValue (yCoin)
-        newLPValue = assetClassValueOf newValue (lpCoin)
-        coinXToDeposit = newXValue - previousXValue
-        coinYToDeposit = newYValue - previousYValue
-        correctLpRew = min (coinXToDeposit * lpSupply `divideInteger` previousXValue) (coinYToDeposit * lpSupply `divideInteger` previousYValue)
-      in newLPValue == (previousLPValue - correctLpRew)
+        value2swap = txOutValue $ txInInfoResolved ownInput
+        pubKH = PubKeyHash (userPubKeyHash)
+      in checkTxConstraint sCtx (Constraints.MustPayToPubKey pubKH value2swap)
 
-{-# INLINABLE checkCorrectRedemption #-}
-checkCorrectRedemption :: ErgoDexPool -> ScriptContext -> Bool
-checkCorrectRedemption ErgoDexPool{..} sCtx =
-  traceIfFalse "Incorrect lp token value" checkRedemption
-  where
+{-# INLINABLE mkProxyValidator #-}
+mkProxyValidator :: ProxyDatum -> ProxyAction -> ScriptContext -> Bool
+mkProxyValidator proxyDatum Swap sCtx   = checkCorrectSwap proxyDatum sCtx
+mkProxyValidator proxyDatum Redeem sCtx = checkCorrectReturn proxyDatum sCtx
 
-    ownInput :: TxInInfo
-    ownInput = findOwnInput' sCtx
+data ProxySwapping
+instance Scripts.ValidatorTypes ProxySwapping where
+    type instance RedeemerType ProxySwapping = ProxyAction
+    type instance DatumType    ProxySwapping = ProxyDatum
 
-    previousValue :: Value
-    previousValue = txOutValue $ txInInfoResolved ownInput
+proxyInstance :: Scripts.TypedValidator ProxySwapping
+proxyInstance = Scripts.mkTypedValidator @ProxySwapping
+    $$(PlutusTx.compile [|| mkProxyValidator ||])
+    $$(PlutusTx.compile [|| wrap ||]) where
+        wrap = Scripts.wrapValidator @ProxyDatum @ProxyAction
 
-    newValue :: Value
-    newValue = txOutValue $ ownOutput sCtx
-
-    checkRedemption :: Bool
-    checkRedemption =
-      let
-        previousXValue = assetClassValueOf previousValue (xCoin)
-        previousYValue = assetClassValueOf previousValue (yCoin)
-        previousLPValue = assetClassValueOf previousValue (lpCoin)
-        newXValue = assetClassValueOf newValue (xCoin)
-        newYValue = assetClassValueOf newValue (yCoin)
-        newLPValue = assetClassValueOf newValue (lpCoin)
-        lpReturned = newLPValue - previousLPValue
-        correctXValue = lpReturned * previousXValue `divideInteger` lpSupply
-        correctYValue = lpReturned * previousYValue `divideInteger` lpSupply
-      in newXValue == correctXValue && newYValue == correctYValue
-
-{-# INLINABLE mkDexValidator #-}
-mkDexValidator :: ErgoDexPool -> ContractAction -> ScriptContext -> Bool
-mkDexValidator pool SwapLP sCtx    = checkCorrectRedemption pool sCtx
-mkDexValidator pool AddTokens sCtx = checkCorrectDepositing pool sCtx
-mkDexValidator pool SwapToken sCtx = checkTokenSwap pool sCtx
-mkDexValidator _ _ _ = False
+proxyValidator :: Validator
+proxyValidator = Scripts.validatorScript proxyInstance
