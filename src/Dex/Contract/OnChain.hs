@@ -22,7 +22,6 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-
 module Dex.Contract.OnChain where
 
 import           Control.Monad          (void)
@@ -93,8 +92,6 @@ import Utils
       calculateValueInOutputs,
       proxyDatumHash,
       ownOutput)
-
---todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
 
 {-# INLINABLE checkTokenSwap #-}
 checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool

@@ -112,9 +112,7 @@ checkCorrectSwap ProxyDatum{..} sCtx =
           outputValue =
               if (isASwap) then outputAmountOf outputWithUserKey (Coin yProxyToken) else outputAmountOf outputWithUserKey (Coin xProxyToken)
           realRate = outputValue `Haskell.div` inputValue
-          -- todo: use double, instead of integer for rate
         in realRate <= rate * slippageTolerance
-
 
 {-# INLINABLE checkCorrectReturn #-}
 checkCorrectReturn :: ProxyDatum -> ScriptContext -> Bool
