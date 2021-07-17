@@ -20,7 +20,6 @@
 
 module Utils where
 
-
 import           Ledger
 import           Ledger.Value        (AssetClass (..), assetClass, assetClassValue, assetClassValueOf)
 import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
@@ -116,9 +115,8 @@ valueWithin :: TxInInfo -> Value
 valueWithin = txOutValue . txInInfoResolved
 
 {-# INLINABLE lpSupply #-}
--- todo: set correct lp_supply
 lpSupply :: Integer
-lpSupply = 4000000000
+lpSupply = 9223372036854775807
 
 {-# INLINABLE proxyDatumHash #-}
 proxyDatumHash :: DatumHash
@@ -132,12 +130,10 @@ calculateValueInOutputs outputs coinValue =
     getAmountAndSum :: Integer -> TxInInfo -> Integer
     getAmountAndSum acc out = acc `Builtins.addInteger` unAmount (amountOf (txOutValue $ txInInfoResolved out) coinValue)
 
- -- set correct contract datum hash
 {-# INLINABLE currentContractHash #-}
 currentContractHash :: DatumHash
 currentContractHash = datumHashFromString "dexContractDatumHash"
 
---refactor
 {-# INLINABLE inputsLockedByDatumHash #-}
 inputsLockedByDatumHash :: DatumHash -> ScriptContext -> [TxInInfo]
 inputsLockedByDatumHash hash sCtx = [ proxyInput
@@ -153,5 +149,3 @@ ownOutput sCtx = case [ o
                       ] of
                 [o] -> o
                 _   -> traceError "expected exactly one output to the same liquidity pool"
-
-
