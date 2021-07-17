@@ -82,7 +82,7 @@ import           Proxy.Contract.Models
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
-    traceIfFalse "Swap should satisfy conditions" True
+    traceIfFalse "Swap should satisfy conditions" checkConditions
   where
 
     ownInput :: TxInInfo
@@ -111,9 +111,8 @@ checkCorrectSwap ProxyDatum{..} sCtx =
               if (isASwap) then outputAmountOf outputWithValueToSwap (Coin xProxyToken) else outputAmountOf outputWithValueToSwap (Coin yProxyToken)
           outputValue =
               if (isASwap) then outputAmountOf outputWithUserKey (Coin yProxyToken) else outputAmountOf outputWithUserKey (Coin xProxyToken)
-          realRate = outputValue `Haskell.div` inputValue
           -- todo: use double, instead of integer for rate
-        in realRate <= rate * slippageTolerance
+        in outputValue >= minOutputValue
 
 
 {-# INLINABLE checkCorrectReturn #-}

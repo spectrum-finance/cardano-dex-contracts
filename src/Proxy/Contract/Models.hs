@@ -32,17 +32,12 @@ data ProxyAction = Swap | Deposit | Redeem
 
 PlutusTx.unstableMakeIsData ''ProxyAction
 
---todo: rate :: Integer -> rate :: Double ?
---todo: remove ergoToken and adaToken from proxy datum ?
 data ProxyDatum = ProxyDatum {
     action :: ProxyAction,
-    slippageTolerance :: Integer,
-    rate :: Integer,
+    minOutputValue :: Integer,
     dexFeeDatum :: Integer,
     userPubKeyHash :: Builtins.ByteString,
-    -- rename? In case of deposit we are going to get lpToken. See processor Dex.Processor.produceDepositOpData
     xProxyToken :: AssetClass,
-    -- determine the hash of second coin
     yProxyToken :: AssetClass,
     targetPoolId :: Builtins.ByteString,
     lpProxyToken :: AssetClass
