@@ -37,4 +37,5 @@ library
         bytestring,
         aeson,
         plutus-contract,
-        plutus-tx-plugin
+        plutus-tx-plugin,
+        plutus-core
