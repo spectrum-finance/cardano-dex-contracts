@@ -20,6 +20,7 @@
 
 module Utils where
 
+
 import           Ledger
 import           Ledger.Value        (AssetClass (..), assetClass, assetClassValue, assetClassValueOf)
 import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
@@ -48,6 +49,8 @@ import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
 import qualified PlutusTx
 import           PlutusTx.Prelude
+import           Dex.Models           (PoolId(..))
+import           Data.ByteString.Hash
 
 data CoinA = CoinA
 
@@ -115,8 +118,9 @@ valueWithin :: TxInInfo -> Value
 valueWithin = txOutValue . txInInfoResolved
 
 {-# INLINABLE lpSupply #-}
+-- todo: set correct lp_supply
 lpSupply :: Integer
-lpSupply = 9223372036854775807
+lpSupply = 4000000000
 
 {-# INLINABLE proxyDatumHash #-}
 proxyDatumHash :: DatumHash
@@ -130,6 +134,7 @@ calculateValueInOutputs outputs coinValue =
     getAmountAndSum :: Integer -> TxInInfo -> Integer
     getAmountAndSum acc out = acc `Builtins.addInteger` unAmount (amountOf (txOutValue $ txInInfoResolved out) coinValue)
 
+ -- set correct contract datum hash
 {-# INLINABLE currentContractHash #-}
 currentContractHash :: DatumHash
 currentContractHash = datumHashFromString "dexContractDatumHash"
@@ -141,6 +146,13 @@ inputsLockedByDatumHash hash sCtx = [ proxyInput
                                     , txOutDatumHash (txInInfoResolved proxyInput) == Just hash
                                     ]
 
+{-# INLINABLE inputsLockedByUserPubKeyHash #-}
+inputsLockedByUserPubKeyHash :: PubKeyHash -> ScriptContext -> [TxOut]
+inputsLockedByUserPubKeyHash pubKeyHash sCtx = [ output
+                                               | output <- getContinuingOutputs sCtx
+                                               , txOutAddress output == (pubKeyHashAddress pubKeyHash)
+                                               ]
+
 {-# INLINABLE ownOutput #-}
 ownOutput :: ScriptContext -> TxOut
 ownOutput sCtx = case [ o
@@ -149,3 +161,15 @@ ownOutput sCtx = case [ o
                       ] of
                 [o] -> o
                 _   -> traceError "expected exactly one output to the same liquidity pool"
+
+getPoolId :: ErgoDexPool -> PoolId
+getPoolId ErgoDexPool{..} =
+  let
+    (xCoinCurSymbol, xCoinName) = unAssetClass xCoin
+    (yCoinCurSymbol, yCoinName) = unAssetClass yCoin
+    (lpCoinCurSymbol, lpCoinName) = unAssetClass lpCoin
+    toHash = (unCurrencySymbol xCoinCurSymbol) <> (unTokenName xCoinName) <> (unCurrencySymbol yCoinCurSymbol) <> (unTokenName yCoinName) <> (unCurrencySymbol lpCoinCurSymbol) <> (unTokenName lpCoinName)
+    poolHash = sha3 toHash
+  in PoolId poolHash
+
+

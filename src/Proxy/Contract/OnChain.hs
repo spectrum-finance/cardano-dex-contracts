@@ -61,6 +61,7 @@ import qualified Plutus.Trace.Emulator  as Trace
 import qualified PlutusTx
 import qualified Prelude             as Haskell
 import           PlutusTx.Prelude
+import           PlutusTx.List       as PList
 import Ledger
     ( findOwnInput,
       getContinuingOutputs,
@@ -82,19 +83,14 @@ import           Proxy.Contract.Models
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
-    traceIfFalse "Swap should satisfy conditions" checkConditions
+    traceIfFalse "Swap should satisfy conditions" True
   where
 
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
-    outputWithUserKey :: TxOut
-    outputWithUserKey = case [ output
-                                     | output <- getContinuingOutputs sCtx
-                                     , txOutAddress output == (pubKeyHashAddress $ PubKeyHash userPubKeyHash)
-                                     ] of
-      [output]   -> output
-      otherwise  -> traceError "expected output with user pubkey"
+    userOuptut :: TxOut
+    userOuptut = PList.head $ inputsLockedByUserPubKeyHash (PubKeyHash userPubKeyHash) sCtx
 
     isASwap :: Bool
     isASwap =
@@ -110,8 +106,7 @@ checkCorrectSwap ProxyDatum{..} sCtx =
           inputValue =
               if (isASwap) then outputAmountOf outputWithValueToSwap (Coin xProxyToken) else outputAmountOf outputWithValueToSwap (Coin yProxyToken)
           outputValue =
-              if (isASwap) then outputAmountOf outputWithUserKey (Coin yProxyToken) else outputAmountOf outputWithUserKey (Coin xProxyToken)
-          -- todo: use double, instead of integer for rate
+              if (isASwap) then outputAmountOf userOuptut (Coin yProxyToken) else outputAmountOf userOuptut (Coin xProxyToken)
         in outputValue >= minOutputValue
 
 

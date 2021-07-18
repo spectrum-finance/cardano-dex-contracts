@@ -22,6 +22,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
+
 module Dex.Contract.OnChain where
 
 import           Control.Monad          (void)
@@ -87,11 +88,12 @@ import Utils
       lpSupply,
       findOwnInput',
       currentContractHash,
-      inputsLockedByDatumHash,
       valueWithin,
       calculateValueInOutputs,
       proxyDatumHash,
       ownOutput)
+
+--todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
 
 {-# INLINABLE checkTokenSwap #-}
 checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
@@ -121,28 +123,6 @@ checkTokenSwap ErgoDexPool{..} sCtx =
 
     checkSwaps :: Bool
     checkSwaps = checkCorrectnessSwap xCoin yCoin || checkCorrectnessSwap yCoin xCoin
-
-{-# INLINABLE checkCorrectPoolBootstrapping #-}
-checkCorrectPoolBootstrapping :: ErgoDexPool -> ScriptContext -> Bool
-checkCorrectPoolBootstrapping ErgoDexPool{..} sCtx =
-  traceIfFalse "Incorrect conditions of lp token" lpTokenCond
-  where
-
-    ownInput :: TxInInfo
-    ownInput = findOwnInput' sCtx
-
-    newValue :: Value
-    newValue = txOutValue $ ownOutput sCtx
-
-    lpTokenCond :: Bool
-    lpTokenCond =
-      let
-        newXValue = assetClassValueOf newValue (xCoin)
-        newYValue = assetClassValueOf newValue (yCoin)
-        newLPValue = assetClassValueOf newValue (lpCoin)
-        correctLpValue = newXValue * newYValue
-      in
-        newLPValue * newLPValue >= correctLpValue && newXValue > 0 && newYValue > 0
 
 {-# INLINABLE checkCorrectDepositing #-}
 checkCorrectDepositing :: ErgoDexPool -> ScriptContext -> Bool
@@ -205,7 +185,6 @@ checkCorrectRedemption ErgoDexPool{..} sCtx =
 {-# INLINABLE mkDexValidator #-}
 mkDexValidator :: ErgoDexPool -> ContractAction -> ScriptContext -> Bool
 mkDexValidator pool SwapLP sCtx    = checkCorrectRedemption pool sCtx
-mkDexValidator pool Create sCtx    = checkCorrectPoolBootstrapping pool sCtx
 mkDexValidator pool AddTokens sCtx = checkCorrectDepositing pool sCtx
 mkDexValidator pool SwapToken sCtx = checkTokenSwap pool sCtx
 mkDexValidator _ _ _ = False
