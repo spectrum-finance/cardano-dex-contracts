@@ -83,7 +83,7 @@ import           Proxy.Contract.Models
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
-    traceIfFalse "Swap should satisfy conditions" True
+    traceIfFalse "Swap should satisfy conditions" checkConditions
   where
 
     ownInput :: TxInInfo
