@@ -93,6 +93,8 @@ import Utils
       proxyDatumHash,
       ownOutput)
 
+--todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
+
 {-# INLINABLE checkTokenSwap #-}
 checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
 checkTokenSwap ErgoDexPool{..} sCtx =
@@ -148,8 +150,9 @@ checkCorrectDepositing ErgoDexPool{..} sCtx =
         newLPValue = assetClassValueOf newValue (lpCoin)
         coinXToDeposit = newXValue - previousXValue
         coinYToDeposit = newYValue - previousYValue
-        correctLpRew = min (coinXToDeposit * lpSupply `divideInteger` previousXValue) (coinYToDeposit * lpSupply `divideInteger` previousYValue)
-      in newLPValue == (previousLPValue - correctLpRew)
+        deltaSupplyLP = newLPValue - previousLPValue
+        sharesUnlocked = min (coinXToDeposit * lpSupply `divideInteger` previousXValue) (coinYToDeposit * lpSupply `divideInteger` previousYValue)
+      in deltaSupplyLP <= sharesUnlocked
 
 {-# INLINABLE checkCorrectRedemption #-}
 checkCorrectRedemption :: ErgoDexPool -> ScriptContext -> Bool
@@ -175,10 +178,15 @@ checkCorrectRedemption ErgoDexPool{..} sCtx =
         newXValue = assetClassValueOf newValue (xCoin)
         newYValue = assetClassValueOf newValue (yCoin)
         newLPValue = assetClassValueOf newValue (lpCoin)
+        supplyLP0 = lpSupply - previousLPValue
+        supplyLP1 = lpSupply - newLPValue
         lpReturned = newLPValue - previousLPValue
-        correctXValue = lpReturned * previousXValue `divideInteger` lpSupply
-        correctYValue = lpReturned * previousYValue `divideInteger` lpSupply
-      in newXValue == correctXValue && newYValue == correctYValue
+        deltaReservesX = newXValue - previousXValue
+        deltaSupplyLP = newLPValue - previousLPValue
+        deltaReservesY = newYValue - previousYValue
+        correctXRedeem = deltaReservesX * supplyLP0 >= deltaSupplyLP * previousXValue
+        correctYRedeem = deltaReservesY * supplyLP0 >= deltaSupplyLP * previousYValue
+      in correctXRedeem && correctYRedeem
 
 {-# INLINABLE mkDexValidator #-}
 mkDexValidator :: ErgoDexPool -> ContractAction -> ScriptContext -> Bool

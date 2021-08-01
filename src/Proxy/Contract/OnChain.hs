@@ -80,52 +80,105 @@ checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
     traceIfFalse "Swap should satisfy conditions" True
   where
-
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
-    userOuptut :: TxOut
-    userOuptut = PList.head $ inputsLockedByUserPubKeyHash (PubKeyHash userPubKeyHash) sCtx
+    poolInput :: TxOut
+    poolInput = PList.head $ inputsLockedByDatumHash dexContractHash sCtx
 
-    isASwap :: Bool
-    isASwap =
-        let
-          outputWithValueToSwap = txInInfoResolved ownInput
-          ergoSwapCheck = isUnity (txOutValue outputWithValueToSwap) (Coin xProxyToken)
-        in ergoSwapCheck
+    poolInputValue :: Value
+    poolInputValue = txOutValue $ poolInput
+
+    previousValue :: Value
+    previousValue = txOutValue $ txInInfoResolved ownInput
+
+    newValue :: Value
+    newValue = txOutValue $ ownOutput sCtx
 
     checkConditions :: Bool
     checkConditions =
         let
           outputWithValueToSwap = txInInfoResolved ownInput
-          inputValue =
-              if (isASwap) then outputAmountOf outputWithValueToSwap (Coin xProxyToken) else outputAmountOf outputWithValueToSwap (Coin yProxyToken)
-          outputValue =
-              if (isASwap) then outputAmountOf userOuptut (Coin yProxyToken) else outputAmountOf userOuptut (Coin xProxyToken)
-        in outputValue >= minOutputValue
+          baseAmount = assetClassValueOf previousValue xProxyToken
+          quoteAmount = assetClassValueOf newValue yProxyToken
+          poolX = assetClassValueOf poolInputValue xProxyToken
+          poolY = assetClassValueOf poolInputValue yProxyToken
+          relaxedOutput = quoteAmount + 1
+          fairPrice = poolX * baseAmount * feeNum <= relaxedOutput * (poolY * feeDenom + baseAmount * feeNum)
+        in fairPrice
 
+{-# INLINABLE checkCorrectDeposit #-}
+checkCorrectDeposit :: ProxyDatum -> ScriptContext -> Bool
+checkCorrectDeposit ProxyDatum{..} sCtx =
+    traceIfFalse "Deposit should satisfy conditions" True
+  where
+    ownInput :: TxInInfo
+    ownInput = findOwnInput' sCtx
+
+    poolInput :: TxOut
+    poolInput = PList.head $ inputsLockedByDatumHash dexContractHash sCtx
+
+    poolInputValue :: Value
+    poolInputValue = txOutValue $ poolInput
+
+    previousValue :: Value
+    previousValue = txOutValue $ txInInfoResolved ownInput
+
+    newValue :: Value
+    newValue = txOutValue $ ownOutput sCtx
+
+    checkConditions :: Bool
+    checkConditions =
+        let
+          supplyLP = lpSupply - (assetClassValueOf poolInputValue lpProxyToken)
+          selfX = assetClassValueOf previousValue xProxyToken
+          selfY = assetClassValueOf previousValue yProxyToken
+          reservesX = assetClassValueOf poolInputValue xProxyToken
+          reservesY = assetClassValueOf poolInputValue yProxyToken
+          minimalReward = min (selfX * supplyLP / reservesX) (selfY * supplyLP / reservesY)
+          rewardLP = assetClassValueOf newValue lpProxyToken
+        in rewardLP >= minimalReward
 
 {-# INLINABLE checkCorrectReturn #-}
-checkCorrectReturn :: ProxyDatum -> ScriptContext -> Bool
-checkCorrectReturn ProxyDatum{..} sCtx =
+checkCorrectRedeem :: ProxyDatum -> ScriptContext -> Bool
+checkCorrectRedeem ProxyDatum{..} sCtx =
   checkTxConstraint (sCtx) (Constraints.MustBeSignedBy (PubKeyHash userPubKeyHash)) PlutusTx.Prelude.&&
-  traceIfFalse "Recepient should be issuer" isReturnCorrect
+  traceIfFalse "Recepient should be issuer" isRedeemCorrect
   where
 
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
-    isReturnCorrect :: Bool
-    isReturnCorrect =
+    poolInput :: TxOut
+    poolInput = PList.head $ inputsLockedByDatumHash dexContractHash sCtx
+
+    poolInputValue :: Value
+    poolInputValue = txOutValue $ poolInput
+
+    previousValue :: Value
+    previousValue = txOutValue $ txInInfoResolved ownInput
+
+    newValue :: Value
+    newValue = txOutValue $ ownOutput sCtx
+
+    isRedeemCorrect :: Bool
+    isRedeemCorrect =
       let
-        value2swap = txOutValue $ txInInfoResolved ownInput
-        pubKH = PubKeyHash (userPubKeyHash)
-      in checkTxConstraint sCtx (Constraints.MustPayToPubKey pubKH value2swap)
+        selfLP = assetClassValueOf previousValue lpProxyToken
+        supplyLP = lpSupply - (assetClassValueOf poolInputValue lpProxyToken)
+        reservesX = assetClassValueOf poolInputValue xProxyToken
+        reservesY = assetClassValueOf poolInputValue yProxyToken
+        minReturnX = selfLP * reservesX / supplyLP
+        minReturnY = selfLP * reservesY / supplyLP
+        returnX = assetClassValueOf newValue xProxyToken
+        returnY = assetClassValueOf newValue yProxyToken
+      in returnX >= minReturnX && returnY >= minReturnY
 
 {-# INLINABLE mkProxyValidator #-}
 mkProxyValidator :: ProxyDatum -> ProxyAction -> ScriptContext -> Bool
 mkProxyValidator proxyDatum Swap sCtx   = checkCorrectSwap proxyDatum sCtx
-mkProxyValidator proxyDatum Redeem sCtx = checkCorrectReturn proxyDatum sCtx
+mkProxyValidator proxyDatum Redeem sCtx = checkCorrectRedeem proxyDatum sCtx
+mkProxyValidator proxyDatum Deposit sCtx = checkCorrectDeposit proxyDatum sCtx
 
 data ProxySwapping
 instance Scripts.ValidatorTypes ProxySwapping where
@@ -140,3 +193,9 @@ proxyInstance = Scripts.mkTypedValidator @ProxySwapping
 
 proxyValidator :: Validator
 proxyValidator = Scripts.validatorScript proxyInstance
+
+feeNum :: Integer
+feeNum = 995
+
+feeDenom :: Integer
+feeDenom = 1000
