@@ -37,6 +37,7 @@ import           Ledger.Value
 import           Ledger.Contexts        (ScriptContext(..))
 import qualified Ledger.Constraints     as Constraints
 import qualified Ledger.Typed.Scripts   as Scripts
+import qualified PlutusTx
 import Plutus.Contract
     ( endpoint,
       utxoAt,
@@ -98,7 +99,9 @@ import Utils
 {-# INLINABLE checkTokenSwap #-}
 checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
 checkTokenSwap ErgoDexPool{..} sCtx =
-    traceIfFalse "Expected A or B coin to be present in input" checkSwaps
+    traceIfFalse "Expected A or B coin to be present in input" checkSwaps PlutusTx.Prelude.&&
+    traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
+    traceIfFalse "Outputs qty check failed" check2outputs sCtx
   where
 
     ownInput :: TxInInfo
@@ -127,7 +130,9 @@ checkTokenSwap ErgoDexPool{..} sCtx =
 {-# INLINABLE checkCorrectDepositing #-}
 checkCorrectDepositing :: ErgoDexPool -> ScriptContext -> Bool
 checkCorrectDepositing ErgoDexPool{..} sCtx =
-  traceIfFalse "Incorrect lp token value" checkDeposit
+  traceIfFalse "Incorrect lp token value" checkDeposit PlutusTx.Prelude.&&
+  traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
+  traceIfFalse "Outputs qty check failed" check2outputs sCtx
   where
 
     ownInput :: TxInInfo
@@ -157,7 +162,9 @@ checkCorrectDepositing ErgoDexPool{..} sCtx =
 {-# INLINABLE checkCorrectRedemption #-}
 checkCorrectRedemption :: ErgoDexPool -> ScriptContext -> Bool
 checkCorrectRedemption ErgoDexPool{..} sCtx =
-  traceIfFalse "Incorrect lp token value" checkRedemption
+  traceIfFalse "Incorrect lp token value" checkRedemption PlutusTx.Prelude.&&
+  traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
+  traceIfFalse "Outputs qty check failed" check2outputs sCtx
   where
 
     ownInput :: TxInInfo
@@ -194,3 +201,11 @@ mkDexValidator pool SwapLP sCtx    = checkCorrectRedemption pool sCtx
 mkDexValidator pool AddTokens sCtx = checkCorrectDepositing pool sCtx
 mkDexValidator pool SwapToken sCtx = checkTokenSwap pool sCtx
 mkDexValidator _ _ _ = False
+
+{-# INLINABLE check2inputs #-}
+check2inputs :: ScriptContext -> Bool
+check2inputs sCtx = length (txInfoInputs $ (scriptContextTxInfo sCtx)) == 2
+
+{-# INLINABLE check2outputs #-}
+check2outputs :: ScriptContext -> Bool
+check2outputs sCtx = length (txInfoOutputs $ (scriptContextTxInfo sCtx)) == 2
