@@ -93,8 +93,6 @@ import Utils
       proxyDatumHash,
       ownOutput)
 
---todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
-
 {-# INLINABLE checkTokenSwap #-}
 checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
 checkTokenSwap ErgoDexPool{..} sCtx =

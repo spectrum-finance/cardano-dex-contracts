@@ -18,11 +18,6 @@
 {-# options_ghc -fno-strictness            #-}
 {-# options_ghc -fno-specialise            #-}
 
--- Can be spent only in case:
--- 1. Tx contains dex contract in input
--- 2. Tx contains output with user pubKey
--- 3. Swap satisfy correct conditions
-
 module Proxy.Contract.OnChain where
 
 import           Control.Monad          (void)
@@ -83,7 +78,7 @@ import           Proxy.Contract.Models
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
-    traceIfFalse "Swap should satisfy conditions" checkConditions
+    traceIfFalse "Swap should satisfy conditions" True
   where
 
     ownInput :: TxInInfo

@@ -96,7 +96,7 @@ isUnity :: Value -> Coin a -> Bool
 isUnity v c = amountOf v c == 1
 
 {-# INLINABLE mkCoin #-}
-mkCoin:: CurrencySymbol -> TokenName -> Coin a
+mkCoin :: CurrencySymbol -> TokenName -> Coin a
 mkCoin c = Coin . assetClass c
 
 {-# INLINABLE getCoinAFromPool #-}
@@ -120,13 +120,8 @@ valueWithin :: TxInInfo -> Value
 valueWithin = txOutValue . txInInfoResolved
 
 {-# INLINABLE lpSupply #-}
--- todo: set correct lp_supply
 lpSupply :: Integer
 lpSupply = 4000000000
-
-{-# INLINABLE proxyDatumHash #-}
-proxyDatumHash :: DatumHash
-proxyDatumHash = datumHashFromString "proxyDatumHash"
 
 {-# INLINABLE calculateValueInOutputs #-}
 calculateValueInOutputs :: [TxInInfo] -> Coin a -> Integer
@@ -135,11 +130,6 @@ calculateValueInOutputs outputs coinValue =
   where
     getAmountAndSum :: Integer -> TxInInfo -> Integer
     getAmountAndSum acc out = acc `Builtins.addInteger` unAmount (amountOf (txOutValue $ txInInfoResolved out) coinValue)
-
- -- set correct contract datum hash
-{-# INLINABLE currentContractHash #-}
-currentContractHash :: DatumHash
-currentContractHash = datumHashFromString "dexContractDatumHash"
 
 {-# INLINABLE inputsLockedByDatumHash #-}
 inputsLockedByDatumHash :: DatumHash -> ScriptContext -> [TxInInfo]
@@ -173,5 +163,3 @@ getPoolId ErgoDexPool{..} =
     toHash = (unCurrencySymbol xCoinCurSymbol) <> (unTokenName xCoinName) <> (unCurrencySymbol yCoinCurSymbol) <> (unTokenName yCoinName) <> (unCurrencySymbol lpCoinCurSymbol) <> (unTokenName lpCoinName)
     poolHash = sha3 toHash
   in PoolId poolHash
-
-

@@ -26,9 +26,6 @@ import           Prelude
 import qualified PlutusTx.Builtins   as Builtins
 import qualified Data.ByteString.Char8  as C
 
-datumHashFromString :: String -> DatumHash
-datumHashFromString str = DatumHash $ C.pack str
-
 data ErgoDexPool = ErgoDexPool {
     feeNum :: Integer,
     -- determine the hash of first coin
