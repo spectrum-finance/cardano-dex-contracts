@@ -78,8 +78,11 @@ import           Proxy.Contract.Models
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
-    traceIfFalse "Swap should satisfy conditions" True
+    traceIfFalse "Swap should satisfy conditions" checkConditions PlutusTx.Prelude.&&
+    traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
+    traceIfFalse "Outputs qty check failed" check2outputs sCtx
   where
+
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
 
@@ -110,7 +113,9 @@ checkCorrectSwap ProxyDatum{..} sCtx =
 {-# INLINABLE checkCorrectDeposit #-}
 checkCorrectDeposit :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectDeposit ProxyDatum{..} sCtx =
-    traceIfFalse "Deposit should satisfy conditions" True
+    traceIfFalse "Deposit should satisfy conditions" checkConditions PlutusTx.Prelude.&&
+    traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
+    traceIfFalse "Outputs qty check failed" check2outputs sCtx
   where
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
@@ -143,7 +148,9 @@ checkCorrectDeposit ProxyDatum{..} sCtx =
 checkCorrectRedeem :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectRedeem ProxyDatum{..} sCtx =
   checkTxConstraint (sCtx) (Constraints.MustBeSignedBy (PubKeyHash userPubKeyHash)) PlutusTx.Prelude.&&
-  traceIfFalse "Recepient should be issuer" isRedeemCorrect
+  traceIfFalse "Redeem conditions check failed" isRedeemCorrect PlutusTx.Prelude.&&
+  traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
+  traceIfFalse "Outputs qty check failed" check2outputs sCtx
   where
 
     ownInput :: TxInInfo
@@ -193,6 +200,12 @@ proxyInstance = Scripts.mkTypedValidator @ProxySwapping
 
 proxyValidator :: Validator
 proxyValidator = Scripts.validatorScript proxyInstance
+
+check2inputs :: ScriptContext -> Bool
+check2inputs sCtx = length (txInfoInputs $ (scriptContextTxInfo sCtx)) == 2
+
+check2outputs :: ScriptContext -> Bool
+check2outputs sCtx = length (txInfoOutputs $ (scriptContextTxInfo sCtx)) == 2
 
 feeNum :: Integer
 feeNum = 995
