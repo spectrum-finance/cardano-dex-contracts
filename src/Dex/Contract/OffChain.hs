@@ -47,5 +47,5 @@ dexInstance = Scripts.mkTypedValidator @ErgoDexSwapping
 dexValidator :: Validator
 dexValidator = Scripts.validatorScript dexInstance
 
-dexContractHash :: Scripts.ValidatorHash
+dexContractHash :: ValidatorHash
 dexContractHash = Scripts.validatorHash dexValidator

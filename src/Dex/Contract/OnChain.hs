@@ -34,7 +34,7 @@ import           Ledger.Value
       tokenName,
       currencySymbol,
       assetClass )
-import           Ledger.Contexts        (ScriptContext(..))
+import           Ledger.Contexts        (ScriptContext(..), txInfoOutputs)
 import qualified Ledger.Constraints     as Constraints
 import qualified Ledger.Typed.Scripts   as Scripts
 import qualified PlutusTx
@@ -46,7 +46,6 @@ import Plutus.Contract
       collectFromScript,
       select,
       type (.\/),
-      BlockchainActions,
       Endpoint,
       Contract,
       AsContractError,
@@ -88,10 +87,8 @@ import Utils
       getCoinLPFromPool,
       lpSupply,
       findOwnInput',
-      currentContractHash,
       valueWithin,
       calculateValueInOutputs,
-      proxyDatumHash,
       ownOutput)
 
 --todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
@@ -100,8 +97,8 @@ import Utils
 checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
 checkTokenSwap ErgoDexPool{..} sCtx =
     traceIfFalse "Expected A or B coin to be present in input" checkSwaps PlutusTx.Prelude.&&
-    traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-    traceIfFalse "Outputs qty check failed" check2outputs sCtx
+    traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+    traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
 
     ownInput :: TxInInfo
@@ -131,8 +128,8 @@ checkTokenSwap ErgoDexPool{..} sCtx =
 checkCorrectDepositing :: ErgoDexPool -> ScriptContext -> Bool
 checkCorrectDepositing ErgoDexPool{..} sCtx =
   traceIfFalse "Incorrect lp token value" checkDeposit PlutusTx.Prelude.&&
-  traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-  traceIfFalse "Outputs qty check failed" check2outputs sCtx
+  traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+  traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
 
     ownInput :: TxInInfo
@@ -163,8 +160,8 @@ checkCorrectDepositing ErgoDexPool{..} sCtx =
 checkCorrectRedemption :: ErgoDexPool -> ScriptContext -> Bool
 checkCorrectRedemption ErgoDexPool{..} sCtx =
   traceIfFalse "Incorrect lp token value" checkRedemption PlutusTx.Prelude.&&
-  traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-  traceIfFalse "Outputs qty check failed" check2outputs sCtx
+  traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+  traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
 
     ownInput :: TxInInfo

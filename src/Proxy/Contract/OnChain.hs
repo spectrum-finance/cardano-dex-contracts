@@ -43,7 +43,6 @@ import Plutus.Contract
       collectFromScript,
       select,
       type (.\/),
-      BlockchainActions,
       Endpoint,
       Contract,
       AsContractError
@@ -73,14 +72,15 @@ import Ledger
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
 import           Utils
+import           Dex.Contract.OffChain
 import           Proxy.Contract.Models
 
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectSwap ProxyDatum{..} sCtx =
     traceIfFalse "Swap should satisfy conditions" checkConditions PlutusTx.Prelude.&&
-    traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-    traceIfFalse "Outputs qty check failed" check2outputs sCtx
+    traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+    traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
 
     ownInput :: TxInInfo
@@ -114,8 +114,8 @@ checkCorrectSwap ProxyDatum{..} sCtx =
 checkCorrectDeposit :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectDeposit ProxyDatum{..} sCtx =
     traceIfFalse "Deposit should satisfy conditions" checkConditions PlutusTx.Prelude.&&
-    traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-    traceIfFalse "Outputs qty check failed" check2outputs sCtx
+    traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+    traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
     ownInput :: TxInInfo
     ownInput = findOwnInput' sCtx
@@ -140,17 +140,17 @@ checkCorrectDeposit ProxyDatum{..} sCtx =
           selfY = assetClassValueOf previousValue yProxyToken
           reservesX = assetClassValueOf poolInputValue xProxyToken
           reservesY = assetClassValueOf poolInputValue yProxyToken
-          minimalReward = min (selfX * supplyLP / reservesX) (selfY * supplyLP / reservesY)
+          minimalReward = min (selfX * supplyLP Haskell./ reservesX) (selfY * supplyLP Haskell./ reservesY)
           rewardLP = assetClassValueOf newValue lpProxyToken
         in rewardLP >= minimalReward
 
-{-# INLINABLE checkCorrectReturn #-}
+{-# INLINABLE checkCorrectRedeem #-}
 checkCorrectRedeem :: ProxyDatum -> ScriptContext -> Bool
 checkCorrectRedeem ProxyDatum{..} sCtx =
   checkTxConstraint (sCtx) (Constraints.MustBeSignedBy (PubKeyHash userPubKeyHash)) PlutusTx.Prelude.&&
   traceIfFalse "Redeem conditions check failed" isRedeemCorrect PlutusTx.Prelude.&&
-  traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-  traceIfFalse "Outputs qty check failed" check2outputs sCtx
+  traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+  traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
 
     ownInput :: TxInInfo
@@ -175,8 +175,8 @@ checkCorrectRedeem ProxyDatum{..} sCtx =
         supplyLP = lpSupply - (assetClassValueOf poolInputValue lpProxyToken)
         reservesX = assetClassValueOf poolInputValue xProxyToken
         reservesY = assetClassValueOf poolInputValue yProxyToken
-        minReturnX = selfLP * reservesX / supplyLP
-        minReturnY = selfLP * reservesY / supplyLP
+        minReturnX = selfLP * reservesX Haskell./ supplyLP
+        minReturnY = selfLP * reservesY Haskell./ supplyLP
         returnX = assetClassValueOf newValue xProxyToken
         returnY = assetClassValueOf newValue yProxyToken
       in returnX >= minReturnX && returnY >= minReturnY
@@ -201,9 +201,11 @@ proxyInstance = Scripts.mkTypedValidator @ProxySwapping
 proxyValidator :: Validator
 proxyValidator = Scripts.validatorScript proxyInstance
 
+{-# INLINABLE check2inputs #-}
 check2inputs :: ScriptContext -> Bool
 check2inputs sCtx = length (txInfoInputs $ (scriptContextTxInfo sCtx)) == 2
 
+{-# INLINABLE check2outputs #-}
 check2outputs :: ScriptContext -> Bool
 check2outputs sCtx = length (txInfoOutputs $ (scriptContextTxInfo sCtx)) == 2
 

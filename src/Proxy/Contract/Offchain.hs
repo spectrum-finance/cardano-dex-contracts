@@ -65,7 +65,7 @@ userEndpoints us =
     ((f (Proxy @"swap")     Orders       swap                       `select`
       f (Proxy @"redeem")   Orders       redeem                     `select`
       f (Proxy @"deposit")  Orders       deposit                    `select`
-      f (Proxy @"pools")    Orders       (\us' () -> orders us'))    >> userEndpoints us)
+      f (Proxy @"pools")    Orders       (\us' () -> orders us'))   >> userEndpoints us)
   where
     f :: forall l a p.
          (HasEndpoint l p ProxyUserSchema, FromJSON p)
