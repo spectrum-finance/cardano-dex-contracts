@@ -4,6 +4,7 @@ module Proxy.Contract.Offchain where
 
 import           Playground.Contract
 import           Plutus.Contract
+import           Ledger                           hiding (singleton)
 import qualified PlutusTx
 import           PlutusTx.Prelude                 hiding (Semigroup (..), dropWhile, flip, unless)
 import           Prelude                          as Haskell (Int, Semigroup (..), String, div, dropWhile, flip, show,
@@ -46,6 +47,12 @@ data UserContractState =
       Orders [Order]
     deriving (Show, Generic, FromJSON, ToJSON)
 
+proxyAddress :: Ledger.Address
+proxyAddress = scriptAddress proxyValidator
+
+proxyHash :: ValidatorHash
+proxyHash = validatorHash proxyValidator
+
 swap :: SwapParams -> Contract w s Text ()
 swap = undefined
 
@@ -56,16 +63,16 @@ deposit :: DepositParams -> Contract w s Text ()
 deposit = undefined
 
 orders :: Contract w s Text [Order]
-orders = undefined
+orders = return []
 
 userEndpoints :: Contract (Last (Either Text UserContractState)) ProxyUserSchema Void ()
-userEndpoints us =
+userEndpoints =
     stop
         `select`
     ((f (Proxy @"swap")     Orders       swap                       `select`
       f (Proxy @"redeem")   Orders       redeem                     `select`
       f (Proxy @"deposit")  Orders       deposit                    `select`
-      f (Proxy @"pools")    Orders       (\us' () -> orders us'))   >> userEndpoints us)
+      f (Proxy @"pools")    Orders       orders                      >> userEndpoints us)
   where
     f :: forall l a p.
          (HasEndpoint l p ProxyUserSchema, FromJSON p)

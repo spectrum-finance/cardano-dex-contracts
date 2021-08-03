@@ -20,10 +20,6 @@
 
 module Proxy.Contract.OnChain where
 
-import           Control.Monad          (void)
-import           Playground.Contract    (FromJSON, Generic, ToJSON, ToSchema)
-import           GHC.Generics           (Generic)
-import qualified Data.ByteString        as BS
 import           Ledger
 import           Ledger.Value
     ( AssetClass (..),
@@ -33,7 +29,6 @@ import           Ledger.Value
       currencySymbol,
       assetClass )
 import           Ledger.Contexts        (ScriptContext(..))
-import qualified Ledger.Constraints     as Constraints
 import qualified Ledger.Typed.Scripts   as Scripts
 import Plutus.Contract
     ( endpoint,
@@ -50,10 +45,7 @@ import Plutus.Contract
 import           Ledger.Constraints.OnChain       as Constraints
 import           Ledger.Constraints.TxConstraints as Constraints
 import           Plutus.Contract.Schema ()
-import           Plutus.Trace.Emulator  (EmulatorTrace)
-import qualified Plutus.Trace.Emulator  as Trace
 import qualified PlutusTx
-import qualified Prelude             as Haskell
 import           PlutusTx.Prelude
 import           PlutusTx.List       as PList
 import Ledger
@@ -69,10 +61,9 @@ import Ledger
       Redeemer,
       TxOut(txOutDatumHash, txOutValue),
       Value)
-import           Schema                 (ToArgument, ToSchema)
-import           Wallet.Emulator        (Wallet (..))
 import           Utils
 import           Dex.Contract.OffChain
+import           PlutusTx.Builtins  (divideInteger, multiplyInteger, addInteger, subtractInteger, lessThanEqInteger)
 import           Proxy.Contract.Models
 
 {-# INLINABLE checkCorrectSwap #-}
@@ -87,7 +78,7 @@ checkCorrectSwap ProxyDatum{..} sCtx =
     ownInput = findOwnInput' sCtx
 
     poolInput :: TxOut
-    poolInput = PList.head $ inputsLockedByDatumHash dexContractHash sCtx
+    poolInput = inputLockedByDex sCtx
 
     poolInputValue :: Value
     poolInputValue = txOutValue $ poolInput
@@ -106,8 +97,8 @@ checkCorrectSwap ProxyDatum{..} sCtx =
           quoteAmount = assetClassValueOf newValue yProxyToken
           poolX = assetClassValueOf poolInputValue xProxyToken
           poolY = assetClassValueOf poolInputValue yProxyToken
-          relaxedOutput = quoteAmount + 1
-          fairPrice = poolX * baseAmount * feeNum <= relaxedOutput * (poolY * feeDenom + baseAmount * feeNum)
+          relaxedOutput = quoteAmount `addInteger` 1
+          fairPrice = (1 `multiplyInteger` baseAmount `multiplyInteger` feeNum) `lessThanEqInteger` (relaxedOutput `multiplyInteger` (poolY `multiplyInteger` feeDenom `addInteger` baseAmount `multiplyInteger` feeNum))
         in fairPrice
 
 {-# INLINABLE checkCorrectDeposit #-}
@@ -121,7 +112,7 @@ checkCorrectDeposit ProxyDatum{..} sCtx =
     ownInput = findOwnInput' sCtx
 
     poolInput :: TxOut
-    poolInput = PList.head $ inputsLockedByDatumHash dexContractHash sCtx
+    poolInput = inputLockedByDex sCtx
 
     poolInputValue :: Value
     poolInputValue = txOutValue $ poolInput
@@ -135,12 +126,12 @@ checkCorrectDeposit ProxyDatum{..} sCtx =
     checkConditions :: Bool
     checkConditions =
         let
-          supplyLP = lpSupply - (assetClassValueOf poolInputValue lpProxyToken)
+          supplyLP = lpSupply `subtractInteger` (assetClassValueOf poolInputValue lpProxyToken)
           selfX = assetClassValueOf previousValue xProxyToken
           selfY = assetClassValueOf previousValue yProxyToken
           reservesX = assetClassValueOf poolInputValue xProxyToken
           reservesY = assetClassValueOf poolInputValue yProxyToken
-          minimalReward = min (selfX * supplyLP Haskell./ reservesX) (selfY * supplyLP Haskell./ reservesY)
+          minimalReward = min (selfX `multiplyInteger` supplyLP `divideInteger` reservesX) (selfY `multiplyInteger` supplyLP `divideInteger` reservesY)
           rewardLP = assetClassValueOf newValue lpProxyToken
         in rewardLP >= minimalReward
 
@@ -157,7 +148,7 @@ checkCorrectRedeem ProxyDatum{..} sCtx =
     ownInput = findOwnInput' sCtx
 
     poolInput :: TxOut
-    poolInput = PList.head $ inputsLockedByDatumHash dexContractHash sCtx
+    poolInput = inputLockedByDex sCtx
 
     poolInputValue :: Value
     poolInputValue = txOutValue $ poolInput
@@ -172,11 +163,11 @@ checkCorrectRedeem ProxyDatum{..} sCtx =
     isRedeemCorrect =
       let
         selfLP = assetClassValueOf previousValue lpProxyToken
-        supplyLP = lpSupply - (assetClassValueOf poolInputValue lpProxyToken)
+        supplyLP = lpSupply `subtractInteger` (assetClassValueOf poolInputValue lpProxyToken)
         reservesX = assetClassValueOf poolInputValue xProxyToken
         reservesY = assetClassValueOf poolInputValue yProxyToken
-        minReturnX = selfLP * reservesX Haskell./ supplyLP
-        minReturnY = selfLP * reservesY Haskell./ supplyLP
+        minReturnX = selfLP `multiplyInteger` reservesX `divideInteger` supplyLP
+        minReturnY = selfLP `multiplyInteger` reservesY `divideInteger` supplyLP
         returnX = assetClassValueOf newValue xProxyToken
         returnY = assetClassValueOf newValue yProxyToken
       in returnX >= minReturnX && returnY >= minReturnY
@@ -184,8 +175,9 @@ checkCorrectRedeem ProxyDatum{..} sCtx =
 {-# INLINABLE mkProxyValidator #-}
 mkProxyValidator :: ProxyDatum -> ProxyAction -> ScriptContext -> Bool
 mkProxyValidator proxyDatum Swap sCtx   = checkCorrectSwap proxyDatum sCtx
-mkProxyValidator proxyDatum Redeem sCtx = checkCorrectRedeem proxyDatum sCtx
-mkProxyValidator proxyDatum Deposit sCtx = checkCorrectDeposit proxyDatum sCtx
+--mkProxyValidator proxyDatum Redeem sCtx = checkCorrectRedeem proxyDatum sCtx
+--mkProxyValidator proxyDatum Deposit sCtx = checkCorrectDeposit proxyDatum sCtx
+mkProxyValidator _ _ _ = False
 
 data ProxySwapping
 instance Scripts.ValidatorTypes ProxySwapping where

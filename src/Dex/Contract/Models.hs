@@ -5,10 +5,12 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE EmptyDataDecls             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
@@ -24,7 +26,9 @@ import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
 import qualified PlutusTx
 import           Prelude
 import qualified PlutusTx.Builtins   as Builtins
+import qualified Ledger.Typed.Scripts   as Scripts
 import qualified Data.ByteString.Char8  as C
+import           Dex.Contract.OnChain   (mkDexValidator)
 
 data ErgoDexPool = ErgoDexPool {
     feeNum :: Integer,
@@ -47,3 +51,14 @@ PlutusTx.makeIsDataIndexed ''ContractAction [ ('Create ,   0)
                                             , ('SwapToken,  3)
                                             ]
 PlutusTx.makeLift ''ContractAction
+
+data ErgoDexSwapping
+instance Scripts.ValidatorTypes ErgoDexSwapping where
+    type instance RedeemerType ErgoDexSwapping = ContractAction
+    type instance DatumType    ErgoDexSwapping = ErgoDexPool
+
+dexInstance :: Scripts.TypedValidator ErgoDexSwapping
+dexInstance = Scripts.mkTypedValidator @ErgoDexSwapping
+    $$(PlutusTx.compile [|| mkDexValidator ||])
+    $$(PlutusTx.compile [|| wrap ||]) where
+        wrap = Scripts.wrapValidator @ErgoDexPool @ContractAction

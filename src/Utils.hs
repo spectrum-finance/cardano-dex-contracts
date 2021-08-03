@@ -13,8 +13,6 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# options_ghc -fno-warn-orphans          #-}
 {-# options_ghc -Wno-redundant-constraints #-}
 {-# options_ghc -fno-strictness            #-}
@@ -52,6 +50,7 @@ import           Plutus.V1.Ledger.Scripts
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           Data.ByteString.Hash
+import           Dex.Contract.OffChain
 
 newtype PoolId = PoolId Builtins.ByteString
     deriving (Haskell.Show, Generic, FromJSON, ToJSON, Haskell.Eq)
@@ -123,7 +122,7 @@ valueWithin = txOutValue . txInInfoResolved
 
 {-# INLINABLE lpSupply #-}
 lpSupply :: Integer
-lpSupply = 4000000000
+lpSupply = 0x7fffffffffffffff
 
 {-# INLINABLE calculateValueInOutputs #-}
 calculateValueInOutputs :: [TxInInfo] -> Coin a -> Integer
@@ -165,3 +164,5 @@ getPoolId ErgoDexPool{..} =
     toHash = (unCurrencySymbol xCoinCurSymbol) <> (unTokenName xCoinName) <> (unCurrencySymbol yCoinCurSymbol) <> (unTokenName yCoinName) <> (unCurrencySymbol lpCoinCurSymbol) <> (unTokenName lpCoinName)
     poolHash = sha3 toHash
   in PoolId poolHash
+
+
