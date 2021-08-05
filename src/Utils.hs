@@ -40,9 +40,9 @@ import PlutusTx.Prelude
       Ord )
 import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
-import           Dex.Contract.Models
 import qualified Data.ByteString.Char8  as C
 import qualified PlutusTx.Builtins   as Builtins
+import qualified Ledger.Typed.Scripts   as Scripts
 import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
@@ -50,7 +50,6 @@ import           Plutus.V1.Ledger.Scripts
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           Data.ByteString.Hash
-import           Dex.Contract.OffChain
 
 newtype PoolId = PoolId Builtins.ByteString
     deriving (Haskell.Show, Generic, FromJSON, ToJSON, Haskell.Eq)
@@ -100,18 +99,6 @@ isUnity v c = amountOf v c == 1
 mkCoin :: CurrencySymbol -> TokenName -> Coin a
 mkCoin c = Coin . assetClass c
 
-{-# INLINABLE getCoinAFromPool #-}
-getCoinAFromPool :: ErgoDexPool -> Coin CoinA
-getCoinAFromPool ErgoDexPool{..} = Coin (xCoin)
-
-{-# INLINABLE getCoinBFromPool #-}
-getCoinBFromPool :: ErgoDexPool -> Coin CoinB
-getCoinBFromPool ErgoDexPool{..} = Coin (yCoin)
-
-{-# INLINABLE getCoinLPFromPool #-}
-getCoinLPFromPool :: ErgoDexPool -> Coin LPToken
-getCoinLPFromPool ErgoDexPool{..} = Coin (lpCoin)
-
 {-# INLINABLE findOwnInput' #-}
 findOwnInput' :: ScriptContext -> TxInInfo
 findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
@@ -155,14 +142,10 @@ ownOutput sCtx = case [ o
                 [o] -> o
                 _   -> traceError "expected exactly one output to the same liquidity pool"
 
-getPoolId :: ErgoDexPool -> PoolId
-getPoolId ErgoDexPool{..} =
-  let
-    (xCoinCurSymbol, xCoinName) = unAssetClass xCoin
-    (yCoinCurSymbol, yCoinName) = unAssetClass yCoin
-    (lpCoinCurSymbol, lpCoinName) = unAssetClass lpCoin
-    toHash = (unCurrencySymbol xCoinCurSymbol) <> (unTokenName xCoinName) <> (unCurrencySymbol yCoinCurSymbol) <> (unTokenName yCoinName) <> (unCurrencySymbol lpCoinCurSymbol) <> (unTokenName lpCoinName)
-    poolHash = sha3 toHash
-  in PoolId poolHash
+{-# INLINABLE check2inputs #-}
+check2inputs :: ScriptContext -> Bool
+check2inputs sCtx = length (txInfoInputs $ (scriptContextTxInfo sCtx)) == 2
 
-
+{-# INLINABLE check2outputs #-}
+check2outputs :: ScriptContext -> Bool
+check2outputs sCtx = length (txInfoOutputs $ (scriptContextTxInfo sCtx)) == 2

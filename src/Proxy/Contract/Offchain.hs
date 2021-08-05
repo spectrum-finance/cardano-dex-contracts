@@ -1,6 +1,24 @@
+{-# LANGUAGE AllowAmbiguousTypes        #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DeriveAnyClass             #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE NoImplicitPrelude          #-}
+{-# LANGUAGE PartialTypeSignatures      #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE DuplicateRecordFields      #-}
 
-
-module Proxy.Contract.Offchain where
+module Proxy.Contract.OffChain where
 
 import           Playground.Contract
 import           Plutus.Contract
@@ -8,8 +26,15 @@ import           Ledger                           hiding (singleton)
 import qualified PlutusTx
 import           PlutusTx.Prelude                 hiding (Semigroup (..), dropWhile, flip, unless)
 import           Prelude                          as Haskell (Int, Semigroup (..), String, div, dropWhile, flip, show,
-                                                              (^))
+                                                              (^), undefined)
 import           Data.Proxy                       (Proxy (..))
+import           Data.Void                        (Void, absurd)
+import qualified PlutusTx.Builtins                as Builtins
+import           Data.Text                        (Text, pack)
+import           Data.Monoid                      (Last (..))
+import           Proxy.Contract.OnChain
+
+
 
 type ProxyUserSchema =
         Endpoint "swap" SwapParams
@@ -23,15 +48,15 @@ data SwapParams = SwapParams {
     lpProxyToken :: AssetClass,
     dexFeeDatum :: Integer,
     targetPoolId :: Builtins.ByteString
-}
+} deriving (Show, Generic, FromJSON, ToJSON, ToSchema)
 
 data RedeemParams = RedeemParams {
     toGetCoin :: AssetClass,
     toSwapCoin :: AssetClass,
     lpProxyToken :: AssetClass,
     dexFeeDatum :: Integer,
-    targetPoolId :: Builtins.ByteString,
-}
+    targetPoolId :: Builtins.ByteString
+} deriving (Show, Generic, FromJSON, ToJSON, ToSchema)
 
 data DepositParams = DepositParams {
     toGetCoin :: AssetClass,
@@ -39,9 +64,10 @@ data DepositParams = DepositParams {
     lpProxyToken :: AssetClass,
     dexFeeDatum :: Integer,
     targetPoolId :: Builtins.ByteString
-}
+} deriving (Show, Generic, FromJSON, ToJSON, ToSchema)
 
 data Order = SwapOrder SwapParams | RedeemOrder RedeemParams | DepositOrder DepositParams
+    deriving (Show, Generic, FromJSON, ToJSON)
 
 data UserContractState =
       Orders [Order]
@@ -53,26 +79,24 @@ proxyAddress = scriptAddress proxyValidator
 proxyHash :: ValidatorHash
 proxyHash = validatorHash proxyValidator
 
-swap :: SwapParams -> Contract w s Text ()
-swap = undefined
+swap :: SwapParams -> Contract w s Text [Order]
+swap _ = return []
 
-redeem :: RedeemParams -> Contract w s Text ()
-redeem = undefined
+redeem :: RedeemParams -> Contract w s Text [Order]
+redeem _ = return []
 
-deposit :: DepositParams -> Contract w s Text ()
-deposit = undefined
+deposit :: DepositParams -> Contract w s Text [Order]
+deposit _ = return []
 
 orders :: Contract w s Text [Order]
 orders = return []
 
 userEndpoints :: Contract (Last (Either Text UserContractState)) ProxyUserSchema Void ()
 userEndpoints =
-    stop
-        `select`
-    ((f (Proxy @"swap")     Orders       swap                       `select`
-      f (Proxy @"redeem")   Orders       redeem                     `select`
-      f (Proxy @"deposit")  Orders       deposit                    `select`
-      f (Proxy @"pools")    Orders       orders                      >> userEndpoints us)
+    ((f (Proxy @"swap")     Orders       swap                               `select` 
+      f (Proxy @"redeem")   Orders       redeem                             `select` 
+      f (Proxy @"deposit")  Orders       deposit                            `select` 
+      f (Proxy @"orders")   Orders       (\_ -> orders)                   ) >> userEndpoints)
   where
     f :: forall l a p.
          (HasEndpoint l p ProxyUserSchema, FromJSON p)
@@ -83,14 +107,7 @@ userEndpoints =
     f _ g c = do
         e <- runError $ do
             p <- endpoint @l
-            c us p
+            c p
         tell $ Last $ Just $ case e of
             Left err -> Left err
             Right a  -> Right $ g a
-
-    stop :: Contract (Last (Either Text UserContractState)) ProxyUserSchema Void ()
-    stop = do
-        e <- runError $ endpoint @"stop"
-        tell $ Last $ Just $ case e of
-            Left err -> Left err
-            Right () -> Right Stopped

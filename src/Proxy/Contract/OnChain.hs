@@ -62,9 +62,9 @@ import Ledger
       TxOut(txOutDatumHash, txOutValue),
       Value)
 import           Utils
-import           Dex.Contract.OffChain
 import           PlutusTx.Builtins  (divideInteger, multiplyInteger, addInteger, subtractInteger, lessThanEqInteger)
 import           Proxy.Contract.Models
+import           Dex.Contract.OnChain
 
 {-# INLINABLE checkCorrectSwap #-}
 checkCorrectSwap :: ProxyDatum -> ScriptContext -> Bool
@@ -78,7 +78,7 @@ checkCorrectSwap ProxyDatum{..} sCtx =
     ownInput = findOwnInput' sCtx
 
     poolInput :: TxOut
-    poolInput = inputLockedByDex sCtx
+    poolInput = inputLockedByDex' sCtx
 
     poolInputValue :: Value
     poolInputValue = txOutValue $ poolInput
@@ -112,7 +112,7 @@ checkCorrectDeposit ProxyDatum{..} sCtx =
     ownInput = findOwnInput' sCtx
 
     poolInput :: TxOut
-    poolInput = inputLockedByDex sCtx
+    poolInput = inputLockedByDex' sCtx
 
     poolInputValue :: Value
     poolInputValue = txOutValue $ poolInput
@@ -148,7 +148,7 @@ checkCorrectRedeem ProxyDatum{..} sCtx =
     ownInput = findOwnInput' sCtx
 
     poolInput :: TxOut
-    poolInput = inputLockedByDex sCtx
+    poolInput = inputLockedByDex' sCtx
 
     poolInputValue :: Value
     poolInputValue = txOutValue $ poolInput
@@ -192,14 +192,6 @@ proxyInstance = Scripts.mkTypedValidator @ProxySwapping
 
 proxyValidator :: Validator
 proxyValidator = Scripts.validatorScript proxyInstance
-
-{-# INLINABLE check2inputs #-}
-check2inputs :: ScriptContext -> Bool
-check2inputs sCtx = length (txInfoInputs $ (scriptContextTxInfo sCtx)) == 2
-
-{-# INLINABLE check2outputs #-}
-check2outputs :: ScriptContext -> Bool
-check2outputs sCtx = length (txInfoOutputs $ (scriptContextTxInfo sCtx)) == 2
 
 feeNum :: Integer
 feeNum = 995
