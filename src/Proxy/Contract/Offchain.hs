@@ -84,12 +84,16 @@ data InfoParam = InfoParam {
     infoId :: Int
 } deriving (Show, Generic, FromJSON, ToJSON, ToSchema)
 
-data Order = SwapOrder SwapParams | RedeemOrder RedeemParams | DepositOrder DepositParams
-    deriving (Show, Generic, FromJSON, ToJSON)
+data Order = Order {
+    action :: ProxyAction,
+    coinA :: AssetClass,
+    coinB :: AssetClass,
+    lpCoin :: AssetClass,
+    targetPoolId :: Builtins.ByteString
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data UserContractState =
-      Swapped
-      | Orders [Order]
+      SwapCreated | RedeemCreated | DepositCreated | Orders [Order]
     deriving (Show, Generic, FromJSON, ToJSON)
 
 proxyAddress :: Ledger.Address
@@ -196,23 +200,11 @@ orders _ = do
     go (o : os) = do
         d <- getProxyDatum o
         case d of
-            ProxyDatum action minOutputValue dexFeeDatum _ coinA coinB _ coinLp ->
-                case action of
-                    Swap    -> do
-                        let s = SwapOrder $ SwapParams coinA coinB coinLp dexFeeDatum Builtins.emptyByteString minOutputValue
-                        logInfo @String $ "found swap: " ++ show s
-                        ss <- go os
-                        return $ s : ss
-                    Deposit -> do
-                        let s = DepositOrder $ DepositParams coinA coinB coinLp dexFeeDatum Builtins.emptyByteString
-                        logInfo @String $ "found deposit: " ++ show s
-                        ss <- go os
-                        return $ s : ss
-                    Redeem  -> do
-                        let s = RedeemOrder $ RedeemParams coinA coinB coinLp dexFeeDatum Builtins.emptyByteString
-                        logInfo @String $ "found redeem: " ++ show s
-                        ss <- go os
-                        return $ s : ss
+            ProxyDatum action _ _ _ coinA coinB poolId coinLp -> do
+                let s = Order action coinA coinB coinLp poolId
+                logInfo @String $ "found order: " ++ show s
+                ss <- go os
+                return $ s : ss
 
 getProxyDatum :: TxOutTx -> Contract w s Text ProxyDatum
 getProxyDatum o = case txOutDatumHash $ txOutTxOut o of
@@ -225,10 +217,10 @@ getProxyDatum o = case txOutDatumHash $ txOutTxOut o of
 
 userEndpoints :: Contract (Last (Either Text UserContractState)) ProxyUserSchema Void ()
 userEndpoints =
-    ((f (Proxy @"swap")     (const Swapped)      swap                       `select`
-      f (Proxy @"redeem")   Orders       redeem                             `select`
-      f (Proxy @"deposit")  Orders       deposit                            `select`
-      f (Proxy @"orders")   Orders       orders                             ) >> userEndpoints)
+    ((f (Proxy @"swap")     (const SwapCreated)         swap                               `select`
+      f (Proxy @"redeem")   (const RedeemCreated)       redeem                             `select`
+      f (Proxy @"deposit")  (const DepositCreated)      deposit                            `select`
+      f (Proxy @"orders")   Orders                      orders                             ) >> userEndpoints)
   where
     f :: forall l a p.
          (HasEndpoint l p ProxyUserSchema, FromJSON p)
