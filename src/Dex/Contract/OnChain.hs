@@ -21,12 +21,14 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
-
+{-# LANGUAGE NamedFieldPuns             #-}
+{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
+{-# OPTIONS_GHC -fno-strictness #-}
+{-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
 module Dex.Contract.OnChain where
 
-import           Control.Monad          (void)
-import           GHC.Generics           (Generic)
 import           Ledger.Value
     ( AssetClass (..),
       symbols,
@@ -34,10 +36,14 @@ import           Ledger.Value
       tokenName,
       currencySymbol,
       assetClass )
-import           Ledger.Contexts        (ScriptContext(..))
+import           Ledger.Contexts        (ScriptContext(..), txInfoOutputs)
 import qualified Ledger.Constraints     as Constraints
 import qualified Ledger.Typed.Scripts   as Scripts
+import           PlutusTx.Bool          as Bool
+import qualified PlutusTx.Builtins      as Builtins
+import           Plutus.V1.Ledger.Scripts (ValidatorHash(..))
 import qualified PlutusTx
+import qualified PlutusTx.Foldable      as Foldable
 import Plutus.Contract
     ( endpoint,
       utxoAt,
@@ -46,7 +52,6 @@ import Plutus.Contract
       collectFromScript,
       select,
       type (.\/),
-      BlockchainActions,
       Endpoint,
       Contract,
       AsContractError,
@@ -54,25 +59,31 @@ import Plutus.Contract
 import           Plutus.Contract.Schema ()
 import           Plutus.Trace.Emulator  (EmulatorTrace)
 import qualified Plutus.Trace.Emulator  as Trace
+import           Plutus.V1.Ledger.Contexts
+import           Plutus.V1.Ledger.Address as Address
 import           PlutusTx.Builtins  (divideInteger, multiplyInteger, addInteger, subtractInteger)
 import Ledger
     ( findOwnInput,
       getContinuingOutputs,
       ownHashes,
+      txOutAddress,
       ScriptContext(scriptContextTxInfo),
       TxInInfo(txInInfoResolved),
       TxInfo(txInfoInputs),
       DatumHash,
       Redeemer,
+      Address,
       TxOut(txOutDatumHash, txOutValue),
-      Value)
+      Value,
+      ValidatorHash,
+      Validator,
+      scriptHashAddress)
 import qualified Ledger.Ada             as Ada
 
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           Schema                 (ToArgument, ToSchema)
 import           Wallet.Emulator        (Wallet (..))
-
 import Dex.Contract.Models
 import Utils
     ( amountOf,
@@ -83,25 +94,27 @@ import Utils
       CoinA,
       CoinB,
       LPToken,
-      getCoinAFromPool,
-      getCoinBFromPool,
-      getCoinLPFromPool,
       lpSupply,
       findOwnInput',
-      currentContractHash,
       valueWithin,
       calculateValueInOutputs,
-      proxyDatumHash,
-      ownOutput)
+      ownOutput,
+      check2outputs,
+      check2inputs)
 
 --todo: Refactoring. Check that value of ergo, ada is greather than 0. validate creation, adding ada/ergo to
+
+data ErgoDexSwapping
+instance Scripts.ValidatorTypes ErgoDexSwapping where
+    type instance RedeemerType ErgoDexSwapping = ContractAction
+    type instance DatumType    ErgoDexSwapping = ErgoDexPool
 
 {-# INLINABLE checkTokenSwap #-}
 checkTokenSwap :: ErgoDexPool -> ScriptContext -> Bool
 checkTokenSwap ErgoDexPool{..} sCtx =
     traceIfFalse "Expected A or B coin to be present in input" checkSwaps PlutusTx.Prelude.&&
-    traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-    traceIfFalse "Outputs qty check failed" check2outputs sCtx
+    traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+    traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
 
     ownInput :: TxInInfo
@@ -131,8 +144,8 @@ checkTokenSwap ErgoDexPool{..} sCtx =
 checkCorrectDepositing :: ErgoDexPool -> ScriptContext -> Bool
 checkCorrectDepositing ErgoDexPool{..} sCtx =
   traceIfFalse "Incorrect lp token value" checkDeposit PlutusTx.Prelude.&&
-  traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-  traceIfFalse "Outputs qty check failed" check2outputs sCtx
+  traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+  traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
 
     ownInput :: TxInInfo
@@ -163,8 +176,8 @@ checkCorrectDepositing ErgoDexPool{..} sCtx =
 checkCorrectRedemption :: ErgoDexPool -> ScriptContext -> Bool
 checkCorrectRedemption ErgoDexPool{..} sCtx =
   traceIfFalse "Incorrect lp token value" checkRedemption PlutusTx.Prelude.&&
-  traceIfFalse "Inputs qty check failed" check2inputs sCtx PlutusTx.Prelude.&&
-  traceIfFalse "Outputs qty check failed" check2outputs sCtx
+  traceIfFalse "Inputs qty check failed" (check2inputs sCtx) PlutusTx.Prelude.&&
+  traceIfFalse "Outputs qty check failed" (check2outputs sCtx)
   where
 
     ownInput :: TxInInfo
@@ -202,10 +215,30 @@ mkDexValidator pool AddTokens sCtx = checkCorrectDepositing pool sCtx
 mkDexValidator pool SwapToken sCtx = checkTokenSwap pool sCtx
 mkDexValidator _ _ _ = False
 
-{-# INLINABLE check2inputs #-}
-check2inputs :: ScriptContext -> Bool
-check2inputs sCtx = length (txInfoInputs $ (scriptContextTxInfo sCtx)) == 2
+{-# INLINABLE dexValidator #-}
+dexValidator :: Validator
+dexValidator = Scripts.validatorScript dexInstance
 
-{-# INLINABLE check2outputs #-}
-check2outputs :: ScriptContext -> Bool
-check2outputs sCtx = length (txInfoOutputs $ (scriptContextTxInfo sCtx)) == 2
+{-# INLINABLE dexContractHash #-}
+dexContractHash :: ValidatorHash
+dexContractHash = ValidatorHash Builtins.emptyByteString -- Scripts.tvValidatorHash dexInstance
+
+{-# INLINABLE dexContractAddress #-}
+dexContractAddress :: Address
+dexContractAddress = scriptHashAddress dexContractHash
+
+{-# INLINABLE inputLockedByDex #-}
+inputLockedByDex :: ScriptContext -> Maybe TxInInfo
+inputLockedByDex ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}, scriptContextPurpose=Spending txOutRef} =
+  Foldable.find (\TxInInfo{txInInfoResolved} -> toValidatorHash ( txOutAddress txInInfoResolved ) == Just dexContractHash ) txInfoInputs
+inputLockedByDex _ = Nothing
+
+{-# INLINABLE inputLockedByDex' #-}
+inputLockedByDex' :: ScriptContext -> TxOut
+inputLockedByDex' ctx = txInInfoResolved $ fromMaybe (error ()) (inputLockedByDex ctx)
+
+dexInstance :: Scripts.TypedValidator ErgoDexSwapping
+dexInstance = Scripts.mkTypedValidator @ErgoDexSwapping
+    $$(PlutusTx.compile [|| mkDexValidator ||])
+    $$(PlutusTx.compile [|| wrap ||]) where
+        wrap = Scripts.wrapValidator @ErgoDexPool @ContractAction

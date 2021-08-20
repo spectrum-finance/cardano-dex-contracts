@@ -5,10 +5,12 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE EmptyDataDecls             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
@@ -24,6 +26,7 @@ import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
 import qualified PlutusTx
 import           Prelude
 import qualified PlutusTx.Builtins   as Builtins
+import qualified Ledger.Typed.Scripts   as Scripts
 import qualified Data.ByteString.Char8  as C
 
 data ErgoDexPool = ErgoDexPool {
