@@ -29,25 +29,12 @@ library
                      Dex.Contract.Models
 
     build-depends: 
-      base >= 4.9 && < 5,
-      aeson,
-      win32-network,
-      text,
-      lens,
-      either,
-      containers,
-      bytestring,
-      playground-common,
-      singletons,
-      plutus-contract,
-      plutus-core,
-      plutus-tx-plugin,
-      aeson-pretty,
-      plutus-tx,
       plutus-ledger,
-      plutus-pab,
+      plutus-tx,
       plutus-ledger-api,
-      freer-simple,
-      freer-extras,
-      http-conduit,
-      rio
+      playground-common,
+      bytestring,
+      aeson,
+      plutus-contract,
+      plutus-tx-plugin,
+      plutus-core
