@@ -92,7 +92,6 @@ checkCorrectSwap ProxyDatum{..} sCtx =
     checkConditions :: Bool
     checkConditions =
         let
-          outputWithValueToSwap = txInInfoResolved ownInput
           baseAmount = assetClassValueOf previousValue xProxyToken
           quoteAmount = assetClassValueOf newValue yProxyToken
           poolX = assetClassValueOf poolInputValue xProxyToken
