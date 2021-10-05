@@ -60,8 +60,6 @@ data PoolDiff = PoolDiff
   , diffLiquidity :: Diff Liquidity
   }
 
-feeDen = 1000
-
 {-# INLINABLE diffPoolState #-}
 diffPoolState :: PoolState -> PoolState -> PoolDiff
 diffPoolState s0 s1 =
@@ -116,6 +114,7 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
     reservesY0     = unAmount reservesY
     deltaReservesX = unDiff diffX
     deltaReservesY = unDiff diffY
+    feeDen         = 1000
 
     fairSwap =
       if deltaReservesX > 0 then
