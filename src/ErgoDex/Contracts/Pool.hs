@@ -32,7 +32,7 @@ module ErgoDex.Contracts.Pool where
 import           Ledger
 import           Ledger.Constraints.OnChain       as Constraints
 import           Ledger.Constraints.TxConstraints as Constraints
-import           Ledger.Value                     (AssetClass (..), symbols)
+import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue, isZero)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
 import           PlutusTx.Prelude
@@ -65,7 +65,7 @@ feeDen = 1000
 {-# INLINABLE diffPoolState #-}
 diffPoolState :: PoolState -> PoolState -> PoolDiff
 diffPoolState s0 s1 =
-    PoolDiff dx dy dliquidity
+    PoolDiff dx dy dlq
   where
     rx0 = unAmount $ reservesX s0
     rx1 = unAmount $ reservesX s1
@@ -73,14 +73,14 @@ diffPoolState s0 s1 =
     ry1 = unAmount $ reservesY s1
     l0  = unAmount $ liquidity s0
     l1  = unAmount $ liquidity s1
-    dx         = Diff $ rx1 - rx0
-    dy         = Diff $ ry1 - ry0
-    dliquidity = Diff $ l1 - l0
+    dx  = Diff $ rx1 - rx0
+    dy  = Diff $ ry1 - ry0
+    dlq = Diff $ l1 - l0
 
 {-# INLINABLE validDeposit #-}
 validDeposit :: PoolState -> PoolDiff -> Bool
 validDeposit PoolState{..} PoolDiff{..} =
-    diffLiquidity' <= liquidityUnlocked
+    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= liquidityUnlocked)
   where
     diffLiquidity'    = unDiff diffLiquidity
     diffX'            = unDiff diffX
@@ -88,12 +88,13 @@ validDeposit PoolState{..} PoolDiff{..} =
     liquidity'        = unAmount liquidity
     reservesX'        = unAmount reservesX
     reservesY'        = unAmount reservesY
+
     liquidityUnlocked = min (divide (diffX' * liquidity') reservesX') (divide (diffY' * liquidity') reservesY')
 
 {-# INLINABLE validRedeem #-}
 validRedeem :: PoolState -> PoolDiff -> Bool
 validRedeem PoolState{..} PoolDiff{..} =
-    diffX' * liquidity' >= diffLiquidity' * reservesX' && diffY' * liquidity' >= diffLiquidity' * reservesY'
+    traceIfFalse "Illegal redeem" fairRedeem
   where
     diffLiquidity' = unDiff diffLiquidity
     diffX'         = unDiff diffX
@@ -102,18 +103,25 @@ validRedeem PoolState{..} PoolDiff{..} =
     reservesX'     = unAmount reservesX
     reservesY'     = unAmount reservesY
 
+    fairRedeem =
+      diffX' * liquidity' >= diffLiquidity' * reservesX' && diffY' * liquidity' >= diffLiquidity' * reservesY'
+
 {-# INLINABLE validSwap #-}
 validSwap :: PoolParams -> PoolState -> PoolDiff -> Bool
 validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
-    if deltaReservesX > 0 then
-      reservesY0 * deltaReservesX * feeNum >= -deltaReservesY * (reservesX0 * feeDen + deltaReservesX * feeNum)
-    else
-      reservesX0 * deltaReservesY * feeNum >= -deltaReservesX * (reservesY0 * feeDen + deltaReservesY * feeNum)
+    traceIfFalse "Illegal swap" fairSwap &&
+    traceIfFalse "Liquidity emission must not change" (diffLiquidity == 0)
   where
     reservesX0     = unAmount reservesX
     reservesY0     = unAmount reservesY
     deltaReservesX = unDiff diffX
     deltaReservesY = unDiff diffY
+
+    fairSwap =
+      if deltaReservesX > 0 then
+        reservesY0 * deltaReservesX * feeNum >= -deltaReservesY * (reservesX0 * feeDen + deltaReservesX * feeNum)
+      else
+        reservesX0 * deltaReservesY * feeNum >= -deltaReservesX * (reservesY0 * feeDen + deltaReservesY * feeNum)
 
 {-# INLINABLE getPoolOutput #-}
 getPoolOutput :: ScriptContext -> TxOut
@@ -123,29 +131,38 @@ getPoolOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
 {-# INLINABLE findPoolDatum #-}
 findPoolDatum :: TxInfo -> DatumHash -> (PoolParams, Amount Liquidity)
 findPoolDatum info h = case findDatum h info of
-    Just (Datum d) -> case fromData d of
-        (Just (PoolDatum ps lq)) -> (ps, lq)
-        _                        -> traceError "error decoding data"
-    _              -> traceError "pool input datum not found"
+  Just (Datum d) -> case fromData d of
+    (Just (PoolDatum ps lq)) -> (ps, lq)
+    _                        -> traceError "error decoding data"
+  _              -> traceError "pool input datum not found"
 
-mkPoolValidator :: PoolParams -> Amount Liquidity -> PoolAction -> ScriptContext -> Bool
-mkPoolValidator ps0@PoolParams{..} lq0 action ctx =
+mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
+mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
+    traceIfFalse "Pool params not preserved" poolParamsPreserved &&
+    traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
     traceIfFalse "Invalid action" validAction
   where
-    txInfo     = scriptContextTxInfo ctx
-    self       = txInInfoResolved $ findOwnInput' ctx
-    successor  = getPoolOutput ctx
+    txInfo    = scriptContextTxInfo ctx
+    self      = txInInfoResolved $ findOwnInput' ctx
+    successor = getPoolOutput ctx
 
-    poolNftPreserved = isUnity (txOutValue successor) poolNft
+    poolNftPreserved = isUnit (txOutValue successor) poolNft
 
     (ps1, lq1) = case txOutDatum successor of
       Nothing -> traceError "pool output datum hash not found"
       Just h  -> findPoolDatum txInfo h
 
+    poolParamsPreserved = ps1 == ps0
+
     s0   = mkPoolState ps0 lq0 self
     s1   = mkPoolState ps1 lq1 successor
     diff = diffPoolState s0 s1
+
+    valueForged = txInfoForge txInfo
+
+    liquiditySynced = isZero valueForged ||
+                      valueForged == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
 
     validAction = case action of
       Deposit -> validDeposit s0 diff

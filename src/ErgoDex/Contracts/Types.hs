@@ -86,19 +86,27 @@ PlutusTx.makeLift ''Amount
 amountOf :: Value -> Coin a -> Amount a
 amountOf v = Amount . assetClassValueOf v . unCoin
 
-{-# INLINABLE isUnity #-}
-isUnity :: Value -> Coin a -> Bool
-isUnity v c = amountOf v c == 1
+{-# INLINABLE isUnit #-}
+isUnit :: Value -> Coin a -> Bool
+isUnit v c = amountOf v c == 1
 
 data PoolParams = PoolParams
   { poolNft :: Coin Nft
   , poolX   :: Coin X
   , poolY   :: Coin Y
-  , poolLp  :: Coin Liquidity
+  , poolLq  :: Coin Liquidity
   , feeNum  :: Integer
   } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 PlutusTx.makeIsDataIndexed ''PoolParams [('PoolParams, 0)]
 PlutusTx.makeLift ''PoolParams
+
+instance Eq PoolParams where
+  {-# INLINABLE (==) #-}
+  x == y = poolNft x == poolNft y &&
+           poolX x   == poolX y &&
+           poolY x   == poolY y &&
+           poolLq x  == poolLq y &&
+           feeNum x  == feeNum y
 
 data PoolDatum = PoolDatum PoolParams (Amount Liquidity)
   deriving stock (Haskell.Show)
