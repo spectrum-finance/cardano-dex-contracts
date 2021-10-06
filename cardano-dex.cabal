@@ -27,6 +27,7 @@ library
                      ErgoDex.Contracts.Pool
                      ErgoDex.Contracts.Proxy.Swap
                      ErgoDex.Contracts.Proxy.Deposit
+                     ErgoDex.Contracts.Proxy.Redeem
 
     build-depends: 
         plutus-ledger,

@@ -27,7 +27,7 @@
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
-module ErgoDex.Contracts.Proxy.Deposit where
+module ErgoDex.Contracts.Proxy.Redeem where
 
 import qualified Prelude                          as Haskell
 
@@ -44,23 +44,23 @@ import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
 import           Utils
 
-data DepositDatum = DepositDatum
+data RedeemDatum = RedeemDatum
    { poolNft   :: Coin Nft
    , exFee     :: Integer
    , rewardPkh :: PubKeyHash
    } deriving stock (Haskell.Show)
-PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
-PlutusTx.makeLift ''DepositDatum
+PlutusTx.makeIsDataIndexed ''RedeemDatum [('RedeemDatum, 0)]
+PlutusTx.makeLift ''RedeemDatum
 
-{-# INLINABLE mkDepositValidator #-}
-mkDepositValidator :: DepositDatum -> ScriptContext -> Bool
-mkDepositValidator DepositDatum{..} ctx =
+{-# INLINABLE mkRedeemValidator #-}
+mkRedeemValidator :: RedeemDatum -> ScriptContext -> Bool
+mkRedeemValidator RedeemDatum{..} ctx =
     txSignedBy txInfo rewardPkh || (
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&
       traceIfFalse "Invalid reward proposition" validRewardProp &&
       traceIfFalse "Unfair execution fee" fairExFee &&
-      traceIfFalse "Minimal reward not met" validReward
+      traceIfFalse "Insufficient amount of tokens returned" sufficientReturn
     )
   where
     txInfo = scriptContextTxInfo ctx
@@ -85,16 +85,16 @@ mkDepositValidator DepositDatum{..} ctx =
         outAda = Ada.getLovelace $ Ada.fromValue rewardValue
         inAda  = Ada.getLovelace $ Ada.fromValue selfValue
 
-    validReward =
-        outLq >= minReward
+    sufficientReturn =
+        outX >= minReturnX && outY >= minReturnY
       where
         (ps@PoolParams{..}, lq) = case txOutDatum pool of
           Nothing -> traceError "pool input datum hash not found"
           Just h  -> findPoolDatum txInfo h
 
-        inX   = valueOf selfValue poolX
-        inY   = valueOf selfValue poolY
-        outLq = valueOf rewardValue poolLq
+        outX = valueOf rewardValue poolX
+        outY = valueOf rewardValue poolY
+        inLq    = valueOf selfValue poolLq
 
         poolState = mkPoolState ps lq pool
 
@@ -102,4 +102,5 @@ mkDepositValidator DepositDatum{..} ctx =
         reservesX' = unAmount $ reservesX poolState
         reservesY' = unAmount $ reservesY poolState
 
-        minReward = min (divide (inX * liquidity') reservesX') (divide (inY * liquidity') reservesY')
+        minReturnX = divide (inLq * reservesX') liquidity'
+        minReturnY = divide (inLq * reservesY') liquidity'
