@@ -57,12 +57,26 @@ data Liquidity = Liquidity deriving (Haskell.Show, Haskell.Eq, Generic)
 PlutusTx.makeIsDataIndexed ''Liquidity [('Liquidity, 0)]
 PlutusTx.makeLift ''Liquidity
 
+-- First asset of a pool
+data Quote = Quote deriving (Haskell.Show, Haskell.Eq, Generic)
+PlutusTx.makeIsDataIndexed ''Quote [('Quote, 0)]
+PlutusTx.makeLift ''Quote
+
+-- Second asset of a pool
+data Base = Base deriving (Haskell.Show, Haskell.Eq, Generic)
+PlutusTx.makeIsDataIndexed ''Base [('Base, 0)]
+PlutusTx.makeLift ''Base
+
 -- Type to distinguish tokens within a pool
 newtype Coin a = Coin { unCoin :: AssetClass }
   deriving stock   (Haskell.Show, Generic)
   deriving newtype (ToJSON, FromJSON, ToSchema, Eq, Haskell.Eq, Haskell.Ord)
 PlutusTx.makeIsDataIndexed ''Coin [('Coin, 0)]
 PlutusTx.makeLift ''Coin
+
+{-# INLINABLE valueOf #-}
+valueOf :: Value -> Coin a -> Integer
+valueOf v = assetClassValueOf v . unCoin
 
 -- Difference of a token amount
 newtype Diff a = Diff { unDiff :: Integer }
@@ -89,34 +103,3 @@ amountOf v = Amount . assetClassValueOf v . unCoin
 {-# INLINABLE isUnit #-}
 isUnit :: Value -> Coin a -> Bool
 isUnit v c = amountOf v c == 1
-
-data PoolParams = PoolParams
-  { poolNft :: Coin Nft
-  , poolX   :: Coin X
-  , poolY   :: Coin Y
-  , poolLq  :: Coin Liquidity
-  , feeNum  :: Integer
-  } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
-PlutusTx.makeIsDataIndexed ''PoolParams [('PoolParams, 0)]
-PlutusTx.makeLift ''PoolParams
-
-instance Eq PoolParams where
-  {-# INLINABLE (==) #-}
-  x == y = poolNft x == poolNft y &&
-           poolX x   == poolX y &&
-           poolY x   == poolY y &&
-           poolLq x  == poolLq y &&
-           feeNum x  == feeNum y
-
-data PoolDatum = PoolDatum PoolParams (Amount Liquidity)
-  deriving stock (Haskell.Show)
-PlutusTx.makeIsDataIndexed ''PoolDatum [('PoolDatum, 0)]
-PlutusTx.makeLift ''PoolDatum
-
-data PoolAction = Deposit | Redeem | Swap
-  deriving Haskell.Show
-PlutusTx.makeIsDataIndexed ''PoolAction [ ('Deposit , 0)
-                                        , ('Redeem,   1)
-                                        , ('Swap,     2)
-                                        ]
-PlutusTx.makeLift ''PoolAction

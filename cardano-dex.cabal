@@ -25,6 +25,7 @@ library
     exposed-modules: Utils
                      ErgoDex.Contracts.Types
                      ErgoDex.Contracts.Pool
+                     ErgoDex.Contracts.Proxy.Swap
 
     build-depends: 
         plutus-ledger,

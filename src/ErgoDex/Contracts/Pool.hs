@@ -29,21 +29,54 @@
 
 module ErgoDex.Contracts.Pool where
 
+import qualified Prelude                          as Haskell
 import           Ledger
 import           Ledger.Constraints.OnChain       as Constraints
 import           Ledger.Constraints.TxConstraints as Constraints
 import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue, isZero, flattenValue)
+import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
 import           Utils
 
+data PoolParams = PoolParams
+  { poolNft :: Coin Nft
+  , poolX   :: Coin X
+  , poolY   :: Coin Y
+  , poolLq  :: Coin Liquidity
+  , feeNum  :: Integer
+  } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
+PlutusTx.makeIsDataIndexed ''PoolParams [('PoolParams, 0)]
+PlutusTx.makeLift ''PoolParams
+
+instance Eq PoolParams where
+  {-# INLINABLE (==) #-}
+  x == y = poolNft x == poolNft y &&
+           poolX x   == poolX y &&
+           poolY x   == poolY y &&
+           poolLq x  == poolLq y &&
+           feeNum x  == feeNum y
+
+data PoolDatum = PoolDatum PoolParams (Amount Liquidity)
+  deriving stock (Haskell.Show)
+PlutusTx.makeIsDataIndexed ''PoolDatum [('PoolDatum, 0)]
+PlutusTx.makeLift ''PoolDatum
+
+data PoolAction = Deposit | Redeem | Swap
+  deriving Haskell.Show
+PlutusTx.makeIsDataIndexed ''PoolAction [ ('Deposit , 0)
+                                        , ('Redeem,   1)
+                                        , ('Swap,     2)
+                                        ]
+PlutusTx.makeLift ''PoolAction
+
 data PoolState = PoolState
   { reservesX :: Amount X
   , reservesY :: Amount Y
   , liquidity :: Amount Liquidity
-  }
+  } deriving Haskell.Show
 
 {-# INLINABLE mkPoolState #-}
 mkPoolState :: PoolParams -> Amount Liquidity -> TxOut -> PoolState
@@ -74,6 +107,24 @@ diffPoolState s0 s1 =
     dx  = Diff $ rx1 - rx0
     dy  = Diff $ ry1 - ry0
     dlq = Diff $ l1 - l0
+
+{-# INLINABLE getPoolOutput #-}
+getPoolOutput :: ScriptContext -> TxOut
+getPoolOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
+  head txInfoOutputs -- pool box is always 1st output
+
+{-# INLINABLE getPoolInput #-}
+getPoolInput :: ScriptContext -> TxOut
+getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
+  txInInfoResolved $ head txInfoInputs -- pool box is always 1st input
+
+{-# INLINABLE findPoolDatum #-}
+findPoolDatum :: TxInfo -> DatumHash -> (PoolParams, Amount Liquidity)
+findPoolDatum info h = case findDatum h info of
+  Just (Datum d) -> case fromData d of
+    (Just (PoolDatum ps lq)) -> (ps, lq)
+    _                        -> traceError "error decoding data"
+  _              -> traceError "pool input datum not found"
 
 {-# INLINABLE validDeposit #-}
 validDeposit :: PoolState -> PoolDiff -> Bool
@@ -121,19 +172,6 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
         reservesY0 * deltaReservesX * feeNum >= -deltaReservesY * (reservesX0 * feeDen + deltaReservesX * feeNum)
       else
         reservesX0 * deltaReservesY * feeNum >= -deltaReservesX * (reservesY0 * feeDen + deltaReservesY * feeNum)
-
-{-# INLINABLE getPoolOutput #-}
-getPoolOutput :: ScriptContext -> TxOut
-getPoolOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
-  head txInfoOutputs
-
-{-# INLINABLE findPoolDatum #-}
-findPoolDatum :: TxInfo -> DatumHash -> (PoolParams, Amount Liquidity)
-findPoolDatum info h = case findDatum h info of
-  Just (Datum d) -> case fromData d of
-    (Just (PoolDatum ps lq)) -> (ps, lq)
-    _                        -> traceError "error decoding data"
-  _              -> traceError "pool input datum not found"
 
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
