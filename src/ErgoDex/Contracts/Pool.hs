@@ -32,7 +32,7 @@ module ErgoDex.Contracts.Pool where
 import           Ledger
 import           Ledger.Constraints.OnChain       as Constraints
 import           Ledger.Constraints.TxConstraints as Constraints
-import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue, isZero)
+import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue, isZero, flattenValue)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
 import           PlutusTx.Prelude
@@ -140,6 +140,8 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
+    traceIfFalse "Assets qty not preserved" strictAssets &&
+    traceIfFalse "Script not preserved" scriptPreserved &&
     traceIfFalse "Invalid action" validAction
   where
     txInfo    = scriptContextTxInfo ctx
@@ -162,6 +164,11 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
 
     liquiditySynced = isZero valueForged ||
                       valueForged == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
+
+    numAssets    = length $ flattenValue (txOutValue successor)
+    strictAssets = numAssets == 3
+
+    scriptPreserved = (txOutAddress successor) == (txOutAddress self)
 
     validAction = case action of
       Deposit -> validDeposit s0 diff
