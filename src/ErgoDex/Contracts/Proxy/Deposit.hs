@@ -27,7 +27,7 @@
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
-module ErgoDex.Contracts.Proxy.Swap where
+module ErgoDex.Contracts.Proxy.Deposit where
 
 import qualified Prelude                          as Haskell
 
@@ -38,35 +38,33 @@ import qualified Ledger.Ada                       as Ada
 import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue)
 import           Ledger.Contexts                  (txSignedBy, pubKeyOutput)
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool           (getPoolInput)
+import           ErgoDex.Contracts.Pool           (PoolState(..), mkPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
 import           Utils
 
-data SwapDatum = SwapDatum
-   { base             :: Coin Base
-   , quote            :: Coin Quote
-   , poolNft          :: Coin Nft
-   , feeNum           :: Integer
-   , exFeePerTokenNum :: Integer
-   , exFeePerTokenDen :: Integer
-   , rewardPkh        :: PubKeyHash
-   , minQuoteAmount   :: Amount Quote
+data DepositDatum = DepositDatum
+   { depositX  :: Coin X
+   , depositY  :: Coin Y
+   , poolNft   :: Coin Nft
+   , poolLq    :: Coin Liquidity
+   , feeNum    :: Integer
+   , exFee     :: Integer
+   , rewardPkh :: PubKeyHash
    } deriving stock (Haskell.Show)
-PlutusTx.makeIsDataIndexed ''SwapDatum [('SwapDatum, 0)]
-PlutusTx.makeLift ''SwapDatum
+PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
+PlutusTx.makeLift ''DepositDatum
 
-{-# INLINABLE mkSwapValidator #-}
-mkSwapValidator :: SwapDatum -> ScriptContext -> Bool
-mkSwapValidator SwapDatum{..} ctx =
+{-# INLINABLE mkDepositValidator #-}
+mkDepositValidator :: DepositDatum -> ScriptContext -> Bool
+mkDepositValidator DepositDatum{..} ctx =
     txSignedBy txInfo rewardPkh || (
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&
       traceIfFalse "Invalid reward proposition" validRewardProp &&
       traceIfFalse "Unfair execution fee" fairExFee &&
-      traceIfFalse "Min output not met" (quoteAmount >= unAmount minQuoteAmount) &&
-      traceIfFalse "Unfair execution price" fairPrice
+      traceIfFalse "Minimal reward not met" validReward
     )
   where
     txInfo = scriptContextTxInfo ctx
@@ -85,20 +83,27 @@ mkSwapValidator SwapDatum{..} ctx =
     selfValue   = txOutValue self
     rewardValue = txOutValue reward
 
-    baseAmount  = valueOf selfValue base
-    quoteAmount = valueOf rewardValue quote
-
     fairExFee =
         outAda >= inAda - exFee
       where
         outAda = Ada.getLovelace $ Ada.fromValue rewardValue
         inAda  = Ada.getLovelace $ Ada.fromValue selfValue
-        exFee  = divide (quoteAmount * exFeePerTokenNum) exFeePerTokenDen
 
-    fairPrice =
-        reservesQuote * baseAmount * feeNum <= relaxedOut * (reservesBase * feeDen + baseAmount * feeNum)
+    validReward =
+        outLq >= minReward
       where
-        relaxedOut    = quoteAmount + 1
-        reservesBase  = valueOf poolValue base
-        reservesQuote = valueOf poolValue quote
-        feeDen        = 1000
+        inX   = valueOf selfValue depositX
+        inY   = valueOf selfValue depositY
+        outLq = valueOf rewardValue poolLq
+
+        (ps, lq) = case txOutDatum pool of
+          Nothing -> traceError "pool input datum hash not found"
+          Just h  -> findPoolDatum txInfo h
+
+        poolState = mkPoolState ps lq pool
+
+        liquidity' = unAmount $ liquidity poolState
+        reservesX' = unAmount $ reservesX poolState
+        reservesY' = unAmount $ reservesY poolState
+
+        minReward = min (divide (inX * liquidity') reservesX') (divide (inY * liquidity') reservesY')
