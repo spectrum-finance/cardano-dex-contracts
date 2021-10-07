@@ -54,8 +54,8 @@ PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
 PlutusTx.makeLift ''DepositDatum
 
 {-# INLINABLE mkDepositValidator #-}
-mkDepositValidator :: DepositDatum -> ScriptContext -> Bool
-mkDepositValidator DepositDatum{..} ctx =
+mkDepositValidator :: DepositDatum -> BuiltinData -> ScriptContext -> Bool
+mkDepositValidator DepositDatum{..} _ ctx =
     txSignedBy txInfo rewardPkh || (
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&

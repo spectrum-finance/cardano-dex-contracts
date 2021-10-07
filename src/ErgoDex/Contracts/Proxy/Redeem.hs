@@ -54,8 +54,8 @@ PlutusTx.makeIsDataIndexed ''RedeemDatum [('RedeemDatum, 0)]
 PlutusTx.makeLift ''RedeemDatum
 
 {-# INLINABLE mkRedeemValidator #-}
-mkRedeemValidator :: RedeemDatum -> ScriptContext -> Bool
-mkRedeemValidator RedeemDatum{..} ctx =
+mkRedeemValidator :: RedeemDatum -> BuiltinData -> ScriptContext -> Bool
+mkRedeemValidator RedeemDatum{..} _ ctx =
     txSignedBy txInfo rewardPkh || (
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&
@@ -95,7 +95,7 @@ mkRedeemValidator RedeemDatum{..} ctx =
 
         outX = valueOf rewardValue poolX
         outY = valueOf rewardValue poolY
-        inLq    = valueOf selfValue poolLq
+        inLq = valueOf selfValue poolLq
 
         poolState = mkPoolState ps lq pool
 
