@@ -22,13 +22,13 @@ import           ErgoDex.Contracts.Pool (PoolDatum, PoolAction, mkPoolValidator)
 import qualified Ledger.Typed.Scripts as Scripts
 import qualified PlutusTx
 
-data Swapping
-instance Scripts.ValidatorTypes Swapping where
-    type instance RedeemerType Swapping = PoolAction
-    type instance DatumType    Swapping = PoolDatum
+data PoolArgs
+instance Scripts.ValidatorTypes PoolArgs where
+    type instance RedeemerType PoolArgs = PoolAction
+    type instance DatumType    PoolArgs = PoolDatum
 
-poolInstance :: Scripts.TypedValidator Swapping
-poolInstance = Scripts.mkTypedValidator @Swapping
+poolInstance :: Scripts.TypedValidator PoolArgs
+poolInstance = Scripts.mkTypedValidator @PoolArgs
     ($$(PlutusTx.compile [|| mkPoolValidator ||]))
      $$(PlutusTx.compile [|| wrap ||])
   where
