@@ -53,11 +53,6 @@ data DepositDatum = DepositDatum
 PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
 PlutusTx.makeLift ''DepositDatum
 
-data ErgoDexDeposit
-instance Scripts.ValidatorTypes ErgoDexDeposit where
-    type instance RedeemerType ErgoDexDeposit = Redeemer
-    type instance DatumType    ErgoDexDeposit = DepositDatum
-
 {-# INLINABLE mkDepositValidator #-}
 mkDepositValidator :: DepositDatum -> ScriptContext -> Bool
 mkDepositValidator DepositDatum{..} ctx =
@@ -109,9 +104,3 @@ mkDepositValidator DepositDatum{..} ctx =
         reservesY' = unAmount $ reservesY poolState
 
         minReward = min (divide (inX * liquidity') reservesX') (divide (inY * liquidity') reservesY')
-
-depositInstance :: Scripts.TypedValidator ErgoDexDeposit
-depositInstance = Scripts.mkTypedValidator @ErgoDexDeposit
-    $$(PlutusTx.compile [|| mkDepositValidator ||])
-    $$(PlutusTx.compile [|| wrap ||]) where
-        wrap = Scripts.wrapValidator @DepositDatum @Redeemer

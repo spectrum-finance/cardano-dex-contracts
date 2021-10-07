@@ -53,11 +53,6 @@ data RedeemDatum = RedeemDatum
 PlutusTx.makeIsDataIndexed ''RedeemDatum [('RedeemDatum, 0)]
 PlutusTx.makeLift ''RedeemDatum
 
-data ErgoDexRedeem
-instance Scripts.ValidatorTypes ErgoDexRedeem where
-    type instance RedeemerType ErgoDexRedeem = Redeemer
-    type instance DatumType    ErgoDexRedeem = RedeemDatum
-
 {-# INLINABLE mkRedeemValidator #-}
 mkRedeemValidator :: RedeemDatum -> ScriptContext -> Bool
 mkRedeemValidator RedeemDatum{..} ctx =
@@ -110,9 +105,3 @@ mkRedeemValidator RedeemDatum{..} ctx =
 
         minReturnX = divide (inLq * reservesX') liquidity'
         minReturnY = divide (inLq * reservesY') liquidity'
-
-redeemInstance :: Scripts.TypedValidator ErgoDexRedeem
-redeemInstance = Scripts.mkTypedValidator @ErgoDexRedeem
-    $$(PlutusTx.compile [|| mkRedeemValidator ||])
-    $$(PlutusTx.compile [|| wrap ||]) where
-        wrap = Scripts.wrapValidator @RedeemDatum @Redeemer

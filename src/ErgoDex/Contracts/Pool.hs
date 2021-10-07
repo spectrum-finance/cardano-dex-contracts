@@ -40,6 +40,7 @@ import           ErgoDex.Contracts.Types
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
+import           PlutusTx.Sqrt
 import           Utils
 
 data PoolParams = PoolParams
@@ -51,11 +52,6 @@ data PoolParams = PoolParams
   } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 PlutusTx.makeIsDataIndexed ''PoolParams [('PoolParams, 0)]
 PlutusTx.makeLift ''PoolParams
-
-data ErgoDexPool
-instance Scripts.ValidatorTypes ErgoDexPool where
-    type instance RedeemerType ErgoDexPool = Redeemer
-    type instance DatumType    ErgoDexPool = PoolParams
 
 instance Eq PoolParams where
   {-# INLINABLE (==) #-}
@@ -70,11 +66,12 @@ data PoolDatum = PoolDatum PoolParams (Amount Liquidity)
 PlutusTx.makeIsDataIndexed ''PoolDatum [('PoolDatum, 0)]
 PlutusTx.makeLift ''PoolDatum
 
-data PoolAction = Deposit | Redeem | Swap
+data PoolAction = Init | Deposit | Redeem | Swap
   deriving Haskell.Show
-PlutusTx.makeIsDataIndexed ''PoolAction [ ('Deposit , 0)
-                                        , ('Redeem,   1)
-                                        , ('Swap,     2)
+PlutusTx.makeIsDataIndexed ''PoolAction [ ('Init ,   0)
+                                        , ('Deposit, 1)
+                                        , ('Redeem,  2)
+                                        , ('Swap,    3)
                                         ]
 PlutusTx.makeLift ''PoolAction
 
@@ -129,20 +126,43 @@ findPoolDatum :: TxInfo -> DatumHash -> (PoolParams, Amount Liquidity)
 findPoolDatum info h = case findDatum h info of
   Just (Datum d) -> case fromData d of
     (Just (PoolDatum ps lq)) -> (ps, lq)
-    _                        -> traceError "error decoding data"
+    _                        -> traceError "error decoding pool data"
   _              -> traceError "pool input datum not found"
+
+{-# INLINABLE validInit #-}
+validInit :: PoolState -> PoolDiff -> Bool
+validInit PoolState{..} PoolDiff{..} =
+    traceIfFalse "Illegal initial pool state" validInitialState &&
+    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= liquidityUnlocked)
+  where
+    diffLiquidity' = unDiff diffLiquidity
+    diffX'         = unDiff diffX
+    diffY'         = unDiff diffY
+    liquidity'     = unAmount liquidity
+    reservesX'     = unAmount reservesX
+    reservesY'     = unAmount reservesY
+
+    validInitialState =
+      liquidity' == 0 &&
+      reservesX' == 0 &&
+      reservesY' == 0
+
+    liquidityUnlocked = case isqrt (diffX' * diffY') of
+      Exactly l | l > 0       -> l
+      Approximately l | l > 0 -> l + 1
+      _                       -> traceError "insufficient liquidity"
 
 {-# INLINABLE validDeposit #-}
 validDeposit :: PoolState -> PoolDiff -> Bool
 validDeposit PoolState{..} PoolDiff{..} =
     traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= liquidityUnlocked)
   where
-    diffLiquidity'    = unDiff diffLiquidity
-    diffX'            = unDiff diffX
-    diffY'            = unDiff diffY
-    liquidity'        = unAmount liquidity
-    reservesX'        = unAmount reservesX
-    reservesY'        = unAmount reservesY
+    diffLiquidity' = unDiff diffLiquidity
+    diffX'         = unDiff diffX
+    diffY'         = unDiff diffY
+    liquidity'     = unAmount liquidity
+    reservesX'     = unAmount reservesX
+    reservesY'     = unAmount reservesY
 
     liquidityUnlocked = min (divide (diffX' * liquidity') reservesX') (divide (diffY' * liquidity') reservesY')
 
@@ -215,12 +235,7 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     scriptPreserved = (txOutAddress successor) == (txOutAddress self)
 
     validAction = case action of
+      Init    -> validInit s0 diff
       Deposit -> validDeposit s0 diff
       Redeem  -> validRedeem s0 diff
       Swap    -> validSwap ps0 s0 diff
-
-poolInstance :: Scripts.TypedValidator ErgoDexPool
-poolInstance = Scripts.mkTypedValidator @ErgoDexPool
-    $$(PlutusTx.compile [|| mkPoolValidator ||])
-    $$(PlutusTx.compile [|| wrap ||]) where
-        wrap = Scripts.wrapValidator @PoolParams @Redeemer

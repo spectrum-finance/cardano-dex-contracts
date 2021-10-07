@@ -25,6 +25,7 @@ library
     exposed-modules: Utils
                      ErgoDex.Contracts.Types
                      ErgoDex.Contracts.Pool
+                     ErgoDex.Contracts.Liquidity
                      ErgoDex.Contracts.Proxy.Swap
                      ErgoDex.Contracts.Proxy.Deposit
                      ErgoDex.Contracts.Proxy.Redeem

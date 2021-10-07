@@ -58,11 +58,6 @@ data SwapDatum = SwapDatum
 PlutusTx.makeIsDataIndexed ''SwapDatum [('SwapDatum, 0)]
 PlutusTx.makeLift ''SwapDatum
 
-data ErgoDexSwap
-instance Scripts.ValidatorTypes ErgoDexSwap where
-    type instance RedeemerType ErgoDexSwap = Redeemer
-    type instance DatumType    ErgoDexSwap = SwapDatum
-
 {-# INLINABLE mkSwapValidator #-}
 mkSwapValidator :: SwapDatum -> ScriptContext -> Bool
 mkSwapValidator SwapDatum{..} ctx =
@@ -108,9 +103,3 @@ mkSwapValidator SwapDatum{..} ctx =
         reservesBase  = valueOf poolValue base
         reservesQuote = valueOf poolValue quote
         feeDen        = 1000
-
-swapInstance :: Scripts.TypedValidator ErgoDexSwap
-swapInstance = Scripts.mkTypedValidator @ErgoDexSwap
-    $$(PlutusTx.compile [|| mkSwapValidator ||])
-    $$(PlutusTx.compile [|| wrap ||]) where
-        wrap = Scripts.wrapValidator @SwapDatum @Redeemer
