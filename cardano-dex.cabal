@@ -23,6 +23,7 @@ library
     hs-source-dirs: src
     
     exposed-modules: Utils
+                     ErgoDex.OffChain
                      ErgoDex.Contracts.Types
                      ErgoDex.Contracts.Pool
                      ErgoDex.Contracts.Liquidity

@@ -194,10 +194,11 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
 
     fairSwap =
       if deltaReservesX > 0 then
-        reservesY0 * deltaReservesX * feeNum >= -deltaReservesY * (reservesX0 * feeDen + deltaReservesX * feeNum)
+        reservesY0 * deltaReservesX * feeNum >= negate deltaReservesY * (reservesX0 * feeDen + deltaReservesX * feeNum)
       else
-        reservesX0 * deltaReservesY * feeNum >= -deltaReservesX * (reservesY0 * feeDen + deltaReservesY * feeNum)
+        reservesX0 * deltaReservesY * feeNum >= negate deltaReservesX * (reservesY0 * feeDen + deltaReservesY * feeNum)
 
+{-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
@@ -228,7 +229,7 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     liquiditySynced = isZero valueForged ||
                       valueForged == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
 
-    numAssets    = Foldable.length $ flattenValue (txOutValue successor)
+    numAssets    = length $ flattenValue (txOutValue successor)
     strictAssets = numAssets == 3
 
     scriptPreserved = (txOutAddress successor) == (txOutAddress self)
