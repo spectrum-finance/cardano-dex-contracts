@@ -35,6 +35,7 @@ import           Ledger
 import           Ledger.Constraints.OnChain       as Constraints
 import           Ledger.Constraints.TxConstraints as Constraints
 import qualified Ledger.Ada                       as Ada
+import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue)
 import           Ledger.Contexts                  (txSignedBy, pubKeyOutput)
 import           ErgoDex.Contracts.Types
@@ -51,6 +52,11 @@ data RedeemDatum = RedeemDatum
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''RedeemDatum [('RedeemDatum, 0)]
 PlutusTx.makeLift ''RedeemDatum
+
+data ErgoDexRedeem
+instance Scripts.ValidatorTypes ErgoDexRedeem where
+    type instance RedeemerType ErgoDexRedeem = Redeemer
+    type instance DatumType    ErgoDexRedeem = RedeemDatum
 
 {-# INLINABLE mkRedeemValidator #-}
 mkRedeemValidator :: RedeemDatum -> ScriptContext -> Bool
@@ -104,3 +110,9 @@ mkRedeemValidator RedeemDatum{..} ctx =
 
         minReturnX = divide (inLq * reservesX') liquidity'
         minReturnY = divide (inLq * reservesY') liquidity'
+
+redeemInstance :: Scripts.TypedValidator ErgoDexRedeem
+redeemInstance = Scripts.mkTypedValidator @ErgoDexRedeem
+    $$(PlutusTx.compile [|| mkRedeemValidator ||])
+    $$(PlutusTx.compile [|| wrap ||]) where
+        wrap = Scripts.wrapValidator @RedeemDatum @Redeemer

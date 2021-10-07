@@ -32,6 +32,7 @@ module ErgoDex.Contracts.Pool where
 import qualified Prelude                          as Haskell
 import           Ledger
 import           Ledger.Constraints.OnChain       as Constraints
+import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Constraints.TxConstraints as Constraints
 import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue, isZero, flattenValue)
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
@@ -50,6 +51,11 @@ data PoolParams = PoolParams
   } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 PlutusTx.makeIsDataIndexed ''PoolParams [('PoolParams, 0)]
 PlutusTx.makeLift ''PoolParams
+
+data ErgoDexPool
+instance Scripts.ValidatorTypes ErgoDexPool where
+    type instance RedeemerType ErgoDexPool = Redeemer
+    type instance DatumType    ErgoDexPool = PoolParams
 
 instance Eq PoolParams where
   {-# INLINABLE (==) #-}
@@ -212,3 +218,9 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
       Deposit -> validDeposit s0 diff
       Redeem  -> validRedeem s0 diff
       Swap    -> validSwap ps0 s0 diff
+
+poolInstance :: Scripts.TypedValidator ErgoDexPool
+poolInstance = Scripts.mkTypedValidator @ErgoDexPool
+    $$(PlutusTx.compile [|| mkPoolValidator ||])
+    $$(PlutusTx.compile [|| wrap ||]) where
+        wrap = Scripts.wrapValidator @PoolParams @Redeemer
