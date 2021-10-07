@@ -32,7 +32,6 @@ module ErgoDex.Contracts.Pool where
 import qualified Prelude                          as Haskell
 import           Ledger
 import           Ledger.Constraints.OnChain       as Constraints
-import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Constraints.TxConstraints as Constraints
 import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue, isZero, flattenValue)
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
@@ -124,7 +123,7 @@ getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
 {-# INLINABLE findPoolDatum #-}
 findPoolDatum :: TxInfo -> DatumHash -> (PoolParams, Amount Liquidity)
 findPoolDatum info h = case findDatum h info of
-  Just (Datum d) -> case fromData d of
+  Just (Datum d) -> case fromBuiltinData d of
     (Just (PoolDatum ps lq)) -> (ps, lq)
     _                        -> traceError "error decoding pool data"
   _              -> traceError "pool input datum not found"
@@ -224,12 +223,12 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     s1   = mkPoolState ps1 lq1 successor
     diff = diffPoolState s0 s1
 
-    valueForged = txInfoForge txInfo
+    valueForged = txInfoMint txInfo
 
     liquiditySynced = isZero valueForged ||
                       valueForged == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
 
-    numAssets    = length $ flattenValue (txOutValue successor)
+    numAssets    = Foldable.length $ flattenValue (txOutValue successor)
     strictAssets = numAssets == 3
 
     scriptPreserved = (txOutAddress successor) == (txOutAddress self)
