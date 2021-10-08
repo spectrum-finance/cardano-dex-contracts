@@ -38,6 +38,7 @@ import qualified Ledger.Ada                       as Ada
 import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue)
 import           Ledger.Contexts                  (txSignedBy, pubKeyOutput)
+import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Contracts.Pool           (getPoolInput)
 import qualified PlutusTx
@@ -71,9 +72,9 @@ mkSwapValidator SwapDatum{..} _ ctx =
     )
   where
     txInfo = scriptContextTxInfo ctx
-    self   = txInInfoResolved $ findOwnInput' ctx
+    self   = getOrderInput ctx
     pool   = getPoolInput ctx
-    reward = (txInfoOutputs txInfo) !! 1 -- reward box is always 2nd output
+    reward = getOrderRewardOutput ctx
 
     poolValue = txOutValue pool
 

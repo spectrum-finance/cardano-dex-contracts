@@ -209,7 +209,7 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     traceIfFalse "Invalid action" validAction
   where
     txInfo    = scriptContextTxInfo ctx
-    self      = txInInfoResolved $ findOwnInput' ctx
+    self      = getPoolInput ctx
     successor = getPoolOutput ctx
 
     poolNftPreserved = isUnit (txOutValue successor) poolNft
@@ -224,10 +224,10 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     s1   = mkPoolState ps1 lq1 successor
     diff = diffPoolState s0 s1
 
-    valueForged = txInfoMint txInfo
+    valueMinted = txInfoMint txInfo
 
-    liquiditySynced = isZero valueForged ||
-                      valueForged == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
+    liquiditySynced = isZero valueMinted ||
+                      valueMinted == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
 
     numAssets    = length $ flattenValue (txOutValue successor)
     strictAssets = numAssets == 3
