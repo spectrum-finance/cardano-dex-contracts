@@ -45,6 +45,6 @@ import           PlutusTx.IsData.Class
 import           Utils
 
 {-# INLINABLE validateLiquidityMinting #-}
-validateLiquidityMinting :: Coin Nft -> ScriptContext -> Bool
-validateLiquidityMinting poolNft ctx =
+validateLiquidityMinting :: Coin Nft -> () -> ScriptContext -> Bool
+validateLiquidityMinting poolNft _ ctx =
   traceIfFalse "Minting must be witnessed by pool" (isUnit (txOutValue $ getPoolInput ctx) poolNft)

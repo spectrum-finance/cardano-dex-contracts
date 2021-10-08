@@ -59,8 +59,8 @@ PlutusTx.makeIsDataIndexed ''SwapDatum [('SwapDatum, 0)]
 PlutusTx.makeLift ''SwapDatum
 
 {-# INLINABLE mkSwapValidator #-}
-mkSwapValidator :: SwapDatum -> ScriptContext -> Bool
-mkSwapValidator SwapDatum{..} ctx =
+mkSwapValidator :: SwapDatum -> BuiltinData -> ScriptContext -> Bool
+mkSwapValidator SwapDatum{..} _ ctx =
     txSignedBy txInfo rewardPkh || (
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&
