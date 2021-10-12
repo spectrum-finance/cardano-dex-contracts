@@ -37,6 +37,10 @@ import           PlutusTx.Prelude
 import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
 
+data Lovelace = Lovelace deriving (Haskell.Show, Haskell.Eq, Generic)
+PlutusTx.makeIsDataIndexed ''Lovelace [('Lovelace, 0)]
+PlutusTx.makeLift ''Lovelace
+
 -- Pool NFT
 data Nft = Nft deriving (Haskell.Show, Haskell.Eq, Generic)
 PlutusTx.makeIsDataIndexed ''Nft [('Nft, 0)]

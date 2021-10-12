@@ -48,7 +48,7 @@ import           Utils
 
 data RedeemDatum = RedeemDatum
    { poolNft   :: Coin Nft
-   , exFee     :: Integer
+   , exFee     :: Amount Lovelace
    , rewardPkh :: PubKeyHash
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''RedeemDatum [('RedeemDatum, 0)]
@@ -82,10 +82,11 @@ mkRedeemValidator RedeemDatum{..} _ ctx =
     rewardValue = txOutValue reward
 
     fairExFee =
-        outAda >= inAda - exFee
+        outAda >= inAda - exFee'
       where
         outAda = Ada.getLovelace $ Ada.fromValue rewardValue
         inAda  = Ada.getLovelace $ Ada.fromValue selfValue
+        exFee' = unAmount exFee
 
     sufficientReturn =
         outX >= minReturnX && outY >= minReturnY
