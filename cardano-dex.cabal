@@ -32,7 +32,8 @@ library
                      ErgoDex.Contracts.Proxy.Deposit
                      ErgoDex.Contracts.Proxy.Redeem
 
-    build-depends: 
+    build-depends:
+        hashable == 1.3.0.0,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,

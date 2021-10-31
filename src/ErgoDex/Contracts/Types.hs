@@ -29,9 +29,12 @@
 
 module ErgoDex.Contracts.Types where
 
+import GHC.Generics (Generic)
+import Data.Aeson   (FromJSON, ToJSON)
+import Schema       (FormSchema, ToSchema)
+
 import           Ledger
 import           Ledger.Value        (AssetClass (..), assetClass, assetClassValue, assetClassValueOf)
-import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import qualified Prelude             as Haskell
@@ -78,6 +81,10 @@ newtype Coin a = Coin { unCoin :: AssetClass }
 PlutusTx.makeIsDataIndexed ''Coin [('Coin, 0)]
 PlutusTx.makeLift ''Coin
 
+{-# INLINABLE retagCoin #-}
+retagCoin :: forall a b . Coin a -> Coin b
+retagCoin (Coin ac) = Coin ac
+
 {-# INLINABLE valueOf #-}
 valueOf :: Value -> Coin a -> Integer
 valueOf v = assetClassValueOf v . unCoin
@@ -107,3 +114,7 @@ amountOf v = Amount . assetClassValueOf v . unCoin
 {-# INLINABLE isUnit #-}
 isUnit :: Value -> Coin a -> Bool
 isUnit v c = amountOf v c == 1
+
+{-# INLINABLE coinAmountValue #-}
+coinAmountValue :: Coin a -> Amount a -> Value
+coinAmountValue (Coin ac) (Amount v) = assetClassValue ac v
