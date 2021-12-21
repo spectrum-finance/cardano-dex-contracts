@@ -41,4 +41,5 @@ library
         aeson,
         plutus-contract,
         plutus-tx-plugin,
-        plutus-core
+        plutus-core,
+        hashable == 1.3.0.0
