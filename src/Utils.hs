@@ -20,36 +20,8 @@
 
 module Utils where
 
-
-import           Ledger
-import           Ledger.Value        (AssetClass (..), assetClass, assetClassValue, assetClassValueOf)
-import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
-import qualified PlutusTx
+import Ledger
 import PlutusTx.Prelude
-    ( Bool,
-      Integer,
-      (.),
-      ($),
-      Eq(..),
-      AdditiveGroup,
-      AdditiveMonoid,
-      AdditiveSemigroup,
-      MultiplicativeSemigroup,
-      fromMaybe,
-      error,
-      Ord )
-import qualified Prelude             as Haskell
-import           Text.Printf         (PrintfArg)
-import qualified Data.ByteString.Char8  as C
-import qualified PlutusTx.Builtins   as Builtins
-import qualified Ledger.Typed.Scripts   as Scripts
-import           Plutus.V1.Ledger.Address
-import           Plutus.V1.Ledger.Value
-import           Plutus.V1.Ledger.TxId
-import           Plutus.V1.Ledger.Scripts
-import qualified PlutusTx
-import           PlutusTx.Prelude
-import           Data.ByteString.Hash
 
 {-# INLINABLE findOwnInput' #-}
 findOwnInput' :: ScriptContext -> TxInInfo
