@@ -11,10 +11,10 @@ version:            0.1.0.0
 -- A URL where users can report bugs.
 -- bug-reports:
 
-license: Apache-2.0
+license: CC0 1.0 Universal
 license-files: LICENSE
-author:             ErgoLabs
-maintainer:         Your email
+author: ErgoLabs
+maintainer: Your email
 
 -- A copyright notice.
 -- copyright:
