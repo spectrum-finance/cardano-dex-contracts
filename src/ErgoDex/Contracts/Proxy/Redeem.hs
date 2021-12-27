@@ -32,19 +32,12 @@ module ErgoDex.Contracts.Proxy.Redeem where
 import qualified Prelude                          as Haskell
 
 import           Ledger
-import           Ledger.Constraints.OnChain       as Constraints
-import           Ledger.Constraints.TxConstraints as Constraints
 import qualified Ledger.Ada                       as Ada
-import qualified Ledger.Typed.Scripts             as Scripts
-import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue)
-import           Ledger.Contexts                  (txSignedBy, pubKeyOutput)
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), mkPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
-import           PlutusTx.IsData.Class
-import           Utils
 
 data RedeemDatum = RedeemDatum
    { poolNft   :: Coin Nft
@@ -74,7 +67,7 @@ mkRedeemValidator RedeemDatum{..} _ ctx =
 
     validPool = isUnit poolValue poolNft
 
-    validNumInputs = (length $ txInfoInputs txInfo) == 2
+    validNumInputs = length (txInfoInputs txInfo) == 2
 
     validRewardProp = maybe False (== rewardPkh) (pubKeyOutput reward)
 
@@ -95,8 +88,8 @@ mkRedeemValidator RedeemDatum{..} _ ctx =
           Nothing -> traceError "pool input datum hash not found"
           Just h  -> findPoolDatum txInfo h
 
-        outX = valueOf rewardValue poolX
-        outY = valueOf rewardValue poolY
+        outX = valueWithoutCollateralOf rewardValue poolX
+        outY = valueWithoutCollateralOf rewardValue poolY
         inLq = valueOf selfValue poolLq
 
         poolState = mkPoolState ps lq pool

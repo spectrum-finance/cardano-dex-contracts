@@ -42,6 +42,7 @@ library
     import: lang
     exposed-modules:
       Utils
+      ErgoDex.Plutus
       ErgoDex.OffChain
       ErgoDex.Contracts.Types
       ErgoDex.Contracts.Pool

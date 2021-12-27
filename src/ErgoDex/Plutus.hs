@@ -27,32 +27,15 @@
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
-module ErgoDex.Contracts.Proxy.Order where
+module ErgoDex.Plutus where
 
-import           Ledger
-import qualified Ledger.Ada                       as Ada
-import           ErgoDex.Contracts.Types
-import           PlutusTx.Prelude
-import           ErgoDex.Plutus   (adaAssetClass, adaOrderCollateral)
+import qualified Ledger.Ada   as Ada
+import           Ledger.Value (AssetClass, assetClass)
 
-{-# INLINABLE getOrderInput #-}
-getOrderInput :: ScriptContext -> TxOut
-getOrderInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
-  txInInfoResolved $ txInfoInputs !! 1 -- order box is always 2nd input
+{-# INLINABLE adaAssetClass #-}
+adaAssetClass :: AssetClass
+adaAssetClass = assetClass Ada.adaSymbol Ada.adaToken
 
-{-# INLINABLE getOrderRewardOutput #-}
-getOrderRewardOutput :: ScriptContext -> TxOut
-getOrderRewardOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
-  txInfoOutputs !! 1 -- order reward box is always 2nd output
-
-{-# INLINABLE isAda #-}
-isAda :: Coin a -> Bool
-isAda (Coin cls) = cls == adaAssetClass
-
-{-# INLINABLE valueWithoutCollateralOf #-}
-valueWithoutCollateralOf :: Value -> Coin a -> Integer
-valueWithoutCollateralOf val coin =
-  if isAda coin
-    then amt - Ada.getLovelace adaOrderCollateral
-    else amt
-  where amt = valueOf val coin
+{-# INLINABLE adaOrderCollateral #-}
+adaOrderCollateral :: Ada.Ada
+adaOrderCollateral = Ada.lovelaceOf 1000000

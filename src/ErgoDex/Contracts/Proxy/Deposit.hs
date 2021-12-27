@@ -32,19 +32,13 @@ module ErgoDex.Contracts.Proxy.Deposit where
 import qualified Prelude                          as Haskell
 
 import           Ledger
-import           Ledger.Constraints.OnChain       as Constraints
-import           Ledger.Constraints.TxConstraints as Constraints
 import qualified Ledger.Ada                       as Ada
-import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue)
-import           Ledger.Contexts                  (txSignedBy, pubKeyOutput)
-import qualified Ledger.Typed.Scripts             as Scripts
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), mkPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
-import           PlutusTx.IsData.Class
-import           Utils
+import           ErgoDex.Plutus   (adaOrderCollateral)
 
 data DepositDatum = DepositDatum
    { poolNft   :: Coin Nft
@@ -74,7 +68,7 @@ mkDepositValidator DepositDatum{..} _ ctx =
 
     validPool = isUnit poolValue poolNft
 
-    validNumInputs = (length $ txInfoInputs txInfo) == 2
+    validNumInputs = length (txInfoInputs txInfo) == 2
 
     validRewardProp = maybe False (== rewardPkh) (pubKeyOutput reward)
 
@@ -95,8 +89,8 @@ mkDepositValidator DepositDatum{..} _ ctx =
           Nothing -> traceError "pool input datum hash not found"
           Just h  -> findPoolDatum txInfo h
 
-        inX   = valueOf selfValue poolX
-        inY   = valueOf selfValue poolY
+        inX   = valueWithoutCollateralOf selfValue poolX
+        inY   = valueWithoutCollateralOf selfValue poolY
         outLq = valueOf rewardValue poolLq
 
         poolState = mkPoolState ps lq pool
