@@ -11,10 +11,10 @@ version:            0.1.0.0
 -- A URL where users can report bugs.
 -- bug-reports:
 
-license: CC0 1.0 Universal
+license:       CC0-1.0
 license-files: LICENSE
-author: ErgoLabs
-maintainer: Your email
+author:        ErgoLabs
+maintainer:    ilya.arcadich@gmail.com
 
 -- A copyright notice.
 -- copyright:
