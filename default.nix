@@ -1,8 +1,8 @@
 ########################################################################
-# default.nix -- The top-level nix build file for plutus-starter.
+# default.nix -- The top-level nix build file for cardano-dex-core.
 #
 # This file defines various attributes that are used for building and
-# developing plutus-starter.
+# developing cardano-dex-core.
 #
 ########################################################################
 
@@ -10,7 +10,7 @@ let
   # Here a some of the various attributes for the variable 'packages':
   #
   # { pkgs
-  #   plutus-starter: {
+  #   cardano-dex-core: {
   #     haskell: {
   #       project # The Haskell project created by haskell-nix.project
   #       packages # All the packages defined by our project, including dependencies
