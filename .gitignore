@@ -21,5 +21,6 @@ cabal.project.local
 cabal.project.local~
 .HTF/
 .ghc.environment.*
-.vscode
-stack.yaml.lock
+result*
+.envrc
+.vim
