@@ -44,7 +44,7 @@ data Lovelace = Lovelace deriving (Haskell.Show, Haskell.Eq, Generic)
 PlutusTx.makeIsDataIndexed ''Lovelace [('Lovelace, 0)]
 PlutusTx.makeLift ''Lovelace
 
--- Pool NFT
+-- Pool NFTamount
 data Nft = Nft deriving (Haskell.Show, Haskell.Eq, Generic)
 PlutusTx.makeIsDataIndexed ''Nft [('Nft, 0)]
 PlutusTx.makeLift ''Nft
