@@ -33,6 +33,7 @@ library
                      ErgoDex.Contracts.Proxy.Redeem
 
     build-depends:
+        text ,
         hashable == 1.3.0.0,
         plutus-ledger,
         plutus-tx,

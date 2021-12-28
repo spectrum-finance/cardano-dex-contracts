@@ -28,7 +28,8 @@
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
 module ErgoDex.Contracts.Pool where
-
+import Plutus.V1.Ledger.Value
+import qualified Data.Text as T
 import qualified Prelude                          as Haskell
 import           Ledger
 import           Ledger.Constraints.OnChain       as Constraints
@@ -42,6 +43,8 @@ import qualified PlutusTx.Builtins     as BI
 import           PlutusTx.IsData.Class
 import           PlutusTx.Sqrt
 import           Utils
+import qualified PlutusTx.Builtins.Internal as BII
+import qualified PlutusTx.AssocMap  as Map
 
 data PoolParams = PoolParams
   { poolNft :: Coin Nft
@@ -114,7 +117,7 @@ diffPoolState s0 s1 =
 {-# INLINABLE getPoolOutput #-}
 getPoolOutput :: ScriptContext -> TxOut
 getPoolOutput ss@ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
-  head $ getContinuingOutputs ss -- pool box is always 1st output
+  head txInfoOutputs -- pool box is always 1st output
 
 {-# INLINABLE getPoolInput #-}
 getPoolInput :: ScriptContext -> TxOut
@@ -207,12 +210,39 @@ getData Coin{..} = let name = unCurrencySymbol $ fst (unAssetClass unCoin) in BI
 getTokenName :: Coin a -> BI.BuiltinString
 getTokenName Coin{..} = let name = unTokenName $ snd (unAssetClass unCoin) in BI.decodeUtf8 name
 
+-- {-# INLINABLE valueToList #-}
+-- valueToList :: Value -> [(CurrencySymbol, Map.Map TokenName Integer)]
+-- valueToList Value{..} = Map.toList getValue
 
+-- iterateF1 :: [(CurrencySymbol, Map.Map TokenName Integer)] -> BI.BuiltinString
+-- iterateF1 x:xs =
+  
+-- iterateC :: CurrencySymbol -> Map.Map TokenName Integer -> BI.BuiltinString
+-- iterateC symbol tokenNames =
+--   let
+--     s = BI.decodeUtf8 $ unCurrencySymbol symbol
+--     tk = foldWithKey (BI.appendString iterateT "//") BI.emptyString tokenNames
+
+
+-- iterateT :: TokenName -> Integer -> BI.BuiltinString
+-- iterateT tokenName i =
+--   let
+--     t = BI.decodeUtf8 $ unTokenName tokenName
+--     i1 = BI.decodeUtf8 $ BI.unsafeDataAsB $ BI.mkI i
+--   in
+--     BI.appendString (BI.appendString t "..") i1
+{-# INLINABLE valueToBS #-}
+valueToBS :: Value -> BI.BuiltinString
+valueToBS Value{..} =
+  let
+    (s, _) = head $ Map.toList $ getValue
+  in
+    BI.decodeUtf8 $ unCurrencySymbol s
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
-    traceIfFalse (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) poolNftPreserved &&
+    traceIfFalse (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) (valueToBS $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
