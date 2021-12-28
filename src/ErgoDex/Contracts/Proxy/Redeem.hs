@@ -54,8 +54,8 @@ mkRedeemValidator RedeemDatum{..} _ ctx =
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&
       traceIfFalse "Invalid reward proposition" validRewardProp &&
-      traceIfFalse "Unfair execution fee" fairExFee &&
-      traceIfFalse "Insufficient amount of tokens returned" sufficientReturn
+      traceIfFalse "Unfair execution fee taken" fairFee &&
+      traceIfFalse "Insufficient amount of liquidity returned" fairShare
     )
   where
     txInfo = scriptContextTxInfo ctx
@@ -74,29 +74,38 @@ mkRedeemValidator RedeemDatum{..} _ ctx =
     selfValue   = txOutValue self
     rewardValue = txOutValue reward
 
-    fairExFee =
-        outAda >= inAda - exFee'
+    (ps@PoolParams{..}, lq) = case txOutDatum pool of
+      Nothing -> traceError "pool input datum hash not found"
+      Just h  -> findPoolDatum txInfo h
+
+    outAda        = Ada.getLovelace $ Ada.fromValue rewardValue
+    inAda         = Ada.getLovelace $ Ada.fromValue selfValue
+    exFee'        = unAmount exFee
+    collateralAda = inAda - exFee'
+
+    (outX, outY, opAda)
+      | isAda poolX =
+        let redeemedAda = rx - collateralAda
+        in (redeemedAda, ry, redeemedAda)
+      | isAda poolY =
+        let redeemedAda = ry - collateralAda 
+        in (rx, redeemedAda, redeemedAda)
+      | otherwise   = (rx, ry, 0)
       where
-        outAda = Ada.getLovelace $ Ada.fromValue rewardValue
-        inAda  = Ada.getLovelace $ Ada.fromValue selfValue
-        exFee' = unAmount exFee
+          rx = valueOf rewardValue poolX
+          ry = valueOf rewardValue poolY
 
-    sufficientReturn =
-        outX >= minReturnX && outY >= minReturnY
-      where
-        (ps@PoolParams{..}, lq) = case txOutDatum pool of
-          Nothing -> traceError "pool input datum hash not found"
-          Just h  -> findPoolDatum txInfo h
+    fairFee = outAda >= opAda + collateralAda
 
-        outX = valueWithoutCollateralOf rewardValue poolX
-        outY = valueWithoutCollateralOf rewardValue poolY
-        inLq = valueOf selfValue poolLq
+    inLq = valueOf selfValue poolLq
 
-        poolState = mkPoolState ps lq pool
+    poolState = mkPoolState ps lq pool
 
-        liquidity' = unAmount $ liquidity poolState
-        reservesX' = unAmount $ reservesX poolState
-        reservesY' = unAmount $ reservesY poolState
+    liquidity' = unAmount $ liquidity poolState
+    reservesX' = unAmount $ reservesX poolState
+    reservesY' = unAmount $ reservesY poolState
 
-        minReturnX = divide (inLq * reservesX') liquidity'
-        minReturnY = divide (inLq * reservesY') liquidity'
+    minReturnX = divide (inLq * reservesX') liquidity'
+    minReturnY = divide (inLq * reservesY') liquidity'
+
+    fairShare = outX >= minReturnX && outY >= minReturnY

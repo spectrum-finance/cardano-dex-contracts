@@ -30,10 +30,9 @@
 module ErgoDex.Contracts.Proxy.Order where
 
 import           Ledger
-import qualified Ledger.Ada                       as Ada
 import           ErgoDex.Contracts.Types
 import           PlutusTx.Prelude
-import           ErgoDex.Plutus   (adaAssetClass, adaOrderCollateral)
+import           ErgoDex.Plutus   (adaAssetClass)
 
 {-# INLINABLE getOrderInput #-}
 getOrderInput :: ScriptContext -> TxOut
@@ -48,11 +47,3 @@ getOrderRewardOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
 {-# INLINABLE isAda #-}
 isAda :: Coin a -> Bool
 isAda (Coin cls) = cls == adaAssetClass
-
-{-# INLINABLE valueWithoutCollateralOf #-}
-valueWithoutCollateralOf :: Value -> Coin a -> Integer
-valueWithoutCollateralOf val coin =
-  if isAda coin
-    then amt - Ada.getLovelace adaOrderCollateral
-    else amt
-  where amt = valueOf val coin
