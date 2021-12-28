@@ -31,10 +31,10 @@ module ErgoDex.Contracts.Types where
 
 import GHC.Generics (Generic)
 import Data.Aeson   (FromJSON, ToJSON)
-import Schema       (FormSchema, ToSchema)
+import Schema       (ToSchema)
 
 import           Ledger
-import           Ledger.Value        (AssetClass (..), assetClass, assetClassValue, assetClassValueOf)
+import           Ledger.Value        (AssetClass (..), assetClassValue, assetClassValueOf)
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import qualified Prelude             as Haskell

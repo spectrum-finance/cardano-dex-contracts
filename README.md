@@ -1,6 +1,11 @@
-# Plutus Platform starter project
+# ErgoDEX contracts implementation for Cardano
 
-This project gives a simple starter project for using the Plutus Platform.
+This repository contains implementations of the following scripts:
+* CFMM DEX scripts
+   - Pool
+   - Swap proxy
+   - Deposit proxy
+   - Redeem proxy
 
 ## Setting up
 

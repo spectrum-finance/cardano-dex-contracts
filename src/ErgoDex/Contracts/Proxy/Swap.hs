@@ -32,19 +32,12 @@ module ErgoDex.Contracts.Proxy.Swap where
 import qualified Prelude                          as Haskell
 
 import           Ledger
-import           Ledger.Constraints.OnChain       as Constraints
-import           Ledger.Constraints.TxConstraints as Constraints
 import qualified Ledger.Ada                       as Ada
-import qualified Ledger.Typed.Scripts             as Scripts
-import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue)
-import           Ledger.Contexts                  (txSignedBy, pubKeyOutput)
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Contracts.Pool           (getPoolInput)
 import qualified PlutusTx
 import           PlutusTx.Prelude
-import           PlutusTx.IsData.Class
-import           Utils
 
 data SwapDatum = SwapDatum
    { base             :: Coin Base
@@ -54,6 +47,7 @@ data SwapDatum = SwapDatum
    , exFeePerTokenNum :: Integer
    , exFeePerTokenDen :: Integer
    , rewardPkh        :: PubKeyHash
+   , baseAmount       :: Amount Base
    , minQuoteAmount   :: Amount Quote
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''SwapDatum [('SwapDatum, 0)]
@@ -80,25 +74,36 @@ mkSwapValidator SwapDatum{..} _ ctx =
 
     validPool = isUnit poolValue poolNft
 
-    validNumInputs = (length $ txInfoInputs txInfo) == 2
+    validNumInputs = length (txInfoInputs txInfo) == 2
 
     validRewardProp = maybe False (== rewardPkh) (pubKeyOutput reward)
 
     selfValue   = txOutValue self
     rewardValue = txOutValue reward
 
-    baseAmount  = valueOf selfValue base
-    quoteAmount = valueOf rewardValue quote
+    baseAmount' = unAmount baseAmount
+    quoteAmount =
+        if isAda quote
+          then divide (quoteDelta * exFeePerTokenDen) (exFeePerTokenDen - exFeePerTokenNum)
+          else quoteDelta
+      where
+        quoteOut   = valueOf rewardValue quote
+        quoteIn    = valueOf selfValue quote
+        quoteDelta = quoteOut - quoteIn
 
     fairExFee =
-        outAda >= inAda - exFee
+        outAda - quoteAda >= inAda - baseAda - exFee
       where
+        (baseAda, quoteAda)
+          | isAda base  = (baseAmount', 0)
+          | isAda quote = (0, quoteAmount)
+          | otherwise   = (0, 0)
         outAda = Ada.getLovelace $ Ada.fromValue rewardValue
         inAda  = Ada.getLovelace $ Ada.fromValue selfValue
         exFee  = divide (quoteAmount * exFeePerTokenNum) exFeePerTokenDen
 
     fairPrice =
-        reservesQuote * baseAmount * feeNum <= relaxedOut * (reservesBase * feeDen + baseAmount * feeNum)
+        reservesQuote * baseAmount' * feeNum <= relaxedOut * (reservesBase * feeDen + baseAmount' * feeNum)
       where
         relaxedOut    = quoteAmount + 1
         reservesBase  = valueOf poolValue base
