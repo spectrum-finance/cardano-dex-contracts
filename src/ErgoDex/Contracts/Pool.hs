@@ -235,7 +235,7 @@ getTokenName Coin{..} = let name = unTokenName $ snd (unAssetClass unCoin) in BI
 valueToBS :: Value -> BI.BuiltinString
 valueToBS Value{..} =
   let
-    (s, _) = head $ Map.toList $ getValue
+    (s, _) = head $ reverse $ Map.toList $ getValue
   in
     BI.decodeUtf8 $ unCurrencySymbol s
 
