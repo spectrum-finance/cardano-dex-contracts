@@ -33,7 +33,7 @@ import qualified Prelude                          as Haskell
 import           Ledger
 import           Ledger.Constraints.OnChain       as Constraints
 import           Ledger.Constraints.TxConstraints as Constraints
-import           Ledger.Value                     (AssetClass (..), CurrencySymbol(..), symbols, assetClassValue, isZero, flattenValue)
+import           Ledger.Value                     (AssetClass (..), CurrencySymbol(..), symbols, assetClassValue, isZero, flattenValue, TokenName(..))
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
@@ -203,10 +203,14 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
 getData :: Coin a -> BI.BuiltinString
 getData Coin{..} = let name = unCurrencySymbol $ fst (unAssetClass unCoin) in BI.decodeUtf8 name
 
+{-# INLINABLE getTokenName #-}
+getTokenName :: Coin a -> BI.BuiltinString
+getTokenName Coin{..} = let name = unTokenName $ snd (unAssetClass unCoin) in BI.decodeUtf8 name
+
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
-    traceIfFalse (BI.appendString "Pool NFT not preserved." (getData poolNft)) poolNftPreserved &&
+    traceIfFalse (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
