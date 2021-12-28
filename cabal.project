@@ -24,7 +24,6 @@ source-repository-package
     quickcheck-dynamic
   tag: plutus-starter-devcontainer/v1.0.14
 
-
 -- The following sections are copied from the 'plutus-apps' repository cabal.project at the revision
 -- given above.
 -- This is necessary because the  'plutus-apps' libraries depend on a number of other libraries which are
