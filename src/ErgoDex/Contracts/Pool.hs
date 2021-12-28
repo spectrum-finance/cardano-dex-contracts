@@ -244,7 +244,7 @@ mkSize :: Value -> BI.BuiltinString
 mkSize Value{..} =
   let
     e = Map.keys $ getValue
-   in List.foldr (\k acc -> BI.appendString (BI.decodeUtf8 $ unCurrencySymbol k) acc) BI.emptyString e
+   in List.foldr (\k acc -> BI.appendString ("1") acc) "1" e
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
@@ -253,8 +253,8 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
       (BI.appendString 
       (BI.appendString
         (BI.appendString 
-          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty1 ") (valueToBS $ txOutValue successor)
-        ) " qwerty2 "
+          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty12 ") (valueToBS $ txOutValue successor)
+        ) " qwerty22 "
       ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
