@@ -45,6 +45,7 @@ import           PlutusTx.Sqrt
 import           Utils
 import qualified PlutusTx.Builtins.Internal as BII
 import qualified PlutusTx.AssocMap  as Map
+import qualified PlutusTx.List as List
 
 data PoolParams = PoolParams
   { poolNft :: Coin Nft
@@ -238,16 +239,23 @@ valueToBS Value{..} =
     (s, _) = head $ reverse $ Map.toList $ getValue
   in
     BI.decodeUtf8 $ unCurrencySymbol s
+{-# INLINABLE mkSize #-}
+mkSize :: Value -> BI.BuiltinString
+mkSize Value{..} =
+  let
+    e = Map.keys $ getValue
+   in List.foldr (\k acc -> BI.appendString (BI.decodeUtf8 $ unCurrencySymbol k) acc) BI.emptyString e
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     traceIfFalse 
+      (BI.appendString 
       (BI.appendString
         (BI.appendString 
           (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty1 ") (valueToBS $ txOutValue successor)
         ) " qwerty2 "
-      ) poolNftPreserved &&
+      ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
