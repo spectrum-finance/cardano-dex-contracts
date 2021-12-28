@@ -113,8 +113,8 @@ diffPoolState s0 s1 =
 
 {-# INLINABLE getPoolOutput #-}
 getPoolOutput :: ScriptContext -> TxOut
-getPoolOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
-  head txInfoOutputs -- pool box is always 1st output
+getPoolOutput ss@ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
+  head $ getContinuingOutputs ss -- pool box is always 1st output
 
 {-# INLINABLE getPoolInput #-}
 getPoolInput :: ScriptContext -> TxOut
@@ -206,6 +206,8 @@ getData Coin{..} = let name = unCurrencySymbol $ fst (unAssetClass unCoin) in BI
 {-# INLINABLE getTokenName #-}
 getTokenName :: Coin a -> BI.BuiltinString
 getTokenName Coin{..} = let name = unTokenName $ snd (unAssetClass unCoin) in BI.decodeUtf8 name
+
+
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
