@@ -206,7 +206,7 @@ getData Coin{..} = let name = unCurrencySymbol $ fst (unAssetClass unCoin) in BI
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
-    traceIfFalse (BI.appendString "Pool NFT not preserved" (getData poolNft)) poolNftPreserved &&
+    traceIfFalse (BI.appendString "Pool NFT not preserved." (getData poolNft)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
