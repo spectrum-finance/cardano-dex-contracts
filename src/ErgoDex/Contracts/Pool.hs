@@ -279,8 +279,8 @@ mapValueToInt input =
   let
     e = Map.toList input
   in
-    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString (BI.decodeUtf8 $ unTokenName k) "|") acc) "" e
-
+    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString "Here is tokenName" "|") acc) "" e
+-- (BI.decodeUtf8 $ unTokenName k)
 {-# INLINABLE mkIntegerToBuiltinString #-}
 mkIntegerToBuiltinString :: Integer -> BI.BuiltinString
 mkIntegerToBuiltinString i =
