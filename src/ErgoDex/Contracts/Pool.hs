@@ -314,18 +314,24 @@ mkOutSize (PoolDatum ps0@PoolParams{..} lq0) ScriptContext{scriptContextTxInfo=T
     --       )
     --     "" 
     --     txInfoOutputs
-    -- checkLength =
-    --   List.foldr 
-    --     (\k acc -> 
-    --       List.foldr 
-    --         (\k1 acc -> BI.appendString (if ((BI.lengthOfByteString k1) > 0) then "lenght>0!" else "length<=0!") acc) "" (List.map (\cs -> unCurrencySymbol cs) (Map.keys $ getValue $ txOutValue k))
-    --       )
-    --     "" 
-    --     txInfoOutputs
+    checkLength =
+      List.foldr 
+        (\k acc -> 
+          List.foldr 
+            (\k1 acc -> BI.appendString (if ((BI.lengthOfByteString k1) > 0) then "lenght>0!" else "length<=0!") acc) "" (List.map (\cs -> unCurrencySymbol cs) (Map.keys $ getValue $ txOutValue k))
+          )
+        "" 
+        txInfoOutputs
+
+    checkValueLength =
+      BI.appendString (BI.appendString "(" (List.foldr
+        (\k acc ->
+          List.foldr (\k1 acc -> BI.appendString "(+1CS)" acc) "" (Map.keys $ getValue $ txOutValue k)
+        ) "" txInfoOutputs)) ")"
   in 
     -- BI.appendString (BI.appendString ( 
       -- BI.appendString (BI.appendString (
-        BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString inS ".") outS) ".") checkPoolNft) ".") allValues
+        BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString inS ".") outS) ".") checkPoolNft) ".") allValues) checkValueLength
         --  ".") checkCurrSymbol
     --  ) "." ) checkLength
   
