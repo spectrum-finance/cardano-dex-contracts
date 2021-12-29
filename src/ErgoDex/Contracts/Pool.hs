@@ -389,7 +389,11 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
 
     poolParamsPreserved = ps1 == ps0
 
-    s0   = mkPoolState ps0 lq0 self
+    input1 = List.filter (\txIn -> (txOutAddress successor) == (txOutAddress txIn)) inputs
+
+    headInput1 = head $ scriptPreservedList
+
+    s0   = mkPoolState ps0 lq0 headInput1
     s1   = mkPoolState ps1 lq1 successor
     diff = diffPoolState s0 s1
 
