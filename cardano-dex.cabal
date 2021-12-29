@@ -43,4 +43,5 @@ library
         aeson,
         plutus-contract,
         plutus-tx-plugin,
-        plutus-core
+        plutus-core,
+        string-interpolate

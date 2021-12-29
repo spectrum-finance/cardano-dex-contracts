@@ -42,8 +42,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module ErgoDex.Contracts.Pool where
+
 import Plutus.V1.Ledger.Value
 import qualified Data.Text as T
 import qualified Prelude                          as Haskell
@@ -64,6 +66,8 @@ import qualified PlutusTx.AssocMap  as Map
 import qualified PlutusTx.List as List
 import qualified Prelude              as P
 import  PlutusTx.Builtins.Class 
+
+import Data.String.Interpolate ( i )
 data PoolParams = PoolParams
   { poolNft :: Coin Nft
   , poolX   :: Coin X
@@ -276,7 +280,7 @@ mapValueToInt input =
   let
     e = Map.toList input
   in
-    List.foldr (\(k, v) acc -> BI.appendString (mkStrWithSep $ mkIntegerToBuiltinString v) acc) "" e
+    List.foldr (\(k, v) acc -> BI.appendString (if (v == 0) then "0" else "1") acc) "" e
 
 {-# INLINABLE mkIntegerToBuiltinString #-}
 mkIntegerToBuiltinString :: Integer -> BI.BuiltinString
@@ -295,8 +299,8 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
       (BI.appendString 
       (BI.appendString
         (BI.appendString 
-          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty123 ") (testFunc $ txOutValue successor)
-        ) " qwerty123 "
+          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty1234") (valueToBS $ txOutValue successor)
+        ) "qwerty1234 "
       ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
