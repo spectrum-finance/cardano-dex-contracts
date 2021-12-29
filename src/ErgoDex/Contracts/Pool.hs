@@ -357,7 +357,7 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
     --     ) "qwerty12345678"
     --   ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     -- traceIfFalse "Dummy" boolRes &&
-    traceIfFalse (scriptPreservedBS) False &&
+    -- traceIfFalse (scriptPreservedBS) False &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
