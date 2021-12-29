@@ -299,7 +299,15 @@ mkOutSize (PoolDatum ps0@PoolParams{..} lq0) ScriptContext{scriptContextTxInfo=T
     outS = List.foldr (\k acc -> BI.appendString "Output" acc) "" txInfoOutputs
     checkPoolNft = List.foldr (\k acc -> BI.appendString (if (isUnit (txOutValue k) poolNft) then "Equal" else "NotEqual") acc) "" txInfoOutputs
     allValues = List.foldr (\k acc -> BI.appendString (BI.appendString (valueToBS $ txOutValue k) ".") acc) "" txInfoOutputs
-  in BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString inS ".") outS) ".") checkPoolNft) ".") allValues
+    checkCurrSymbol = 
+      List.foldr 
+        (\k acc -> 
+          List.foldr 
+            (\k1 acc -> BI.appendString (if (BI.equalsByteString k1 "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da") then "csiseq!" else "csisnoteq!") acc) "" (List.map (\cs -> unCurrencySymbol cs) (Map.keys $ getValue $ txOutValue k))
+          )
+        "" 
+        txInfoOutputs
+  in BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString inS ".") outS) ".") checkPoolNft) ".") allValues) ".") checkCurrSymbol
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
