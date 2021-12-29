@@ -10,11 +10,11 @@ let
 
   haskell-nix = pkgs.haskell-nix;
 
-  cardano-dex-core = import ./pkgs {
+  cardano-dex-contracts = import ./pkgs {
     inherit pkgs haskell-nix sources plutus;
   };
 
 in
 {
-  inherit pkgs cardano-dex-core;
+  inherit pkgs cardano-dex-contracts;
 }

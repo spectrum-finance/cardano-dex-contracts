@@ -48,5 +48,5 @@ let
     build = pkgs.recurseIntoAttrs (mkHaskellDimension pkgs projectPackages);
   });
 in
-  ciJobsets // { required = derivationAggregate "required-cardano-dex-core" ciJobsets; }
+  ciJobsets // { required = derivationAggregate "required-cardano-dex-contracts" ciJobsets; }
 

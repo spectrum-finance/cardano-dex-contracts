@@ -1,13 +1,13 @@
 let
   packages = import ./.;
-  inherit (packages) pkgs cardano-dex-core;
-  inherit (cardano-dex-core) haskell;
+  inherit (packages) pkgs cardano-dex-contracts;
+  inherit (cardano-dex-contracts) haskell;
 
 in
   haskell.project.shellFor {
     withHoogle = false;
 
-    nativeBuildInputs = with cardano-dex-core; [
+    nativeBuildInputs = with cardano-dex-contracts; [
       hlint
       cabal-install
       haskell-language-server

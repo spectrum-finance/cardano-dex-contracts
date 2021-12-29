@@ -1,4 +1,4 @@
 cradle:
   cabal:
     - path: "./src"
-      component: "cardano-dex-core:lib:cardano-dex-core"
+      component: "cardano-dex-contracts:lib:cardano-dex-contracts"

@@ -12,7 +12,7 @@ let
   project = haskell-nix.project {
     # 'cleanGit' cleans a source directory based on the files known by git
     src = haskell-nix.haskellLib.cleanGit {
-      name = "cardano-dex-core";
+      name = "cardano-dex-contracts";
       src = ../../../.;
     };
 
