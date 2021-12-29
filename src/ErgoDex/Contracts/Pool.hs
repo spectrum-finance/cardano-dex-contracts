@@ -232,19 +232,39 @@ getTokenName Coin{..} = let name = unTokenName $ snd (unAssetClass unCoin) in BI
 --     i1 = BI.decodeUtf8 $ BI.unsafeDataAsB $ BI.mkI i
 --   in
 --     BI.appendString (BI.appendString t "..") i1
+
 {-# INLINABLE valueToBS #-}
 valueToBS :: Value -> BI.BuiltinString
 valueToBS Value{..} =
   let
-    (s, _) = head $ reverse $ Map.toList $ getValue
+    (s, v) = head $ reverse $ Map.toList $ getValue
+    v1 = mapValueToInt v
   in
-    BI.decodeUtf8 $ unCurrencySymbol s
+    BI.appendString (BI.decodeUtf8 $ unCurrencySymbol s) v1
+    
 {-# INLINABLE mkSize #-}
 mkSize :: Value -> BI.BuiltinString
 mkSize Value{..} =
   let
     e = Map.keys $ getValue
-   in List.foldr (\k acc -> BI.appendString ("1") acc) "1" e
+  in List.foldr (\k acc -> BI.appendString ("1") acc) "1" e
+
+{-# INLINABLE mkStrWithSep #-}
+mkStrWithSep :: BI.BuiltinString -> BI.BuiltinString
+mkStrWithSep input = BI.appendString input " :: "
+
+{-# INLINABLE mapValueToInt #-}
+mapValueToInt :: Map.Map TokenName Integer -> BI.BuiltinString
+mapValueToInt input =
+  let
+    e = Map.toList input
+  in
+    List.foldr (\(k, v) acc -> BI.appendString (mkStrWithSep $ mkIntegerToBuiltinString v) acc) "" e
+
+{-# INLINABLE mkIntegerToBuiltinString #-}
+mkIntegerToBuiltinString :: Integer -> BI.BuiltinString
+mkIntegerToBuiltinString i =
+  BI.decodeUtf8 $ BI.unsafeDataAsB $ BI.mkI i
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
@@ -253,8 +273,8 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
       (BI.appendString 
       (BI.appendString
         (BI.appendString 
-          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty12 ") (valueToBS $ txOutValue successor)
-        ) " qwerty22 "
+          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty123 ") (valueToBS $ txOutValue successor)
+        ) " qwerty123 "
       ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
