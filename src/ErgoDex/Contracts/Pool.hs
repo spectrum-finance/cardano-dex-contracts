@@ -260,7 +260,7 @@ valueToBS Value{..} =
   let
     listValue =  Map.toList $ getValue
   in
-    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString (BI.appendString (BI.appendString (mapValueToInt v) "~|~") (BI.decodeUtf8 $ unCurrencySymbol k)) "~~") acc) "" listValue
+    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString (BI.appendString (BI.appendString (mapValueToInt v) ".") ("unCurrencySymbol")) ".") acc) "" listValue
 
 {-# INLINABLE mkSize #-}
 mkSize :: Value -> BI.BuiltinString
@@ -279,7 +279,7 @@ mapValueToInt input =
   let
     e = Map.toList input
   in
-    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString "Here is tokenName" "|") acc) "" e
+    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString "Here is tokenName" ".") acc) "" e
 -- (BI.decodeUtf8 $ unTokenName k)
 {-# INLINABLE mkIntegerToBuiltinString #-}
 mkIntegerToBuiltinString :: Integer -> BI.BuiltinString
@@ -298,8 +298,8 @@ mkOutSize (PoolDatum ps0@PoolParams{..} lq0) ScriptContext{scriptContextTxInfo=T
     inS = List.foldr (\k acc -> BI.appendString "Input" acc) "" txInfoInputs
     outS = List.foldr (\k acc -> BI.appendString "Output" acc) "" txInfoOutputs
     checkPoolNft = List.foldr (\k acc -> BI.appendString (if (isUnit (txOutValue k) poolNft) then "Equal" else "NotEqual") acc) "" txInfoOutputs
-    allValues = List.foldr (\k acc -> BI.appendString (BI.appendString (valueToBS $ txOutValue k) ">||<") acc) "" txInfoOutputs
-  in BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString inS "<->") outS) "<->") checkPoolNft) "<->") allValues
+    allValues = List.foldr (\k acc -> BI.appendString (BI.appendString (valueToBS $ txOutValue k) ".") acc) "" txInfoOutputs
+  in BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString inS ".") outS) ".") checkPoolNft) ".") allValues
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
@@ -308,8 +308,8 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
       (BI.appendString 
       (BI.appendString
         (BI.appendString 
-          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty123456") (mkOutSize pd ctx)
-        ) "qwerty123456"
+          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty1234567") (mkOutSize pd ctx)
+        ) "qwerty1234567"
       ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
