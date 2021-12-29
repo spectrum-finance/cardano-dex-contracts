@@ -151,6 +151,12 @@ getPoolInput :: ScriptContext -> TxOut
 getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
   txInInfoResolved $ head txInfoInputs -- pool box is always 1st input
 
+{-# INLINABLE getPoolInputs #-}
+getPoolInputs :: ScriptContext -> [TxOut]
+getPoolInputs ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
+  List.map (\r -> txInInfoResolved r) txInfoInputs
+  -- txInInfoResolved $ head txInfoInputs -- pool box is always 1st input
+
 {-# INLINABLE findPoolDatum #-}
 findPoolDatum :: TxInfo -> DatumHash -> (PoolParams, Amount Liquidity)
 findPoolDatum info h = case findDatum h info of
@@ -394,7 +400,15 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
     numAssets    = length $ flattenValue (txOutValue successor)
     strictAssets = numAssets == 4
 
-    scriptPreserved = (txOutAddress successor) == (txOutAddress self)
+    inputs = getPoolInputs ctx
+
+    scriptPreservedList = List.filter (\txIn -> (txOutAddress successor) == (txOutAddress txIn)) inputs
+
+    scriptPreservedBS = List.foldr (\e acc -> BI.appendString "1" acc) "" scriptPreservedList
+
+    scriptPreserved = not $ BI.equalsString "" scriptPreservedBS
+
+    -- scriptPreserved = (txOutAddress successor) == (txOutAddress self)
 
     validAction = case action of
       Init    -> validInit s0 diff
