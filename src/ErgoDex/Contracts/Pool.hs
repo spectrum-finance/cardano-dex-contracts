@@ -144,7 +144,7 @@ getPoolOutput ss@ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
 {-# INLINABLE getPoolOutputReversed #-}
 getPoolOutputReversed :: ScriptContext -> TxOut
 getPoolOutputReversed ss@ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
-  head $ reverse txInfoOutputs -- pool box is always 1st output
+  head $ tail txInfoOutputs -- pool box is always 1st output
 
 {-# INLINABLE getPoolInput #-}
 getPoolInput :: ScriptContext -> TxOut
@@ -346,6 +346,12 @@ mkOutSize (PoolDatum ps0@PoolParams{..} lq0) ScriptContext{scriptContextTxInfo=T
         --  ".") checkCurrSymbol
     --  ) "." ) checkLength
   
+-- {-# INLINABLE getPoolOutputReversedByAddr #-}
+-- getPoolOutputReversedByAddr :: ScriptContext -> TxOut
+-- getPoolOutputReversedByAddr ss@ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
+--   List.filter (\txIn -> (ValidatorHash "") == (txOutAddress txIn)) txInfoOutputs
+--   head $ reverse txInfoOutputs -- pool box is always 1st output
+
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
