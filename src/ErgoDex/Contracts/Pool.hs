@@ -338,13 +338,13 @@ mkOutSize (PoolDatum ps0@PoolParams{..} lq0) ScriptContext{scriptContextTxInfo=T
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
-    traceIfFalse 
-      (BI.appendString 
-      (BI.appendString
-        (BI.appendString 
-          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty12345678") (mkOutSize pd ctx)
-        ) "qwerty12345678"
-      ) (mkSize $ txOutValue successor)) poolNftPreserved &&
+    -- traceIfFalse 
+    --   (BI.appendString 
+    --   (BI.appendString
+    --     (BI.appendString 
+    --       (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty12345678") (mkOutSize pd ctx)
+    --     ) "qwerty12345678"
+    --   ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
