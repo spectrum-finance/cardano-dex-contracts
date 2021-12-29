@@ -279,8 +279,15 @@ mapValueToInt input =
   let
     e = Map.toList input
   in
-    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString (BI.decodeUtf8 $ unTokenName k) ".") acc) "" e
+    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.decodeUtf8 $ unTokenName k) ".") (getListSize k v)) "|" ) acc) "" e
 -- (BI.decodeUtf8 $ unTokenName k)
+{-# INLINABLE getListSize #-}
+getListSize :: TokenName -> Integer -> BI.BuiltinString
+getListSize tn input =
+  let
+    unTN = BI.decodeUtf8 $ unTokenName tn
+  in BI.appendString (BI.appendString (BI.appendString "(" unTN) (if (input > 0) then "InputT>0" else "IntputT<0")) ")"
+
 {-# INLINABLE mkIntegerToBuiltinString #-}
 mkIntegerToBuiltinString :: Integer -> BI.BuiltinString
 mkIntegerToBuiltinString i =
@@ -299,25 +306,28 @@ mkOutSize (PoolDatum ps0@PoolParams{..} lq0) ScriptContext{scriptContextTxInfo=T
     outS = List.foldr (\k acc -> BI.appendString "Output" acc) "" txInfoOutputs
     checkPoolNft = List.foldr (\k acc -> BI.appendString (if (isUnit (txOutValue k) poolNft) then "Equal" else "NotEqual") acc) "" txInfoOutputs
     allValues = List.foldr (\k acc -> BI.appendString (BI.appendString (valueToBS $ txOutValue k) ".") acc) "" txInfoOutputs
-    checkCurrSymbol = 
-      List.foldr 
-        (\k acc -> 
-          List.foldr 
-            (\k1 acc -> BI.appendString (if (BI.equalsByteString k1 "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da") then "csiseq!" else "csisnoteq!") acc) "" (List.map (\cs -> unCurrencySymbol cs) (Map.keys $ getValue $ txOutValue k))
-          )
-        "" 
-        txInfoOutputs
-    checkLength =
-            List.foldr 
-        (\k acc -> 
-          List.foldr 
-            (\k1 acc -> BI.appendString (if ((BI.lengthOfByteString k1) > 0) then "lenght>0!" else "length<=0!") acc) "" (List.map (\cs -> unCurrencySymbol cs) (Map.keys $ getValue $ txOutValue k))
-          )
-        "" 
-        txInfoOutputs
-  in BI.appendString (BI.appendString ( 
-      BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString inS ".") outS) ".") checkPoolNft) ".") allValues) ".") checkCurrSymbol
-     ) "." ) checkLength
+    -- checkCurrSymbol = 
+    --   List.foldr 
+    --     (\k acc -> 
+    --       List.foldr 
+    --         (\k1 acc -> BI.appendString (if (BI.equalsByteString k1 "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da") then "csiseq!" else "csisnoteq!") acc) "" (List.map (\cs -> unCurrencySymbol cs) (Map.keys $ getValue $ txOutValue k))
+    --       )
+    --     "" 
+    --     txInfoOutputs
+    -- checkLength =
+    --   List.foldr 
+    --     (\k acc -> 
+    --       List.foldr 
+    --         (\k1 acc -> BI.appendString (if ((BI.lengthOfByteString k1) > 0) then "lenght>0!" else "length<=0!") acc) "" (List.map (\cs -> unCurrencySymbol cs) (Map.keys $ getValue $ txOutValue k))
+    --       )
+    --     "" 
+    --     txInfoOutputs
+  in 
+    -- BI.appendString (BI.appendString ( 
+      -- BI.appendString (BI.appendString (
+        BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString (BI.appendString inS ".") outS) ".") checkPoolNft) ".") allValues
+        --  ".") checkCurrSymbol
+    --  ) "." ) checkLength
   
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
