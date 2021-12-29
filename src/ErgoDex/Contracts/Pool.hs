@@ -408,10 +408,13 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
 
     scriptPreserved = not $ BI.equalsString "" scriptPreservedBS
 
+    headInput = head $ scriptPreservedList
+
+    correctPoolState = mkPoolState ps0 lq0 headInput
     -- scriptPreserved = (txOutAddress successor) == (txOutAddress self)
 
     validAction = case action of
-      Init    -> validInit s0 diff
+      Init    -> validInit correctPoolState diff
       Deposit -> validDeposit s0 diff
       Redeem  -> validRedeem s0 diff
       Swap    -> validSwap ps0 s0 diff
