@@ -355,6 +355,7 @@ mkOutSize (PoolDatum ps0@PoolParams{..} lq0) ScriptContext{scriptContextTxInfo=T
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
+  True
     -- traceIfFalse 
     --   (BI.appendString 
     --   (BI.appendString
@@ -364,18 +365,18 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
     --   ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     -- traceIfFalse "Dummy" boolRes &&
     -- traceIfFalse (scriptPreservedBS) False &&
-    traceIfFalse "Pool params not preserved" poolParamsPreserved &&
-    traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
-    traceIfFalse "Assets qty not preserved" strictAssets &&
-    traceIfFalse "Script not preserved" scriptPreserved &&
-    traceIfFalse "Invalid action" validAction
-  where
-    txInfo    = scriptContextTxInfo ctx
-    self      = getPoolInput ctx
-    successor = getPoolOutputReversed ctx
-    -- successorReversed = getPoolOutputReversed ctx
+  --   traceIfFalse "Pool params not preserved" poolParamsPreserved &&
+  --   traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
+  --   traceIfFalse "Assets qty not preserved" strictAssets &&
+  --   traceIfFalse "Script not preserved" scriptPreserved &&
+  --   traceIfFalse "Invalid action" validAction
+  -- where
+  --   txInfo    = scriptContextTxInfo ctx
+  --   self      = getPoolInput ctx
+  --   successor = getPoolOutputReversed ctx
+  --   -- successorReversed = getPoolOutputReversed ctx
 
-    poolNftPreserved = isUnit (txOutValue successor) poolNft
+  --   poolNftPreserved = isUnit (txOutValue successor) poolNft
 
     -- getDatumHash1 = Option.maybe "EmptyDatumHash1" (\(DatumHash a) -> BI.decodeUtf8 a) (txOutDatum successor)
     -- getDatumHash2 = Option.maybe "EmptyDatumHash2" (\(DatumHash a) -> BI.decodeUtf8 a) (txOutDatum successorReversed)
@@ -389,43 +390,43 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
 
     -- boolRes = r == BI.emptyString
 
-    (ps1, lq1) = case txOutDatum successor of
-      Nothing -> traceError "pool output datum hash not found"
-      Just h  -> findPoolDatum txInfo h
+    -- (ps1, lq1) = case txOutDatum successor of
+    --   Nothing -> traceError "pool output datum hash not found"
+    --   Just h  -> findPoolDatum txInfo h
 
-    poolParamsPreserved = ps1 == ps0
+    -- poolParamsPreserved = ps1 == ps0
 
-    input1 = List.filter (\txIn -> (txOutAddress successor) == (txOutAddress txIn)) inputs
+    -- input1 = List.filter (\txIn -> (txOutAddress successor) == (txOutAddress txIn)) inputs
 
-    headInput1 = head $ scriptPreservedList
+    -- headInput1 = head $ scriptPreservedList
 
-    s0   = mkPoolState ps0 lq0 headInput1
-    s1   = mkPoolState ps1 lq1 successor
-    diff = diffPoolState s0 s1
+    -- s0   = mkPoolState ps0 lq0 headInput1
+    -- s1   = mkPoolState ps1 lq1 successor
+    -- diff = diffPoolState s0 s1
 
-    valueMinted = txInfoMint txInfo
+    -- valueMinted = txInfoMint txInfo
 
-    liquiditySynced = isZero valueMinted ||
-                      valueMinted == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
+    -- liquiditySynced = isZero valueMinted ||
+    --                   valueMinted == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
 
-    numAssets    = length $ flattenValue (txOutValue successor)
-    strictAssets = numAssets == 4
+    -- numAssets    = length $ flattenValue (txOutValue successor)
+    -- strictAssets = numAssets == 4
 
-    inputs = getPoolInputs ctx
+    -- inputs = getPoolInputs ctx
 
-    scriptPreservedList = List.filter (\txIn -> (txOutAddress successor) == (txOutAddress txIn)) inputs
+    -- scriptPreservedList = List.filter (\txIn -> (txOutAddress successor) == (txOutAddress txIn)) inputs
 
-    scriptPreservedBS = List.foldr (\e acc -> BI.appendString "1" acc) "" scriptPreservedList
+    -- scriptPreservedBS = List.foldr (\e acc -> BI.appendString "1" acc) "" scriptPreservedList
 
-    scriptPreserved = not $ BI.equalsString "" scriptPreservedBS
+    -- scriptPreserved = not $ BI.equalsString "" scriptPreservedBS
 
-    headInput = head $ scriptPreservedList
+    -- headInput = head $ scriptPreservedList
 
-    correctPoolState = mkPoolState ps0 lq0 headInput
+    -- correctPoolState = mkPoolState ps0 lq0 headInput
     -- scriptPreserved = (txOutAddress successor) == (txOutAddress self)
 
-    validAction = case action of
-      Init    -> validInit correctPoolState diff
-      Deposit -> validDeposit s0 diff
-      Redeem  -> validRedeem s0 diff
-      Swap    -> validSwap ps0 s0 diff
+    -- validAction = case action of
+    --   Init    -> validInit correctPoolState diff
+    --   Deposit -> validDeposit s0 diff
+    --   Redeem  -> validRedeem s0 diff
+    --   Swap    -> validSwap ps0 s0 diff
