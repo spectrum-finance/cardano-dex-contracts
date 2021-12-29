@@ -350,7 +350,7 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
     --       (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty12345678") (mkOutSize pd ctx)
     --     ) "qwerty12345678"
     --   ) (mkSize $ txOutValue successor)) poolNftPreserved &&
-    traceIfFalse "Dummy" boolRes &&
+    -- traceIfFalse "Dummy" boolRes &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
     traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
@@ -359,22 +359,22 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
   where
     txInfo    = scriptContextTxInfo ctx
     self      = getPoolInput ctx
-    successor = getPoolOutput ctx
-    successorReversed = getPoolOutputReversed ctx
+    successor = getPoolOutputReversed ctx
+    -- successorReversed = getPoolOutputReversed ctx
 
     poolNftPreserved = isUnit (txOutValue successor) poolNft
 
-    getDatumHash1 = Option.maybe "EmptyDatumHash1" (\(DatumHash a) -> BI.decodeUtf8 a) (txOutDatum successor)
-    getDatumHash2 = Option.maybe "EmptyDatumHash2" (\(DatumHash a) -> BI.decodeUtf8 a) (txOutDatum successorReversed)
+    -- getDatumHash1 = Option.maybe "EmptyDatumHash1" (\(DatumHash a) -> BI.decodeUtf8 a) (txOutDatum successor)
+    -- getDatumHash2 = Option.maybe "EmptyDatumHash2" (\(DatumHash a) -> BI.decodeUtf8 a) (txOutDatum successorReversed)
 
-    g1 = BI.appendString (BI.appendString "(" getDatumHash1) ")"
-    g2 = BI.appendString (BI.appendString "(" getDatumHash2) ")"
+    -- g1 = BI.appendString (BI.appendString "(" getDatumHash1) ")"
+    -- g2 = BI.appendString (BI.appendString "(" getDatumHash2) ")"
 
-    g3 = BI.appendString g1 g2
+    -- g3 = BI.appendString g1 g2
 
-    r = traceError (BI.appendString "DatumHashes are:" g3)
+    -- r = traceError (BI.appendString "DatumHashes are:" g3)
 
-    boolRes = r == BI.emptyString
+    -- boolRes = r == BI.emptyString
 
     (ps1, lq1) = case txOutDatum successor of
       Nothing -> traceError "pool output datum hash not found"
