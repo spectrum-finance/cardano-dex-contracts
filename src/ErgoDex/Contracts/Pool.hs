@@ -392,7 +392,7 @@ mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
                       valueMinted == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
 
     numAssets    = length $ flattenValue (txOutValue successor)
-    strictAssets = numAssets == 3
+    strictAssets = numAssets == 4
 
     scriptPreserved = (txOutAddress successor) == (txOutAddress self)
 
