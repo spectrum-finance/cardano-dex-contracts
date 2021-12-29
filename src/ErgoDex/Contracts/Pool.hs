@@ -292,14 +292,23 @@ testFunc :: Value -> BI.BuiltinString
 testFunc v =
   BI.decodeUtf8 $ BI.unsafeDataAsB $ toBuiltinData v
 
+{-# INLINABLE mkOutSize #-}
+mkOutSize :: PoolDatum -> ScriptContext -> BI.BuiltinString
+mkOutSize (PoolDatum ps0@PoolParams{..} lq0) ScriptContext{scriptContextTxInfo=TxInfo{..}} =
+  let
+    inS = List.foldr (\k acc -> BI.appendString "U" acc) "" txInfoInputs
+    outS = List.foldr (\k acc -> BI.appendString "D" acc) "" txInfoOutputs
+    checkPoolNft = List.foldr (\k acc -> BI.appendString (if (isUnit (txOutValue k) poolNft) then "E" else "NotE") acc) "" txInfoOutputs
+  in BI.appendString (BI.appendString (BI.appendString (BI.appendString inS "<->") outS) "<->") checkPoolNft
+
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
-mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
+mkPoolValidator pd@(PoolDatum ps0@PoolParams{..} lq0) action ctx =
     traceIfFalse 
       (BI.appendString 
       (BI.appendString
         (BI.appendString 
-          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty1234") (valueToBS $ txOutValue successor)
+          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty1234") (mkOutSize pd ctx)
         ) "qwerty1234 "
       ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
