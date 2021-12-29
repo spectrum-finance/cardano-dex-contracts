@@ -26,6 +26,22 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
+
+{-# LANGUAGE QuasiQuotes, ExtendedDefaultRules #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE QuasiQuotes, ExtendedDefaultRules #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module ErgoDex.Contracts.Pool where
 import Plutus.V1.Ledger.Value
@@ -46,7 +62,8 @@ import           Utils
 import qualified PlutusTx.Builtins.Internal as BII
 import qualified PlutusTx.AssocMap  as Map
 import qualified PlutusTx.List as List
-
+import qualified Prelude              as P
+import  PlutusTx.Builtins.Class 
 data PoolParams = PoolParams
   { poolNft :: Coin Nft
   , poolX   :: Coin X
@@ -264,7 +281,12 @@ mapValueToInt input =
 {-# INLINABLE mkIntegerToBuiltinString #-}
 mkIntegerToBuiltinString :: Integer -> BI.BuiltinString
 mkIntegerToBuiltinString i =
-  BI.decodeUtf8 $ BI.unsafeDataAsB $ BI.mkI i
+  Haskell.undefined
+
+{-# INLINABLE testFunc #-}
+testFunc :: Value -> BI.BuiltinString
+testFunc v =
+  BI.decodeUtf8 $ BI.unsafeDataAsB $ toBuiltinData v
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
@@ -273,7 +295,7 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
       (BI.appendString 
       (BI.appendString
         (BI.appendString 
-          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty123 ") (valueToBS $ txOutValue successor)
+          (BI.appendString (BI.appendString (BI.appendString (BI.appendString "Pool NFT not preserved. " (getData poolNft)) ".") (getTokenName poolNft)) " qwerty123 ") (testFunc $ txOutValue successor)
         ) " qwerty123 "
       ) (mkSize $ txOutValue successor)) poolNftPreserved &&
     traceIfFalse "Pool params not preserved" poolParamsPreserved &&
