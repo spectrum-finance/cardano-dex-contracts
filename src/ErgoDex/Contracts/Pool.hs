@@ -258,11 +258,10 @@ getTokenName Coin{..} = let name = unTokenName $ snd (unAssetClass unCoin) in BI
 valueToBS :: Value -> BI.BuiltinString
 valueToBS Value{..} =
   let
-    (s, v) = head $ reverse $ Map.toList $ getValue
-    v1 = mapValueToInt v
+    listValue =  Map.toList $ getValue
   in
-    BI.appendString (BI.decodeUtf8 $ unCurrencySymbol s) v1
-    
+    List.foldr (\(k, v) acc -> BI.appendString (BI.appendString (BI.appendString (BI.appendString (mapValueToInt v) "~|~") (BI.decodeUtf8 $ unCurrencySymbol k)) "~~") acc) "" listValue
+
 {-# INLINABLE mkSize #-}
 mkSize :: Value -> BI.BuiltinString
 mkSize Value{..} =
