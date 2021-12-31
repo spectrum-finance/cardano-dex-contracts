@@ -226,11 +226,11 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     poolStateSynced = successorDh == expectedSuccessorDh
 
     s0   = mkPoolState ps0 lq0 self
-    s1   = mkPoolState ps0 lq1 successor -- use ps0 here is hashes are equal
+    s1   = mkPoolState ps0 lq1 successor
     diff = diffPoolState s0 s1
 
-    numAssets    = length $ flattenValue (txOutValue successor)
-    strictAssets = numAssets == 3
+    strictAssets = numAssets == 3 || numAssets == 4
+      where numAssets = length $ flattenValue (txOutValue successor)
 
     scriptPreserved = txOutAddress successor == txOutAddress self
 
