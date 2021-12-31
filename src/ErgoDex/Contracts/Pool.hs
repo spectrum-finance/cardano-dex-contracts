@@ -31,16 +31,13 @@ module ErgoDex.Contracts.Pool where
 
 import qualified Prelude                          as Haskell
 import           Ledger
-import           Ledger.Constraints.OnChain       as Constraints
-import           Ledger.Constraints.TxConstraints as Constraints
-import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue, isZero, flattenValue)
+import           Ledger.Value                     (assetClassValue, isZero, flattenValue, assetClassValueOf)
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
 import           PlutusTx.Sqrt
-import           Utils
 
 data PoolParams = PoolParams
   { poolNft :: Coin Nft
@@ -202,8 +199,7 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
-    traceIfFalse "Pool params not preserved" poolParamsPreserved &&
-    traceIfFalse "Illegal amount of liquidity declared" liquiditySynced &&
+    traceIfFalse "Pool state not synced properly" poolStateSynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
     traceIfFalse "Script not preserved" scriptPreserved &&
     traceIfFalse "Invalid action" validAction
@@ -214,25 +210,29 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
 
     poolNftPreserved = isUnit (txOutValue successor) poolNft
 
-    (ps1, lq1) = case txOutDatum successor of
+    successorDh = case txOutDatum successor of
       Nothing -> traceError "pool output datum hash not found"
-      Just h  -> findPoolDatum txInfo h
-
-    poolParamsPreserved = ps1 == ps0
-
-    s0   = mkPoolState ps0 lq0 self
-    s1   = mkPoolState ps1 lq1 successor
-    diff = diffPoolState s0 s1
+      Just h  -> h
 
     valueMinted = txInfoMint txInfo
 
-    liquiditySynced = isZero valueMinted ||
-                      valueMinted == (assetClassValue (unCoin poolLq) (unDiff $ diffLiquidity diff))
+    (expectedSuccessorDh, lq1) = (datumHash expectedDt, Amount lq1')
+      where
+        lqMinted       = assetClassValueOf valueMinted (unCoin poolLq)
+        lq1'           = unAmount lq0 + lqMinted
+        expectedPoolDt = PoolDatum ps0 (Amount lq1')
+        expectedDt     = Datum $ toBuiltinData expectedPoolDt
+
+    poolStateSynced = successorDh == expectedSuccessorDh
+
+    s0   = mkPoolState ps0 lq0 self
+    s1   = mkPoolState ps0 lq1 successor -- use ps0 here is hashes are equal
+    diff = diffPoolState s0 s1
 
     numAssets    = length $ flattenValue (txOutValue successor)
     strictAssets = numAssets == 3
 
-    scriptPreserved = (txOutAddress successor) == (txOutAddress self)
+    scriptPreserved = txOutAddress successor == txOutAddress self
 
     validAction = case action of
       Init    -> validInit s0 diff
