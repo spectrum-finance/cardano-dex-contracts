@@ -35,7 +35,7 @@ import           Ledger
 import qualified Ledger.Ada                       as Ada
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), mkPoolState, getPoolInput, findPoolDatum)
+import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), readPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
 
@@ -74,7 +74,7 @@ mkRedeemValidator RedeemDatum{..} _ ctx =
     selfValue   = txOutValue self
     rewardValue = txOutValue reward
 
-    (ps@PoolParams{..}, lq) = case txOutDatum pool of
+    ps@PoolParams{..} = case txOutDatum pool of
       Nothing -> traceError "pool input datum hash not found"
       Just h  -> findPoolDatum txInfo h
 
@@ -99,7 +99,7 @@ mkRedeemValidator RedeemDatum{..} _ ctx =
 
     inLq = valueOf selfValue poolLq
 
-    poolState = mkPoolState ps lq pool
+    poolState = readPoolState ps pool
 
     liquidity' = unAmount $ liquidity poolState
     reservesX' = unAmount $ reservesX poolState

@@ -75,8 +75,3 @@ redeemInstance = Scripts.mkTypedValidator @ErgoDexRedeem
      $$(PlutusTx.compile [|| wrap ||])
   where
     wrap = Scripts.wrapValidator @RedeemDatum
-
-liquidityMintingPolicyInstance :: Coin Nft -> Scripts.MintingPolicy
-liquidityMintingPolicyInstance coin = mkMintingPolicyScript (
-      $$(PlutusTx.compile [|| \c -> Scripts.wrapMintingPolicy (validateLiquidityMinting c) ||])
-          `PlutusTx.applyCode` PlutusTx.liftCode coin )

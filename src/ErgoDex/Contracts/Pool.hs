@@ -31,7 +31,7 @@ module ErgoDex.Contracts.Pool where
 
 import qualified Prelude                          as Haskell
 import           Ledger
-import           Ledger.Value                     (assetClassValue, isZero, flattenValue, assetClassValueOf)
+import           Ledger.Value                     (flattenValue, assetClassValueOf)
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
@@ -57,7 +57,7 @@ instance Eq PoolParams where
            poolLq x  == poolLq y &&
            feeNum x  == feeNum y
 
-data PoolDatum = PoolDatum PoolParams (Amount Liquidity)
+data PoolDatum = PoolDatum PoolParams
   deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''PoolDatum [('PoolDatum, 0)]
 PlutusTx.makeLift ''PoolDatum
@@ -77,14 +77,19 @@ data PoolState = PoolState
   , liquidity :: Amount Liquidity
   } deriving Haskell.Show
 
-{-# INLINABLE mkPoolState #-}
-mkPoolState :: PoolParams -> Amount Liquidity -> TxOut -> PoolState
-mkPoolState PoolParams{..} lq out =
+{-# INLINABLE maxLqCap #-}
+maxLqCap :: Amount Liquidity
+maxLqCap = Amount 0x7fffffffffffffff
+
+{-# INLINABLE readPoolState #-}
+readPoolState :: PoolParams -> TxOut -> PoolState
+readPoolState PoolParams{..} out =
     PoolState x y lq
   where
     value = txOutValue out
     x     = amountOf value poolX
     y     = amountOf value poolY
+    lq    = amountOf value poolLq
 
 data PoolDiff = PoolDiff
   { diffX         :: Diff X
@@ -101,11 +106,11 @@ diffPoolState s0 s1 =
     rx1 = unAmount $ reservesX s1
     ry0 = unAmount $ reservesY s0
     ry1 = unAmount $ reservesY s1
-    l0  = unAmount $ liquidity s0
-    l1  = unAmount $ liquidity s1
+    lq0  = unAmount $ liquidity s0
+    lq1  = unAmount $ liquidity s1
     dx  = Diff $ rx1 - rx0
     dy  = Diff $ ry1 - ry0
-    dlq = Diff $ l1 - l0
+    dlq = Diff $ lq0 - lq1 -- pool keeps only the negative part of LQ tokens
 
 {-# INLINABLE getPoolOutput #-}
 getPoolOutput :: ScriptContext -> TxOut
@@ -118,11 +123,11 @@ getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
   txInInfoResolved $ head txInfoInputs -- pool box is always 1st input
 
 {-# INLINABLE findPoolDatum #-}
-findPoolDatum :: TxInfo -> DatumHash -> (PoolParams, Amount Liquidity)
+findPoolDatum :: TxInfo -> DatumHash -> PoolParams
 findPoolDatum info h = case findDatum h info of
   Just (Datum d) -> case fromBuiltinData d of
-    (Just (PoolDatum ps lq)) -> (ps, lq)
-    _                        -> traceError "error decoding pool data"
+    (Just (PoolDatum ps)) -> ps
+    _                     -> traceError "error decoding pool data"
   _              -> traceError "pool input datum not found"
 
 {-# INLINABLE validInit #-}
@@ -197,36 +202,30 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
-mkPoolValidator (PoolDatum ps0@PoolParams{..} lq0) action ctx =
+mkPoolValidator (PoolDatum ps0@PoolParams{..}) action ctx =
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
-    traceIfFalse "Pool state not synced properly" poolStateSynced &&
+    traceIfFalse "Pool state not synced properly" poolSettingsSynced &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
     traceIfFalse "Script not preserved" scriptPreserved &&
     traceIfFalse "Invalid action" validAction
   where
-    txInfo    = scriptContextTxInfo ctx
     self      = getPoolInput ctx
     successor = getPoolOutput ctx
 
     poolNftPreserved = isUnit (txOutValue successor) poolNft
 
+    selfDh = case txOutDatum self of
+      Nothing -> traceError "pool input datum hash not found"
+      Just h  -> h
+
     successorDh = case txOutDatum successor of
       Nothing -> traceError "pool output datum hash not found"
       Just h  -> h
 
-    valueMinted = txInfoMint txInfo
+    poolSettingsSynced = successorDh == selfDh
 
-    (expectedSuccessorDh, lq1) = (datumHash expectedDt, Amount lq1')
-      where
-        lqMinted       = assetClassValueOf valueMinted (unCoin poolLq)
-        lq1'           = unAmount lq0 + lqMinted
-        expectedPoolDt = PoolDatum ps0 (Amount lq1')
-        expectedDt     = Datum $ toBuiltinData expectedPoolDt
-
-    poolStateSynced = successorDh == expectedSuccessorDh
-
-    s0   = mkPoolState ps0 lq0 self
-    s1   = mkPoolState ps0 lq1 successor
+    s0   = readPoolState ps0 self
+    s1   = readPoolState ps0 successor
     diff = diffPoolState s0 s1
 
     strictAssets = numAssets == 3 || numAssets == 4

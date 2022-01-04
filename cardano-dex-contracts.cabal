@@ -46,7 +46,6 @@ library
       ErgoDex.OffChain
       ErgoDex.Contracts.Types
       ErgoDex.Contracts.Pool
-      ErgoDex.Contracts.Liquidity
       ErgoDex.Contracts.Proxy.Order
       ErgoDex.Contracts.Proxy.Swap
       ErgoDex.Contracts.Proxy.Deposit
