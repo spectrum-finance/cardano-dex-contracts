@@ -31,7 +31,7 @@ module ErgoDex.Contracts.Pool where
 
 import qualified Prelude                          as Haskell
 import           Ledger
-import           Ledger.Value                     (flattenValue, assetClassValueOf)
+import           Ledger.Value                     (flattenValue)
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
@@ -89,7 +89,7 @@ readPoolState PoolParams{..} out =
     value = txOutValue out
     x     = amountOf value poolX
     y     = amountOf value poolY
-    lq    = amountOf value poolLq
+    lq    = maxLqCap - amountOf value poolLq
 
 data PoolDiff = PoolDiff
   { diffX         :: Diff X
@@ -204,7 +204,7 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator (PoolDatum ps0@PoolParams{..}) action ctx =
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
-    traceIfFalse "Pool state not synced properly" poolSettingsSynced &&
+    traceIfFalse "Pool settings not preserved" poolSettingsPreserved &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
     traceIfFalse "Script not preserved" scriptPreserved &&
     traceIfFalse "Invalid action" validAction
@@ -222,7 +222,7 @@ mkPoolValidator (PoolDatum ps0@PoolParams{..}) action ctx =
       Nothing -> traceError "pool output datum hash not found"
       Just h  -> h
 
-    poolSettingsSynced = successorDh == selfDh
+    poolSettingsPreserved = successorDh == selfDh
 
     s0   = readPoolState ps0 self
     s1   = readPoolState ps0 successor
