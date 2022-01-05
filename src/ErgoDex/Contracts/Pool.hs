@@ -202,39 +202,4 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
-mkPoolValidator (PoolDatum ps0@PoolParams{..}) action ctx =
-    traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
-    traceIfFalse "Pool settings not preserved" poolSettingsPreserved &&
-    traceIfFalse "Assets qty not preserved" strictAssets &&
-    traceIfFalse "Script not preserved" scriptPreserved &&
-    traceIfFalse "Invalid action" validAction
-  where
-    self      = getPoolInput ctx
-    successor = getPoolOutput ctx
-
-    poolNftPreserved = isUnit (txOutValue successor) poolNft
-
-    selfDh = case txOutDatum self of
-      Nothing -> traceError "pool input datum hash not found"
-      Just h  -> h
-
-    successorDh = case txOutDatum successor of
-      Nothing -> traceError "pool output datum hash not found"
-      Just h  -> h
-
-    poolSettingsPreserved = successorDh == selfDh
-
-    s0   = readPoolState ps0 self
-    s1   = readPoolState ps0 successor
-    diff = diffPoolState s0 s1
-
-    strictAssets = numAssets == 3 || numAssets == 4
-      where numAssets = length $ flattenValue (txOutValue successor)
-
-    scriptPreserved = txOutAddress successor == txOutAddress self
-
-    validAction = case action of
-      Init    -> validInit s0 diff
-      Deposit -> validDeposit s0 diff
-      Redeem  -> validRedeem s0 diff
-      Swap    -> validSwap ps0 s0 diff
+mkPoolValidator (PoolDatum ps0@PoolParams{..}) action ctx = True
