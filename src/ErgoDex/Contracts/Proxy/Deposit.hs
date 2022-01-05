@@ -43,7 +43,7 @@ data DepositDatum = DepositDatum
    { poolNft       :: Coin Nft
    , exFee         :: Amount Lovelace
    , rewardPkh     :: PubKeyHash
-   , collateralAda :: Ada.Ada
+   , collateralAda :: Amount Lovelace
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
 PlutusTx.makeLift ''DepositDatum
@@ -79,7 +79,7 @@ mkDepositValidator DepositDatum{..} _ ctx =
       Nothing -> traceError "pool input datum hash not found"
       Just h  -> findPoolDatum txInfo h
 
-    collateralAda' = Ada.getLovelace collateralAda
+    collateralAda' = unAmount collateralAda
 
     (inX, inY)
       | isAda poolX =
