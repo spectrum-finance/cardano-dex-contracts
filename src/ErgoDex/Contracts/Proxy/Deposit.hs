@@ -38,12 +38,12 @@ import           ErgoDex.Contracts.Types
 import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), readPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
-import           ErgoDex.Plutus   (adaOrderCollateral)
 
 data DepositDatum = DepositDatum
-   { poolNft   :: Coin Nft
-   , exFee     :: Amount Lovelace
-   , rewardPkh :: PubKeyHash
+   { poolNft       :: Coin Nft
+   , exFee         :: Amount Lovelace
+   , rewardPkh     :: PubKeyHash
+   , collateralAda :: Ada.Ada
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
 PlutusTx.makeLift ''DepositDatum
@@ -79,24 +79,23 @@ mkDepositValidator DepositDatum{..} _ ctx =
       Nothing -> traceError "pool input datum hash not found"
       Just h  -> findPoolDatum txInfo h
 
-    outAda        = Ada.getLovelace $ Ada.fromValue rewardValue
-    exFee'        = unAmount exFee
-
-    adaCollateral = Ada.getLovelace adaOrderCollateral
+    collateralAda' = Ada.getLovelace collateralAda
 
     (inX, inY)
       | isAda poolX =
-        let depositedAda = rx - exFee' - adaCollateral
+        let depositedAda = rx - exFee' - collateralAda'
         in (depositedAda, ry)
       | isAda poolY =
-        let depositedAda = ry - exFee' - adaCollateral
+        let depositedAda = ry - exFee' - collateralAda'
         in (rx, depositedAda)
       | otherwise   = (rx, ry)
       where
-          rx = valueOf selfValue poolX
-          ry = valueOf selfValue poolY
+          rx     = valueOf selfValue poolX
+          ry     = valueOf selfValue poolY
+          exFee' = unAmount exFee
 
-    fairFee = outAda >= adaCollateral
+    fairFee = outAda >= collateralAda'
+      where outAda = Ada.getLovelace $ Ada.fromValue rewardValue
 
     outLq = valueOf rewardValue poolLq
 

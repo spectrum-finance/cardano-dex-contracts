@@ -35,7 +35,3 @@ import           Ledger.Value (AssetClass, assetClass)
 {-# INLINABLE adaAssetClass #-}
 adaAssetClass :: AssetClass
 adaAssetClass = assetClass Ada.adaSymbol Ada.adaToken
-
-{-# INLINABLE adaOrderCollateral #-}
-adaOrderCollateral :: Ada.Ada
-adaOrderCollateral = Ada.lovelaceOf 1000000

@@ -29,13 +29,13 @@
 
 module ErgoDex.Contracts.Proxy.Redeem where
 
-import qualified Prelude                          as Haskell
+import qualified Prelude as Haskell
 
 import           Ledger
-import qualified Ledger.Ada                       as Ada
+import qualified Ledger.Ada                    as Ada
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), readPoolState, getPoolInput, findPoolDatum)
+import           ErgoDex.Contracts.Pool        (PoolState(..), PoolParams(..), readPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
 
@@ -92,8 +92,8 @@ mkRedeemValidator RedeemDatum{..} _ ctx =
         in (rx, redeemedAda, redeemedAda)
       | otherwise   = (rx, ry, 0)
       where
-          rx = valueOf rewardValue poolX
-          ry = valueOf rewardValue poolY
+        rx = valueOf rewardValue poolX
+        ry = valueOf rewardValue poolY
 
     fairFee = outAda >= opAda + collateralAda
 
