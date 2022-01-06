@@ -32,6 +32,7 @@ module ErgoDex.Contracts.Proxy.Order where
 import           Ledger
 import           ErgoDex.Contracts.Types
 import           PlutusTx.Prelude
+import           ErgoDex.Plutus   (adaAssetClass)
 
 {-# INLINABLE getOrderInput #-}
 getOrderInput :: ScriptContext -> TxOut
@@ -42,3 +43,7 @@ getOrderInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
 getOrderRewardOutput :: ScriptContext -> TxOut
 getOrderRewardOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
   txInfoOutputs !! 1 -- order reward box is always 2nd output
+
+{-# INLINABLE isAda #-}
+isAda :: Coin a -> Bool
+isAda (Coin cls) = cls == adaAssetClass

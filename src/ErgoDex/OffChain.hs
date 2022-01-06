@@ -22,9 +22,6 @@ import           ErgoDex.Contracts.Pool (PoolDatum, PoolAction, mkPoolValidator)
 import           ErgoDex.Contracts.Proxy.Deposit
 import           ErgoDex.Contracts.Proxy.Swap
 import           ErgoDex.Contracts.Proxy.Redeem
-import           ErgoDex.Contracts.Liquidity
-import           Ledger.Scripts                (mkMintingPolicyScript)
-import           ErgoDex.Contracts.Types
 import qualified Ledger.Typed.Scripts as Scripts
 import qualified PlutusTx
 
@@ -75,8 +72,3 @@ redeemInstance = Scripts.mkTypedValidator @ErgoDexRedeem
      $$(PlutusTx.compile [|| wrap ||])
   where
     wrap = Scripts.wrapValidator @RedeemDatum
-
-liquidityMintingPolicyInstance :: Coin Nft -> Scripts.MintingPolicy
-liquidityMintingPolicyInstance coin = mkMintingPolicyScript (
-      $$(PlutusTx.compile [|| \c -> Scripts.wrapMintingPolicy (validateLiquidityMinting c) ||])
-          `PlutusTx.applyCode` PlutusTx.liftCode coin )

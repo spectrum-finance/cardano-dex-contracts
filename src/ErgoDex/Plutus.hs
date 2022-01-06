@@ -27,24 +27,11 @@
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
-module ErgoDex.Contracts.Liquidity where
+module ErgoDex.Plutus where
 
-import qualified Prelude                          as Haskell
+import qualified Ledger.Ada   as Ada
+import           Ledger.Value (AssetClass, assetClass)
 
-import           Ledger
-import           Ledger.Constraints.OnChain       as Constraints
-import           Ledger.Constraints.TxConstraints as Constraints
-import qualified Ledger.Ada                       as Ada
-import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue)
-import           Ledger.Contexts                  (txSignedBy, pubKeyOutput)
-import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), mkPoolState, getPoolInput, findPoolDatum)
-import qualified PlutusTx
-import           PlutusTx.Prelude
-import           PlutusTx.IsData.Class
-import           Utils
-
-{-# INLINABLE validateLiquidityMinting #-}
-validateLiquidityMinting :: Coin Nft -> () -> ScriptContext -> Bool
-validateLiquidityMinting poolNft _ ctx =
-  traceIfFalse "Minting must be witnessed by pool" (isUnit (txOutValue $ getPoolInput ctx) poolNft)
+{-# INLINABLE adaAssetClass #-}
+adaAssetClass :: AssetClass
+adaAssetClass = assetClass Ada.adaSymbol Ada.adaToken

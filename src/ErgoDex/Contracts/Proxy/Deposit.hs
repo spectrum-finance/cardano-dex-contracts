@@ -32,24 +32,18 @@ module ErgoDex.Contracts.Proxy.Deposit where
 import qualified Prelude                          as Haskell
 
 import           Ledger
-import           Ledger.Constraints.OnChain       as Constraints
-import           Ledger.Constraints.TxConstraints as Constraints
 import qualified Ledger.Ada                       as Ada
-import           Ledger.Value                     (AssetClass (..), symbols, assetClassValue)
-import           Ledger.Contexts                  (txSignedBy, pubKeyOutput)
-import qualified Ledger.Typed.Scripts             as Scripts
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), mkPoolState, getPoolInput, findPoolDatum)
+import           ErgoDex.Contracts.Pool           (PoolState(..), PoolParams(..), readPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
-import           PlutusTx.IsData.Class
-import           Utils
 
 data DepositDatum = DepositDatum
-   { poolNft   :: Coin Nft
-   , exFee     :: Amount Lovelace
-   , rewardPkh :: PubKeyHash
+   { poolNft       :: Coin Nft
+   , exFee         :: Amount Lovelace
+   , rewardPkh     :: PubKeyHash
+   , collateralAda :: Amount Lovelace
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
 PlutusTx.makeLift ''DepositDatum
@@ -61,7 +55,7 @@ mkDepositValidator DepositDatum{..} _ ctx =
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&
       traceIfFalse "Invalid reward proposition" validRewardProp &&
-      traceIfFalse "Unfair execution fee" fairExFee &&
+      traceIfFalse "Unfair execution fee taken" fairFee &&
       traceIfFalse "Minimal reward not met" validReward
     )
   where
@@ -74,35 +68,43 @@ mkDepositValidator DepositDatum{..} _ ctx =
 
     validPool = isUnit poolValue poolNft
 
-    validNumInputs = (length $ txInfoInputs txInfo) == 2
+    validNumInputs = length (txInfoInputs txInfo) == 2
 
     validRewardProp = maybe False (== rewardPkh) (pubKeyOutput reward)
 
     selfValue   = txOutValue self
     rewardValue = txOutValue reward
 
-    fairExFee =
-        outAda >= inAda - exFee'
+    ps@PoolParams{..} = case txOutDatum pool of
+      Nothing -> traceError "pool input datum hash not found"
+      Just h  -> findPoolDatum txInfo h
+
+    collateralAda' = unAmount collateralAda
+
+    (inX, inY)
+      | isAda poolX =
+        let depositedAda = rx - exFee' - collateralAda'
+        in (depositedAda, ry)
+      | isAda poolY =
+        let depositedAda = ry - exFee' - collateralAda'
+        in (rx, depositedAda)
+      | otherwise   = (rx, ry)
       where
-        outAda = Ada.getLovelace $ Ada.fromValue rewardValue
-        inAda  = Ada.getLovelace $ Ada.fromValue selfValue
-        exFee' = unAmount exFee
+          rx     = valueOf selfValue poolX
+          ry     = valueOf selfValue poolY
+          exFee' = unAmount exFee
 
-    validReward =
-        outLq >= minReward
-      where
-        (ps@PoolParams{..}, lq) = case txOutDatum pool of
-          Nothing -> traceError "pool input datum hash not found"
-          Just h  -> findPoolDatum txInfo h
+    fairFee = outAda >= collateralAda'
+      where outAda = Ada.getLovelace $ Ada.fromValue rewardValue
 
-        inX   = valueOf selfValue poolX
-        inY   = valueOf selfValue poolY
-        outLq = valueOf rewardValue poolLq
+    outLq = valueOf rewardValue poolLq
 
-        poolState = mkPoolState ps lq pool
+    poolState = readPoolState ps pool
 
-        liquidity' = unAmount $ liquidity poolState
-        reservesX' = unAmount $ reservesX poolState
-        reservesY' = unAmount $ reservesY poolState
+    liquidity' = unAmount $ liquidity poolState
+    reservesX' = unAmount $ reservesX poolState
+    reservesY' = unAmount $ reservesY poolState
 
-        minReward = min (divide (inX * liquidity') reservesX') (divide (inY * liquidity') reservesY')
+    minReward = min (divide (inX * liquidity') reservesX') (divide (inY * liquidity') reservesY')
+
+    validReward = outLq >= minReward
