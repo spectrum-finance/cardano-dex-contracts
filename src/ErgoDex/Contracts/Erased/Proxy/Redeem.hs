@@ -35,11 +35,15 @@ import           Ledger
 import qualified Ledger.Ada   as Ada
 import           Ledger.Value (assetClassValueOf)
 
-import           ErgoDex.Contracts.Proxy.Order
-import           ErgoDex.Contracts.Erased.Coins
-import           ErgoDex.Contracts.Erased.Pool        (PoolState(..), PoolDatum(..), readPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
+
+import           ErgoDex.Contracts.Proxy.Order
+import           ErgoDex.Contracts.Erased.Coins
+import           ErgoDex.Contracts.Erased.Pool         (PoolState(..), PoolDatum(..), readPoolState, getPoolInput, findPoolDatum)
+import           ErgoDex.Contracts.Erased.UnliftErased
+import qualified ErgoDex.Contracts.Proxy.Redeem        as NE
+import qualified ErgoDex.Contracts.Types               as T
 
 data RedeemDatum = RedeemDatum
    { poolNft   :: AssetClass
@@ -48,6 +52,19 @@ data RedeemDatum = RedeemDatum
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''RedeemDatum [('RedeemDatum, 0)]
 PlutusTx.makeLift ''RedeemDatum
+
+instance UnliftErased NE.RedeemDatum RedeemDatum where
+  lift NE.RedeemDatum{..} = RedeemDatum
+    { poolNft       = T.unCoin poolNft
+    , exFee         = T.unAmount exFee
+    , rewardPkh     = rewardPkh
+    }
+
+  unlift RedeemDatum{..} = NE.RedeemDatum
+    { poolNft       = T.Coin poolNft
+    , exFee         = T.Amount exFee
+    , rewardPkh     = rewardPkh
+    }
 
 {-# INLINABLE mkRedeemValidator #-}
 mkRedeemValidator :: RedeemDatum -> BuiltinData -> ScriptContext -> Bool

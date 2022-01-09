@@ -35,11 +35,15 @@ import           Ledger
 import qualified Ledger.Ada   as Ada
 import           Ledger.Value (assetClassValueOf)
 
-import           ErgoDex.Contracts.Proxy.Order
-import           ErgoDex.Contracts.Erased.Coins
-import           ErgoDex.Contracts.Erased.Pool  (getPoolInput)
 import qualified PlutusTx
 import           PlutusTx.Prelude
+
+import           ErgoDex.Contracts.Proxy.Order
+import           ErgoDex.Contracts.Erased.Coins
+import           ErgoDex.Contracts.Erased.Pool         (getPoolInput)
+import           ErgoDex.Contracts.Erased.UnliftErased
+import qualified ErgoDex.Contracts.Proxy.Swap          as NE
+import qualified ErgoDex.Contracts.Types               as T
 
 data SwapDatum = SwapDatum
    { base             :: AssetClass
@@ -54,6 +58,31 @@ data SwapDatum = SwapDatum
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''SwapDatum [('SwapDatum, 0)]
 PlutusTx.makeLift ''SwapDatum
+
+instance UnliftErased NE.SwapDatum SwapDatum where
+  lift NE.SwapDatum{..} = SwapDatum
+    { base             = T.unCoin base
+    , quote            = T.unCoin quote
+    , poolNft          = T.unCoin poolNft
+    , feeNum           = feeNum
+    , exFeePerTokenNum = exFeePerTokenNum
+    , exFeePerTokenDen = exFeePerTokenDen
+    , rewardPkh        = rewardPkh
+    , baseAmount       = T.unAmount baseAmount
+    , minQuoteAmount   = T.unAmount minQuoteAmount
+    }
+
+  unlift SwapDatum{..} = NE.SwapDatum
+    { base             = T.Coin base
+    , quote            = T.Coin quote
+    , poolNft          = T.Coin poolNft
+    , feeNum           = feeNum
+    , exFeePerTokenNum = exFeePerTokenNum
+    , exFeePerTokenDen = exFeePerTokenDen
+    , rewardPkh        = rewardPkh
+    , baseAmount       = T.Amount baseAmount
+    , minQuoteAmount   = T.Amount minQuoteAmount
+    }
 
 {-# INLINABLE mkSwapValidator #-}
 mkSwapValidator :: SwapDatum -> BuiltinData -> ScriptContext -> Bool

@@ -35,11 +35,15 @@ import           Ledger
 import           Ledger.Value (assetClassValueOf)
 import qualified Ledger.Ada   as Ada
 
-import           ErgoDex.Contracts.Erased.Coins
-import           ErgoDex.Contracts.Proxy.Order
-import           ErgoDex.Contracts.Erased.Pool   (PoolState(..), PoolDatum(..), readPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
+
+import           ErgoDex.Contracts.Erased.Coins
+import           ErgoDex.Contracts.Proxy.Order
+import           ErgoDex.Contracts.Erased.Pool         (PoolState(..), PoolDatum(..), readPoolState, getPoolInput, findPoolDatum)
+import           ErgoDex.Contracts.Erased.UnliftErased
+import qualified ErgoDex.Contracts.Proxy.Deposit       as NE
+import qualified ErgoDex.Contracts.Types               as T
 
 data DepositDatum = DepositDatum
    { poolNft       :: AssetClass
@@ -49,6 +53,21 @@ data DepositDatum = DepositDatum
    } deriving stock (Haskell.Show)
 PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
 PlutusTx.makeLift ''DepositDatum
+
+instance UnliftErased NE.DepositDatum DepositDatum where
+  lift NE.DepositDatum{..} = DepositDatum
+    { poolNft       = T.unCoin poolNft
+    , exFee         = T.unAmount exFee
+    , rewardPkh     = rewardPkh
+    , collateralAda = T.unAmount collateralAda
+    }
+
+  unlift DepositDatum{..} = NE.DepositDatum
+    { poolNft       = T.Coin poolNft
+    , exFee         = T.Amount exFee
+    , rewardPkh     = rewardPkh
+    , collateralAda = T.Amount collateralAda
+    }
 
 {-# INLINABLE mkDepositValidator #-}
 mkDepositValidator :: DepositDatum -> BuiltinData -> ScriptContext -> Bool

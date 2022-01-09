@@ -33,11 +33,16 @@ import qualified Prelude                          as Haskell
 import           Ledger
 import           Ledger.Value                     (flattenValue, assetClassValueOf)
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
-import           ErgoDex.Contracts.Erased.Coins
+
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
 import           PlutusTx.Sqrt
+
+import           ErgoDex.Contracts.Erased.Coins
+import           ErgoDex.Contracts.Erased.UnliftErased
+import qualified ErgoDex.Contracts.Pool                as NE
+import qualified ErgoDex.Contracts.Types               as T
 
 data PoolDatum = PoolDatum
   { poolNft :: AssetClass
@@ -48,6 +53,23 @@ data PoolDatum = PoolDatum
   } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
 PlutusTx.makeIsDataIndexed ''PoolDatum [('PoolDatum, 0)]
 PlutusTx.makeLift ''PoolDatum
+
+instance UnliftErased NE.PoolDatum PoolDatum where
+  lift (NE.PoolDatum NE.PoolParams{..}) = PoolDatum
+    { poolNft = T.unCoin poolNft
+    , poolX   = T.unCoin  poolX
+    , poolY   = T.unCoin  poolY
+    , poolLq  = T.unCoin  poolLq
+    , feeNum  = feeNum
+    }
+
+  unlift PoolDatum{..} = NE.PoolDatum NE.PoolParams
+    { poolNft = T.Coin poolNft
+    , poolX   = T.Coin  poolX
+    , poolY   = T.Coin  poolY
+    , poolLq  = T.Coin  poolLq
+    , feeNum  = feeNum
+    }
 
 instance Eq PoolDatum where
   {-# INLINABLE (==) #-}
