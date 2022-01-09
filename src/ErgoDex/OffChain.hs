@@ -18,9 +18,9 @@
 
 module ErgoDex.OffChain where
 
-import           ErgoDex.Contracts.Pool (PoolDatum, PoolAction, mkPoolValidator)
-import           ErgoDex.Contracts.Proxy.Deposit
-import           ErgoDex.Contracts.Proxy.Swap
+import           ErgoDex.Contracts.Erased.Pool (PoolDatum, PoolAction, mkPoolValidator)
+import           ErgoDex.Contracts.Erased.Proxy.Deposit
+import           ErgoDex.Contracts.Erased.Proxy.Swap
 import           ErgoDex.Contracts.Proxy.Redeem
 import qualified Ledger.Typed.Scripts as Scripts
 import qualified PlutusTx

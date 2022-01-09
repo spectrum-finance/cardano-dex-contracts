@@ -45,11 +45,17 @@ library
       ErgoDex.Plutus
       ErgoDex.OffChain
       ErgoDex.Contracts.Types
+      ErgoDex.Contracts.Coins
       ErgoDex.Contracts.Pool
       ErgoDex.Contracts.Proxy.Order
       ErgoDex.Contracts.Proxy.Swap
       ErgoDex.Contracts.Proxy.Deposit
       ErgoDex.Contracts.Proxy.Redeem
+      ErgoDex.Contracts.Erased.Coins
+      ErgoDex.Contracts.Erased.Pool
+      ErgoDex.Contracts.Erased.Proxy.Swap
+      ErgoDex.Contracts.Erased.Proxy.Deposit
+      ErgoDex.Contracts.Erased.Proxy.Redeem
     build-depends:
       base >= 4.9 && < 5,
       aeson,

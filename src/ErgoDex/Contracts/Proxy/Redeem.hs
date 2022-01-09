@@ -34,6 +34,7 @@ import qualified Prelude as Haskell
 import           Ledger
 import qualified Ledger.Ada                    as Ada
 import           ErgoDex.Contracts.Proxy.Order
+import           ErgoDex.Contracts.Coins
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Contracts.Pool        (PoolState(..), PoolParams(..), readPoolState, getPoolInput, findPoolDatum)
 import qualified PlutusTx
