@@ -39,28 +39,23 @@ import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
 import           PlutusTx.Sqrt
 
-data PoolParams = PoolParams
+data PoolDatum = PoolDatum
   { poolNft :: Coin Nft
   , poolX   :: Coin X
   , poolY   :: Coin Y
   , poolLq  :: Coin Liquidity
   , feeNum  :: Integer
   } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
-PlutusTx.makeIsDataIndexed ''PoolParams [('PoolParams, 0)]
-PlutusTx.makeLift ''PoolParams
+PlutusTx.makeIsDataIndexed ''PoolDatum [('PoolDatum, 0)]
+PlutusTx.makeLift ''PoolDatum
 
-instance Eq PoolParams where
+instance Eq PoolDatum where
   {-# INLINABLE (==) #-}
   x == y = poolNft x == poolNft y &&
            poolX x   == poolX y &&
            poolY x   == poolY y &&
            poolLq x  == poolLq y &&
            feeNum x  == feeNum y
-
-data PoolDatum = PoolDatum PoolParams
-  deriving stock (Haskell.Show)
-PlutusTx.makeIsDataIndexed ''PoolDatum [('PoolDatum, 0)]
-PlutusTx.makeLift ''PoolDatum
 
 data PoolAction = Init | Deposit | Redeem | Swap
   deriving Haskell.Show
@@ -82,8 +77,8 @@ maxLqCap :: Amount Liquidity
 maxLqCap = Amount 0x7fffffffffffffff
 
 {-# INLINABLE readPoolState #-}
-readPoolState :: PoolParams -> TxOut -> PoolState
-readPoolState PoolParams{..} out =
+readPoolState :: PoolDatum -> TxOut -> PoolState
+readPoolState PoolDatum{..} out =
     PoolState x y lq
   where
     value = txOutValue out
@@ -123,11 +118,11 @@ getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
   txInInfoResolved $ head txInfoInputs -- pool box is always 1st input
 
 {-# INLINABLE findPoolDatum #-}
-findPoolDatum :: TxInfo -> DatumHash -> PoolParams
+findPoolDatum :: TxInfo -> DatumHash -> PoolDatum
 findPoolDatum info h = case findDatum h info of
   Just (Datum d) -> case fromBuiltinData d of
-    (Just (PoolDatum ps)) -> ps
-    _                     -> traceError "error decoding pool data"
+    (Just ps) -> ps
+    _         -> traceError "error decoding pool data"
   _              -> traceError "pool input datum not found"
 
 {-# INLINABLE validInit #-}
@@ -183,8 +178,8 @@ validRedeem PoolState{..} PoolDiff{..} =
       diffX' * liquidity' >= diffLiquidity' * reservesX' && diffY' * liquidity' >= diffLiquidity' * reservesY'
 
 {-# INLINABLE validSwap #-}
-validSwap :: PoolParams -> PoolState -> PoolDiff -> Bool
-validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
+validSwap :: PoolDatum -> PoolState -> PoolDiff -> Bool
+validSwap PoolDatum{..} PoolState{..} PoolDiff{..} =
     traceIfFalse "Illegal swap" fairSwap &&
     traceIfFalse "Liquidity emission must not change" (diffLiquidity == 0)
   where
@@ -202,7 +197,7 @@ validSwap PoolParams{..} PoolState{..} PoolDiff{..} =
 
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
-mkPoolValidator (PoolDatum ps0@PoolParams{..}) action ctx =
+mkPoolValidator ps0@PoolDatum{..} action ctx =
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
     traceIfFalse "Pool settings not preserved" poolSettingsPreserved &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
