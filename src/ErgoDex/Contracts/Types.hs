@@ -78,7 +78,7 @@ PlutusTx.makeLift ''Base
 newtype Coin a = Coin { unCoin :: AssetClass }
   deriving stock   (Haskell.Show, Generic)
   deriving newtype (ToJSON, FromJSON, ToSchema, Eq, Haskell.Eq, Haskell.Ord)
-PlutusTx.makeIsDataIndexed ''Coin [('Coin, 0)]
+  deriving newtype (PlutusTx.ToData, PlutusTx.FromData, PlutusTx.UnsafeFromData)
 PlutusTx.makeLift ''Coin
 
 {-# INLINABLE retagCoin #-}
@@ -95,7 +95,7 @@ newtype Diff a = Diff { unDiff :: Integer }
   deriving newtype (ToJSON, FromJSON, ToSchema, Eq, Ord, PrintfArg)
   deriving newtype (Haskell.Eq, Haskell.Ord, Haskell.Num)
   deriving newtype (AdditiveGroup, AdditiveMonoid, AdditiveSemigroup, MultiplicativeSemigroup)
-PlutusTx.makeIsDataIndexed ''Diff [('Diff, 0)]
+  deriving newtype (PlutusTx.ToData, PlutusTx.FromData, PlutusTx.UnsafeFromData)
 PlutusTx.makeLift ''Diff
 
 -- Amount of a token
@@ -104,7 +104,7 @@ newtype Amount a = Amount { unAmount :: Integer }
   deriving newtype (ToJSON, FromJSON, ToSchema, Eq, Ord, PrintfArg)
   deriving newtype (Haskell.Eq, Haskell.Ord, Haskell.Num)
   deriving newtype (AdditiveGroup, AdditiveMonoid, AdditiveSemigroup, MultiplicativeSemigroup)
-PlutusTx.makeIsDataIndexed ''Amount [('Amount, 0)]
+  deriving newtype (PlutusTx.ToData, PlutusTx.FromData, PlutusTx.UnsafeFromData)
 PlutusTx.makeLift ''Amount
 
 {-# INLINABLE amountOf #-}
