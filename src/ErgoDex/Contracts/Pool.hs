@@ -198,7 +198,7 @@ validSwap PoolDatum{..} PoolState{..} PoolDiff{..} =
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator ps0@PoolDatum{..} action ctx =
-    traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
+    traceIfFalse "Pool NFT not preserved" poolNftPreserved
 --    traceIfFalse "Pool settings not preserved" poolSettingsPreserved &&
 --    traceIfFalse "Assets qty not preserved" strictAssets &&
 --    traceIfFalse "Script not preserved" scriptPreserved &&
