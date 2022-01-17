@@ -126,7 +126,7 @@ findPoolDatum info h = case findDatum h info of
   Just (Datum d) -> case fromBuiltinData d of
     (Just ps) -> ps
     _         -> traceError "error decoding pool data"
-    _         -> traceError "pool input datum not found"
+  _         -> traceError "pool input datum not found"
 
 {-# INLINABLE validInit #-}
 validInit :: PoolState -> PoolDiff -> Bool
