@@ -109,8 +109,11 @@ diffPoolState s0 s1 =
 
 {-# INLINABLE getPoolOutput #-}
 getPoolOutput :: ScriptContext -> TxOut
-getPoolOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
-  head txInfoOutputs -- pool box is always 1st output
+getPoolOutput ctx =
+  case getContinuingOutputs ctx of
+    [] -> traceError "outputs should contains pool"
+    [out] -> out
+    _ -> traceError "outputs should contains only one pool"
 
 {-# INLINABLE getPoolInput #-}
 getPoolInput :: ScriptContext -> TxOut
@@ -123,7 +126,7 @@ findPoolDatum info h = case findDatum h info of
   Just (Datum d) -> case fromBuiltinData d of
     (Just ps) -> ps
     _         -> traceError "error decoding pool data"
-  _              -> traceError "pool input datum not found"
+    _         -> traceError "pool input datum not found"
 
 {-# INLINABLE validInit #-}
 validInit :: PoolState -> PoolDiff -> Bool
@@ -198,11 +201,11 @@ validSwap PoolDatum{..} PoolState{..} PoolDiff{..} =
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator ps0@PoolDatum{..} action ctx =
-    traceIfFalse "Pool NFT not preserved" poolNftPreserved
---    traceIfFalse "Pool settings not preserved" poolSettingsPreserved &&
---    traceIfFalse "Assets qty not preserved" strictAssets &&
---    traceIfFalse "Script not preserved" scriptPreserved &&
---    traceIfFalse "Invalid action" validAction
+    traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
+    traceIfFalse "Pool settings not preserved" poolSettingsPreserved &&
+    traceIfFalse "Assets qty not preserved" strictAssets &&
+    traceIfFalse "Script not preserved" scriptPreserved &&
+    traceIfFalse "Invalid action" validAction
   where
     self      = getPoolInput ctx
     successor = getPoolOutput ctx
