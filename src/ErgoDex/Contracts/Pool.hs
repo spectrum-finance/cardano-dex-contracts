@@ -117,8 +117,10 @@ getPoolOutput ctx =
 
 {-# INLINABLE getPoolInput #-}
 getPoolInput :: ScriptContext -> TxOut
-getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
-  txInInfoResolved $ head txInfoInputs -- pool box is always 1st input
+getPoolInput ctx =
+  case findOwnInput ctx of
+    Just input -> txInInfoResolved input
+    Nothing    -> traceError "Input with pool doesn't exist"
 
 {-# INLINABLE findPoolDatum #-}
 findPoolDatum :: TxInfo -> DatumHash -> PoolDatum
