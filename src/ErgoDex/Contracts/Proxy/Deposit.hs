@@ -35,7 +35,7 @@ import           Ledger
 import qualified Ledger.Ada                       as Ada
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool           (PoolState(..), PoolDatum(..), readPoolState, getPoolInput, findPoolDatum)
+import           ErgoDex.Contracts.Pool           (PoolState(..), PoolDatum(..), getPoolInput, readPoolState, findPoolDatum)
 import qualified PlutusTx
 import           PlutusTx.Prelude
 
@@ -61,7 +61,7 @@ mkDepositValidator DepositDatum{..} _ ctx =
   where
     txInfo = scriptContextTxInfo ctx
     self   = getOrderInput ctx
-    pool   = getPoolInput ctx
+    pool   = getPoolInput ctx poolNft
     reward = getOrderRewardOutput ctx
 
     poolValue = txOutValue pool

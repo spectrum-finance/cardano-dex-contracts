@@ -16,26 +16,14 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 
-module ErgoDex.OffChain where
+module ErgoDex.Contracts.Proxy.OffChain where
 
-import           ErgoDex.Contracts.Pool (PoolDatum, PoolAction, mkPoolValidator)
 import           ErgoDex.Contracts.Proxy.Deposit
 import           ErgoDex.Contracts.Proxy.Swap
 import           ErgoDex.Contracts.Proxy.Redeem
+
 import qualified Ledger.Typed.Scripts as Scripts
 import qualified PlutusTx
-
-data ErgoDexPool
-instance Scripts.ValidatorTypes ErgoDexPool where
-    type instance RedeemerType ErgoDexPool = PoolAction
-    type instance DatumType    ErgoDexPool = PoolDatum
-
-poolInstance :: Scripts.TypedValidator ErgoDexPool
-poolInstance = Scripts.mkTypedValidator @ErgoDexPool
-    ($$(PlutusTx.compile [|| mkPoolValidator ||]))
-     $$(PlutusTx.compile [|| wrap ||])
-  where
-    wrap = Scripts.wrapValidator @PoolDatum @PoolAction
 
 data ErgoDexDeposit
 instance Scripts.ValidatorTypes ErgoDexDeposit where
@@ -44,8 +32,8 @@ instance Scripts.ValidatorTypes ErgoDexDeposit where
 
 depositInstance :: Scripts.TypedValidator ErgoDexDeposit
 depositInstance = Scripts.mkTypedValidator @ErgoDexDeposit
-    ($$(PlutusTx.compile [|| mkDepositValidator ||]))
-     $$(PlutusTx.compile [|| wrap ||])
+    $$(PlutusTx.compile [|| mkDepositValidator ||])
+    $$(PlutusTx.compile [|| wrap ||])
   where
     wrap = Scripts.wrapValidator @DepositDatum
 
@@ -56,8 +44,8 @@ instance Scripts.ValidatorTypes ErgoDexSwap where
 
 swapInstance :: Scripts.TypedValidator ErgoDexSwap
 swapInstance = Scripts.mkTypedValidator @ErgoDexSwap
-    ($$(PlutusTx.compile [|| mkSwapValidator ||]))
-     $$(PlutusTx.compile [|| wrap ||])
+    $$(PlutusTx.compile [|| mkSwapValidator ||])
+    $$(PlutusTx.compile [|| wrap ||])
   where
     wrap = Scripts.wrapValidator @SwapDatum
 
@@ -68,7 +56,7 @@ instance Scripts.ValidatorTypes ErgoDexRedeem where
 
 redeemInstance :: Scripts.TypedValidator ErgoDexRedeem
 redeemInstance = Scripts.mkTypedValidator @ErgoDexRedeem
-    ($$(PlutusTx.compile [|| mkRedeemValidator ||]))
-     $$(PlutusTx.compile [|| wrap ||])
+    $$(PlutusTx.compile [|| mkRedeemValidator ||])
+    $$(PlutusTx.compile [|| wrap ||])
   where
     wrap = Scripts.wrapValidator @RedeemDatum

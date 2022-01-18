@@ -43,9 +43,10 @@ library
     exposed-modules:
       Utils
       ErgoDex.Plutus
-      ErgoDex.OffChain
+      ErgoDex.Contracts.OffChain
       ErgoDex.Contracts.Types
       ErgoDex.Contracts.Pool
+      ErgoDex.Contracts.Proxy.OffChain
       ErgoDex.Contracts.Proxy.Order
       ErgoDex.Contracts.Proxy.Swap
       ErgoDex.Contracts.Proxy.Deposit
@@ -60,5 +61,5 @@ library
       plutus-contract,
       plutus-tx-plugin,
       plutus-tx,
-      plutus-ledger,
+      plutus-ledger
     hs-source-dirs: src
