@@ -109,13 +109,12 @@ diffPoolState s0 s1 =
 
 {-# INLINABLE getPoolInput #-}
 getPoolInput :: ScriptContext -> Coin Nft -> TxOut
-getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} (Coin poolNft) =
+getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} poolNft =
     case findPoolInput' txInfoInputs of
       Just pin -> txInInfoResolved pin
       _        -> traceError "pool input not found"
   where
-    nftAmount      = (`assetClassValueOf` poolNft) . txOutValue . txInInfoResolved
-    findPoolInput' = find ((== 1) . nftAmount)
+    findPoolInput' = find ((`isUnit` poolNft) . txOutValue . txInInfoResolved)
 
 {-# INLINABLE findPoolDatum #-}
 findPoolDatum :: TxInfo -> DatumHash -> PoolDatum
@@ -207,6 +206,7 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
     self      = txInInfoResolved $ case findOwnInput ctx of
       Just poolIn -> poolIn
       _           -> traceError "pool input not found"
+
     successor = case getContinuingOutputs ctx of
       [pout] -> pout
       _      -> traceError "invalid pool output"
