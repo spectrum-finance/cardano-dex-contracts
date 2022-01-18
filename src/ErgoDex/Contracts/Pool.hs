@@ -31,7 +31,7 @@ module ErgoDex.Contracts.Pool where
 
 import qualified Prelude                          as Haskell
 import           Ledger
-import           Ledger.Value                     (flattenValue)
+import           Ledger.Value                     (flattenValue, assetClassValueOf)
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
@@ -107,18 +107,15 @@ diffPoolState s0 s1 =
     dy  = Diff $ ry1 - ry0
     dlq = Diff $ lq0 - lq1 -- pool keeps only the negative part of LQ tokens
 
-{-# INLINABLE getPoolOutput #-}
-getPoolOutput :: ScriptContext -> TxOut
-getPoolOutput ctx =
-  case getContinuingOutputs ctx of
-    [] -> traceError "outputs should contains pool"
-    [out] -> out
-    _ -> traceError "outputs should contains only one pool"
-
 {-# INLINABLE getPoolInput #-}
-getPoolInput :: ScriptContext -> TxOut
-getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
-  txInInfoResolved $ head txInfoInputs -- pool box is always 1st input
+getPoolInput :: ScriptContext -> Coin Nft -> TxOut
+getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} (Coin poolNft) =
+    case findPoolInput' txInfoInputs of
+      Just pin -> txInInfoResolved pin
+      _        -> traceError "pool input not found"
+  where
+    nftAmount      = (`assetClassValueOf` poolNft) . txOutValue . txInInfoResolved
+    findPoolInput' = find ((== 1) . nftAmount)
 
 {-# INLINABLE findPoolDatum #-}
 findPoolDatum :: TxInfo -> DatumHash -> PoolDatum
@@ -207,8 +204,12 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
     traceIfFalse "Script not preserved" scriptPreserved &&
     traceIfFalse "Invalid action" validAction
   where
-    self      = getPoolInput ctx
-    successor = getPoolOutput ctx
+    self      = txInInfoResolved $ case findOwnInput ctx of
+      Just poolIn -> poolIn
+      _           -> traceError "pool input not found"
+    successor = case getContinuingOutputs ctx of
+      [pout] -> pout
+      _      -> traceError "invalid pool output"
 
     poolNftPreserved = isUnit (txOutValue successor) poolNft
 

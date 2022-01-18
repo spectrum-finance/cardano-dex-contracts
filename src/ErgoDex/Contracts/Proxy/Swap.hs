@@ -67,7 +67,7 @@ mkSwapValidator SwapDatum{..} _ ctx =
   where
     txInfo = scriptContextTxInfo ctx
     self   = getOrderInput ctx
-    pool   = getPoolInput ctx
+    pool   = getPoolInput ctx poolNft
     reward = getOrderRewardOutput ctx
 
     poolValue = txOutValue pool
