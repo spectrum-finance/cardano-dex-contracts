@@ -197,11 +197,6 @@ validSwap PoolDatum{..} PoolState{..} PoolDiff{..} =
 {-# INLINABLE mkPoolValidator #-}
 mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
 mkPoolValidator ps0@PoolDatum{..} action ctx =
-    traceIfFalse "Assets more than 0" assetsMoreThan0 &&
-    traceIfFalse "Assets more than 1" assetsMoreThan1 &&
-    traceIfFalse "Assets more than 2" assetsMoreThan2 &&
-    traceIfFalse "Assets more than 3" assetsMoreThan3 &&
-    traceIfFalse "Assets more than 4" assetsMoreThan4 &&
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
     traceIfFalse "Pool settings not preserved" poolSettingsPreserved &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
@@ -234,13 +229,7 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
 
     numAssets = length $ flattenValue (txOutValue successor)
 
-    assetsMoreThan0 = numAssets > 0
-    assetsMoreThan1 = numAssets > 1
-    assetsMoreThan2 = numAssets > 2
-    assetsMoreThan3 = numAssets > 3
-    assetsMoreThan4 = numAssets > 4
-
-    strictAssets = numAssets == 3 || numAssets == 4
+    strictAssets = numAssets == 4 || numAssets == 5
       where numAssets = length $ flattenValue (txOutValue successor)
 
     scriptPreserved = txOutAddress successor == txOutAddress self
