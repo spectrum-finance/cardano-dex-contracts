@@ -109,8 +109,11 @@ diffPoolState s0 s1 =
 
 {-# INLINABLE getPoolOutput #-}
 getPoolOutput :: ScriptContext -> TxOut
-getPoolOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
-  head txInfoOutputs -- pool box is always 1st output
+getPoolOutput ctx =
+  case getContinuingOutputs ctx of
+    [] -> traceError "outputs should contains pool"
+    [out] -> out
+    _ -> traceError "outputs should contains only one pool"
 
 {-# INLINABLE getPoolInput #-}
 getPoolInput :: ScriptContext -> TxOut
@@ -123,7 +126,7 @@ findPoolDatum info h = case findDatum h info of
   Just (Datum d) -> case fromBuiltinData d of
     (Just ps) -> ps
     _         -> traceError "error decoding pool data"
-  _              -> traceError "pool input datum not found"
+  _         -> traceError "pool input datum not found"
 
 {-# INLINABLE validInit #-}
 validInit :: PoolState -> PoolDiff -> Bool
