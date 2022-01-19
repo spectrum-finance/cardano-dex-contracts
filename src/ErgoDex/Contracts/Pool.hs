@@ -57,7 +57,7 @@ instance Eq PoolDatum where
            poolLq x  == poolLq y &&
            feeNum x  == feeNum y
 
-data PoolAction = Init | Deposit | Redeem | Swap
+data PoolAction = Init (Amount Liquidity) | Deposit | Redeem | Swap
   deriving Haskell.Show
 PlutusTx.makeIsDataIndexed ''PoolAction [ ('Init ,   0)
                                         , ('Deposit, 1)
@@ -125,10 +125,10 @@ findPoolDatum info h = case findDatum h info of
   _         -> traceError "pool input datum not found"
 
 {-# INLINABLE validInit #-}
-validInit :: PoolState -> PoolDiff -> Bool
-validInit PoolState{..} PoolDiff{..} =
+validInit :: Amount Liquidity -> PoolState -> PoolDiff -> Bool
+validInit declaredLq PoolState{..} PoolDiff{..} =
     traceIfFalse "Illegal initial pool state" validInitialState &&
-    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= liquidityUnlocked)
+    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= declaredLq')
   where
     diffLiquidity' = unDiff diffLiquidity
     diffX'         = unDiff diffX
@@ -142,10 +142,8 @@ validInit PoolState{..} PoolDiff{..} =
       reservesX' == 0 &&
       reservesY' == 0
 
-    liquidityUnlocked = case isqrt (diffX' * diffY') of
-      Exactly l | l > 0       -> l
-      Approximately l | l > 0 -> l + 1
-      _                       -> traceError "insufficient liquidity"
+    declaredLq'     = unAmount declaredLq
+    validLqDeclared = declaredLq' * declaredLq' <= diffX' * diffY'
 
 {-# INLINABLE validDeposit #-}
 validDeposit :: PoolState -> PoolDiff -> Bool
@@ -203,7 +201,7 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
     traceIfFalse "Script not preserved" scriptPreserved &&
     traceIfFalse "Invalid action" validAction
   where
-    self      = txInInfoResolved $ case findOwnInput ctx of
+    self = txInInfoResolved $ case findOwnInput ctx of
       Just poolIn -> poolIn
       _           -> traceError "pool input not found"
 
@@ -233,7 +231,7 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
     scriptPreserved = txOutAddress successor == txOutAddress self
 
     validAction = case action of
-      Init    -> validInit s0 diff
-      Deposit -> validDeposit s0 diff
-      Redeem  -> validRedeem s0 diff
-      Swap    -> validSwap ps0 s0 diff
+      Init declaredLq -> validInit declaredLq s0 diff
+      Deposit         -> validDeposit s0 diff
+      Redeem          -> validRedeem s0 diff
+      Swap            -> validSwap ps0 s0 diff
