@@ -59,11 +59,7 @@ instance Eq PoolDatum where
 
 data PoolAction = Init (Amount Liquidity) | Deposit | Redeem | Swap
   deriving Haskell.Show
-PlutusTx.makeIsDataIndexed ''PoolAction [ ('Init ,   0)
-                                        , ('Deposit, 1)
-                                        , ('Redeem,  2)
-                                        , ('Swap,    3)
-                                        ]
+PlutusTx.unstableMakeIsData ''PoolAction
 PlutusTx.makeLift ''PoolAction
 
 data PoolState = PoolState
@@ -101,8 +97,8 @@ diffPoolState s0 s1 =
     rx1 = unAmount $ reservesX s1
     ry0 = unAmount $ reservesY s0
     ry1 = unAmount $ reservesY s1
-    lq0  = unAmount $ liquidity s0
-    lq1  = unAmount $ liquidity s1
+    lq0 = unAmount $ liquidity s0
+    lq1 = unAmount $ liquidity s1
     dx  = Diff $ rx1 - rx0
     dy  = Diff $ ry1 - ry0
     dlq = Diff $ lq0 - lq1 -- pool keeps only the negative part of LQ tokens
