@@ -225,7 +225,7 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
     s1   = readPoolState ps0 successor
     diff = diffPoolState s0 s1
 
-    strictAssets = numAssets == 3 || numAssets == 4
+    strictAssets = numAssets <= 5
       where numAssets = length $ flattenValue (txOutValue successor)
 
     scriptPreserved = txOutAddress successor == txOutAddress self
