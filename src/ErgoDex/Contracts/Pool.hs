@@ -29,15 +29,15 @@
 
 module ErgoDex.Contracts.Pool where
 
-import qualified Prelude                          as Haskell
+import qualified Prelude as Haskell
+
 import           Ledger
-import           Ledger.Value                     (flattenValue, assetClassValueOf)
-import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
+import           Ledger.Value            (flattenValue)
+import           Playground.Contract     (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
-import           PlutusTx.Sqrt
 
 data PoolDatum = PoolDatum
   { poolNft :: Coin Nft
@@ -57,9 +57,12 @@ instance Eq PoolDatum where
            poolLq x  == poolLq y &&
            feeNum x  == feeNum y
 
-data PoolAction = Init (Amount Liquidity) | Deposit | Redeem | Swap
+data PoolAction = Deposit | Redeem | Swap
   deriving Haskell.Show
-PlutusTx.unstableMakeIsData ''PoolAction
+PlutusTx.makeIsDataIndexed ''PoolAction [ ('Deposit, 0)
+                                        , ('Redeem, 1)
+                                        , ('Swap, 2)
+                                        ]
 PlutusTx.makeLift ''PoolAction
 
 data PoolState = PoolState
@@ -119,27 +122,6 @@ findPoolDatum info h = case findDatum h info of
     (Just ps) -> ps
     _         -> traceError "error decoding pool data"
   _         -> traceError "pool input datum not found"
-
-{-# INLINABLE validInit #-}
-validInit :: Amount Liquidity -> PoolState -> PoolDiff -> Bool
-validInit declaredLq PoolState{..} PoolDiff{..} =
-    traceIfFalse "Illegal initial pool state" validInitialState &&
-    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= declaredLq')
-  where
-    diffLiquidity' = unDiff diffLiquidity
-    diffX'         = unDiff diffX
-    diffY'         = unDiff diffY
-    liquidity'     = unAmount liquidity
-    reservesX'     = unAmount reservesX
-    reservesY'     = unAmount reservesY
-
-    validInitialState =
-      liquidity' == 0 &&
-      reservesX' == 0 &&
-      reservesY' == 0
-
-    declaredLq'     = unAmount declaredLq
-    validLqDeclared = declaredLq' * declaredLq' <= diffX' * diffY'
 
 {-# INLINABLE validDeposit #-}
 validDeposit :: PoolState -> PoolDiff -> Bool
@@ -227,7 +209,6 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
     scriptPreserved = txOutAddress successor == txOutAddress self
 
     validAction = case action of
-      Init declaredLq -> validInit declaredLq s0 diff
-      Deposit         -> validDeposit s0 diff
-      Redeem          -> validRedeem s0 diff
-      Swap            -> validSwap ps0 s0 diff
+      Deposit -> validDeposit s0 diff
+      Redeem  -> validRedeem s0 diff
+      Swap    -> validSwap ps0 s0 diff
