@@ -57,13 +57,9 @@ instance Eq PoolDatum where
            poolLq x  == poolLq y &&
            feeNum x  == feeNum y
 
-data PoolAction = Init | Deposit | Redeem | Swap
+data PoolAction = Init (Amount Liquidity) | Deposit | Redeem | Swap
   deriving Haskell.Show
-PlutusTx.makeIsDataIndexed ''PoolAction [ ('Init ,   0)
-                                        , ('Deposit, 1)
-                                        , ('Redeem,  2)
-                                        , ('Swap,    3)
-                                        ]
+PlutusTx.unstableMakeIsData ''PoolAction
 PlutusTx.makeLift ''PoolAction
 
 data PoolState = PoolState
@@ -101,8 +97,8 @@ diffPoolState s0 s1 =
     rx1 = unAmount $ reservesX s1
     ry0 = unAmount $ reservesY s0
     ry1 = unAmount $ reservesY s1
-    lq0  = unAmount $ liquidity s0
-    lq1  = unAmount $ liquidity s1
+    lq0 = unAmount $ liquidity s0
+    lq1 = unAmount $ liquidity s1
     dx  = Diff $ rx1 - rx0
     dy  = Diff $ ry1 - ry0
     dlq = Diff $ lq0 - lq1 -- pool keeps only the negative part of LQ tokens
@@ -125,10 +121,10 @@ findPoolDatum info h = case findDatum h info of
   _         -> traceError "pool input datum not found"
 
 {-# INLINABLE validInit #-}
-validInit :: PoolState -> PoolDiff -> Bool
-validInit PoolState{..} PoolDiff{..} =
+validInit :: Amount Liquidity -> PoolState -> PoolDiff -> Bool
+validInit declaredLq PoolState{..} PoolDiff{..} =
     traceIfFalse "Illegal initial pool state" validInitialState &&
-    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= liquidityUnlocked)
+    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= declaredLq')
   where
     diffLiquidity' = unDiff diffLiquidity
     diffX'         = unDiff diffX
@@ -142,10 +138,8 @@ validInit PoolState{..} PoolDiff{..} =
       reservesX' == 0 &&
       reservesY' == 0
 
-    liquidityUnlocked = case isqrt (diffX' * diffY') of
-      Exactly l | l > 0       -> l
-      Approximately l | l > 0 -> l + 1
-      _                       -> traceError "insufficient liquidity"
+    declaredLq'     = unAmount declaredLq
+    validLqDeclared = declaredLq' * declaredLq' <= diffX' * diffY'
 
 {-# INLINABLE validDeposit #-}
 validDeposit :: PoolState -> PoolDiff -> Bool
@@ -203,7 +197,7 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
     traceIfFalse "Script not preserved" scriptPreserved &&
     traceIfFalse "Invalid action" validAction
   where
-    self      = txInInfoResolved $ case findOwnInput ctx of
+    self = txInInfoResolved $ case findOwnInput ctx of
       Just poolIn -> poolIn
       _           -> traceError "pool input not found"
 
@@ -227,13 +221,13 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
     s1   = readPoolState ps0 successor
     diff = diffPoolState s0 s1
 
-    strictAssets = numAssets == 3 || numAssets == 4
+    strictAssets = numAssets <= 5
       where numAssets = length $ flattenValue (txOutValue successor)
 
     scriptPreserved = txOutAddress successor == txOutAddress self
 
     validAction = case action of
-      Init    -> validInit s0 diff
-      Deposit -> validDeposit s0 diff
-      Redeem  -> validRedeem s0 diff
-      Swap    -> validSwap ps0 s0 diff
+      Init declaredLq -> validInit declaredLq s0 diff
+      Deposit         -> validDeposit s0 diff
+      Redeem          -> validRedeem s0 diff
+      Swap            -> validSwap ps0 s0 diff
