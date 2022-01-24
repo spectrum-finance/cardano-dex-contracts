@@ -32,30 +32,24 @@ module ErgoDex.Contracts.Pool where
 import qualified Prelude as Haskell
 
 import           Ledger
-import           Ledger.Value            (flattenValue)
+import           Ledger.Value            (flattenValue, assetClassValueOf)
 import           Playground.Contract     (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
+import           ErgoDex.Contracts.Class
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
 
-data PoolDatum = PoolDatum
-  { poolNft :: Coin Nft
-  , poolX   :: Coin X
-  , poolY   :: Coin Y
-  , poolLq  :: Coin Liquidity
-  , feeNum  :: Integer
-  } deriving (Haskell.Show, Generic, ToJSON, FromJSON, ToSchema)
-PlutusTx.makeIsDataIndexed ''PoolDatum [('PoolDatum, 0)]
-PlutusTx.makeLift ''PoolDatum
-
-instance Eq PoolDatum where
-  {-# INLINABLE (==) #-}
-  x == y = poolNft x == poolNft y &&
-           poolX x   == poolX y &&
-           poolY x   == poolY y &&
-           poolLq x  == poolLq y &&
-           feeNum x  == feeNum y
+-- Unwrapped representation of PoolConfig
+data PoolConfig = PoolConfig
+  { poolNft    :: AssetClass
+  , poolX      :: AssetClass
+  , poolY      :: AssetClass
+  , poolLq     :: AssetClass
+  , poolFeeNum :: Integer
+  } deriving (Haskell.Show, Eq, Generic, ToJSON, FromJSON, ToSchema)
+PlutusTx.makeIsDataIndexed ''PoolConfig [('PoolConfig, 0)]
+PlutusTx.makeLift ''PoolConfig
 
 data PoolAction = Deposit | Redeem | Swap
   deriving Haskell.Show
@@ -66,29 +60,32 @@ PlutusTx.makeIsDataIndexed ''PoolAction [ ('Deposit, 0)
 PlutusTx.makeLift ''PoolAction
 
 data PoolState = PoolState
-  { reservesX :: Amount X
-  , reservesY :: Amount Y
-  , liquidity :: Amount Liquidity
+  { reservesX :: Integer
+  , reservesY :: Integer
+  , liquidity :: Integer
   } deriving Haskell.Show
 
 {-# INLINABLE maxLqCap #-}
-maxLqCap :: Amount Liquidity
-maxLqCap = Amount 0x7fffffffffffffff
+maxLqCap :: Integer
+maxLqCap = 0x7fffffffffffffff
+
+maxLqCapAmount :: Amount Liquidity
+maxLqCapAmount = Amount maxLqCap
 
 {-# INLINABLE readPoolState #-}
-readPoolState :: PoolDatum -> TxOut -> PoolState
-readPoolState PoolDatum{..} out =
+readPoolState :: PoolConfig -> TxOut -> PoolState
+readPoolState PoolConfig{..} out =
     PoolState x y lq
   where
     value = txOutValue out
-    x     = amountOf value poolX
-    y     = amountOf value poolY
-    lq    = maxLqCap - amountOf value poolLq
+    x     = assetClassValueOf value poolX
+    y     = assetClassValueOf value poolX
+    lq    = maxLqCap - assetClassValueOf value poolLq
 
 data PoolDiff = PoolDiff
-  { diffX         :: Diff X
-  , diffY         :: Diff Y
-  , diffLiquidity :: Diff Liquidity
+  { diffX         :: Integer
+  , diffY         :: Integer
+  , diffLiquidity :: Integer
   }
 
 {-# INLINABLE diffPoolState #-}
@@ -96,28 +93,28 @@ diffPoolState :: PoolState -> PoolState -> PoolDiff
 diffPoolState s0 s1 =
     PoolDiff dx dy dlq
   where
-    rx0 = unAmount $ reservesX s0
-    rx1 = unAmount $ reservesX s1
-    ry0 = unAmount $ reservesY s0
-    ry1 = unAmount $ reservesY s1
-    lq0 = unAmount $ liquidity s0
-    lq1 = unAmount $ liquidity s1
-    dx  = Diff $ rx1 - rx0
-    dy  = Diff $ ry1 - ry0
-    dlq = Diff $ lq0 - lq1 -- pool keeps only the negative part of LQ tokens
+    rx0 = reservesX s0
+    rx1 = reservesX s1
+    ry0 = reservesY s0
+    ry1 = reservesY s1
+    lq0 = liquidity s0
+    lq1 = liquidity s1
+    dx  = rx1 - rx0
+    dy  = ry1 - ry0
+    dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
 
 {-# INLINABLE getPoolInput #-}
-getPoolInput :: ScriptContext -> Coin Nft -> TxOut
+getPoolInput :: ScriptContext -> AssetClass -> TxOut
 getPoolInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} poolNft =
     case findPoolInput' txInfoInputs of
       Just pin -> txInInfoResolved pin
       _        -> traceError "pool input not found"
   where
-    findPoolInput' = find ((`isUnit` poolNft) . txOutValue . txInInfoResolved)
+    findPoolInput' = find ((\v -> assetClassValueOf v poolNft == 1) . txOutValue . txInInfoResolved)
 
-{-# INLINABLE findPoolDatum #-}
-findPoolDatum :: TxInfo -> DatumHash -> PoolDatum
-findPoolDatum info h = case findDatum h info of
+{-# INLINABLE findPoolConfig #-}
+findPoolConfig :: TxInfo -> DatumHash -> PoolConfig
+findPoolConfig info h = case findDatum h info of
   Just (Datum d) -> case fromBuiltinData d of
     (Just ps) -> ps
     _         -> traceError "error decoding pool data"
@@ -126,53 +123,31 @@ findPoolDatum info h = case findDatum h info of
 {-# INLINABLE validDeposit #-}
 validDeposit :: PoolState -> PoolDiff -> Bool
 validDeposit PoolState{..} PoolDiff{..} =
-    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity' <= liquidityUnlocked)
-  where
-    diffLiquidity' = unDiff diffLiquidity
-    diffX'         = unDiff diffX
-    diffY'         = unDiff diffY
-    liquidity'     = unAmount liquidity
-    reservesX'     = unAmount reservesX
-    reservesY'     = unAmount reservesY
-
-    liquidityUnlocked = min (divide (diffX' * liquidity') reservesX') (divide (diffY' * liquidity') reservesY')
+    traceIfFalse "Illegal amount of liquidity forged" (diffLiquidity <= liquidityUnlocked)
+  where liquidityUnlocked = min (divide (diffX * liquidity) reservesX) (divide (diffY * liquidity) reservesY)
 
 {-# INLINABLE validRedeem #-}
 validRedeem :: PoolState -> PoolDiff -> Bool
 validRedeem PoolState{..} PoolDiff{..} =
     traceIfFalse "Illegal redeem" fairRedeem
-  where
-    diffLiquidity' = unDiff diffLiquidity
-    diffX'         = unDiff diffX
-    diffY'         = unDiff diffY
-    liquidity'     = unAmount liquidity
-    reservesX'     = unAmount reservesX
-    reservesY'     = unAmount reservesY
-
-    fairRedeem =
-      diffX' * liquidity' >= diffLiquidity' * reservesX' && diffY' * liquidity' >= diffLiquidity' * reservesY'
+  where fairRedeem = diffX * liquidity >= diffLiquidity * reservesX && diffY * liquidity >= diffLiquidity * reservesY
 
 {-# INLINABLE validSwap #-}
-validSwap :: PoolDatum -> PoolState -> PoolDiff -> Bool
-validSwap PoolDatum{..} PoolState{..} PoolDiff{..} =
+validSwap :: PoolConfig -> PoolState -> PoolDiff -> Bool
+validSwap PoolConfig{..} PoolState{..} PoolDiff{..} =
     traceIfFalse "Illegal swap" fairSwap &&
-    traceIfFalse "Liquidity emission must not change" (diffLiquidity == 0)
+    traceIfFalse "Liquidity emission must not change" (diffLiquidity == zero)
   where
-    reservesX0     = unAmount reservesX
-    reservesY0     = unAmount reservesY
-    deltaReservesX = unDiff diffX
-    deltaReservesY = unDiff diffY
-    feeDen         = 1000
-
+    feeDen   = 1000
     fairSwap =
-      if deltaReservesX > 0 then
-        reservesY0 * deltaReservesX * feeNum >= negate deltaReservesY * (reservesX0 * feeDen + deltaReservesX * feeNum)
+      if diffX > zero then
+        reservesY * diffX * poolFeeNum >= negate diffY * (reservesX * feeDen + diffX * poolFeeNum)
       else
-        reservesX0 * deltaReservesY * feeNum >= negate deltaReservesX * (reservesY0 * feeDen + deltaReservesY * feeNum)
+        reservesX * diffY * poolFeeNum >= negate diffX * (reservesY * feeDen + diffY * poolFeeNum)
 
 {-# INLINABLE mkPoolValidator #-}
-mkPoolValidator :: PoolDatum -> PoolAction -> ScriptContext -> Bool
-mkPoolValidator ps0@PoolDatum{..} action ctx =
+mkPoolValidator :: PoolConfig -> PoolAction -> ScriptContext -> Bool
+mkPoolValidator ps0@PoolConfig{..} action ctx =
     traceIfFalse "Pool NFT not preserved" poolNftPreserved &&
     traceIfFalse "Pool settings not preserved" poolSettingsPreserved &&
     traceIfFalse "Assets qty not preserved" strictAssets &&
@@ -187,7 +162,7 @@ mkPoolValidator ps0@PoolDatum{..} action ctx =
       [pout] -> pout
       _      -> traceError "invalid pool output"
 
-    poolNftPreserved = isUnit (txOutValue successor) poolNft
+    poolNftPreserved = assetClassValueOf (txOutValue successor) poolNft == 1
 
     selfDh = case txOutDatum self of
       Nothing -> traceError "pool input datum hash not found"

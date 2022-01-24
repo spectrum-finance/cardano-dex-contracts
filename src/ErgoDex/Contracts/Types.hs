@@ -39,6 +39,7 @@ import qualified PlutusTx
 import           PlutusTx.Prelude
 import qualified Prelude             as Haskell
 import           Text.Printf         (PrintfArg)
+import           ErgoDex.Plutus      (adaAssetClass)
 
 data Lovelace = Lovelace deriving (Haskell.Show, Haskell.Eq, Generic)
 PlutusTx.makeIsDataIndexed ''Lovelace [('Lovelace, 0)]
@@ -118,3 +119,7 @@ isUnit v c = amountOf v c == 1
 {-# INLINABLE coinAmountValue #-}
 coinAmountValue :: Coin a -> Amount a -> Value
 coinAmountValue (Coin ac) (Amount v) = assetClassValue ac v
+
+{-# INLINABLE isAda #-}
+isAda :: Coin a -> Bool
+isAda (Coin cls) = cls == adaAssetClass

@@ -32,25 +32,25 @@ module ErgoDex.Contracts.Proxy.Deposit where
 import qualified Prelude                          as Haskell
 
 import           Ledger
+import           Ledger.Value                     (assetClassValueOf)
 import qualified Ledger.Ada                       as Ada
 import           ErgoDex.Contracts.Proxy.Order
-import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool           (PoolState(..), PoolDatum(..), getPoolInput, readPoolState, findPoolDatum)
+import           ErgoDex.Contracts.Pool           (PoolState(..), PoolConfig(..), getPoolInput, readPoolState, findPoolConfig)
 import qualified PlutusTx
 import           PlutusTx.Prelude
 
-data DepositDatum = DepositDatum
-   { poolNft       :: Coin Nft
-   , exFee         :: Amount Lovelace
+data DepositConfig = DepositConfig
+   { poolNft       :: AssetClass
+   , exFee         :: Integer
    , rewardPkh     :: PubKeyHash
-   , collateralAda :: Amount Lovelace
+   , collateralAda :: Integer
    } deriving stock (Haskell.Show)
-PlutusTx.makeIsDataIndexed ''DepositDatum [('DepositDatum, 0)]
-PlutusTx.makeLift ''DepositDatum
+PlutusTx.makeIsDataIndexed ''DepositConfig [('DepositConfig, 0)]
+PlutusTx.makeLift ''DepositConfig
 
 {-# INLINABLE mkDepositValidator #-}
-mkDepositValidator :: DepositDatum -> BuiltinData -> ScriptContext -> Bool
-mkDepositValidator DepositDatum{..} _ ctx =
+mkDepositValidator :: DepositConfig -> BuiltinData -> ScriptContext -> Bool
+mkDepositValidator DepositConfig{..} _ ctx =
     txSignedBy txInfo rewardPkh || (
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&
@@ -60,13 +60,13 @@ mkDepositValidator DepositDatum{..} _ ctx =
     )
   where
     txInfo = scriptContextTxInfo ctx
-    self   = getOrderInput ctx
+    self   = Haskell.undefined -- getOrderInput ctx
     pool   = getPoolInput ctx poolNft
-    reward = getOrderRewardOutput ctx
+    reward = Haskell.undefined -- getOrderRewardOutput ctx
 
     poolValue = txOutValue pool
 
-    validPool = isUnit poolValue poolNft
+    validPool = assetClassValueOf poolValue poolNft == 1
 
     validNumInputs = length (txInfoInputs txInfo) == 2
 
@@ -75,35 +75,32 @@ mkDepositValidator DepositDatum{..} _ ctx =
     selfValue   = txOutValue self
     rewardValue = txOutValue reward
 
-    ps@PoolDatum{..} = case txOutDatum pool of
+    ps@PoolConfig{..} = case txOutDatum pool of
       Nothing -> traceError "pool input datum hash not found"
-      Just h  -> findPoolDatum txInfo h
-
-    collateralAda' = unAmount collateralAda
+      Just h  -> findPoolConfig txInfo h
 
     (inX, inY)
       | isAda poolX =
-        let depositedAda = rx - exFee' - collateralAda'
+        let depositedAda = rx - exFee - collateralAda
         in (depositedAda, ry)
       | isAda poolY =
-        let depositedAda = ry - exFee' - collateralAda'
+        let depositedAda = ry - exFee - collateralAda
         in (rx, depositedAda)
       | otherwise   = (rx, ry)
       where
-          rx     = valueOf selfValue poolX
-          ry     = valueOf selfValue poolY
-          exFee' = unAmount exFee
+          rx = assetClassValueOf selfValue poolX
+          ry = assetClassValueOf selfValue poolY
 
-    fairFee = outAda >= collateralAda'
+    fairFee = outAda >= collateralAda
       where outAda = Ada.getLovelace $ Ada.fromValue rewardValue
 
-    outLq = valueOf rewardValue poolLq
+    outLq = assetClassValueOf rewardValue poolLq
 
     poolState = readPoolState ps pool
 
-    liquidity' = unAmount $ liquidity poolState
-    reservesX' = unAmount $ reservesX poolState
-    reservesY' = unAmount $ reservesY poolState
+    liquidity' = liquidity poolState
+    reservesX' = reservesX poolState
+    reservesY' = reservesY poolState
 
     minReward = min (divide (inX * liquidity') reservesX') (divide (inY * liquidity') reservesY')
 
