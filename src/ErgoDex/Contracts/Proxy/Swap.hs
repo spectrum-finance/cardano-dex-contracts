@@ -66,9 +66,9 @@ mkSwapValidator SwapConfig{..} _ ctx =
     )
   where
     txInfo = scriptContextTxInfo ctx
-    self   = Haskell.undefined --getOrderInput ctx
+    self   = findOrderInput ctx
     pool   = getPoolInput ctx poolNft
-    reward = Haskell.undefined --getOrderRewardOutput ctx
+    reward = findRewardInput ctx rewardPkh
 
     poolValue = txOutValue pool
 

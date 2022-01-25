@@ -23,10 +23,6 @@ module Utils where
 import Ledger
 import PlutusTx.Prelude
 
-{-# INLINABLE findOwnInput' #-}
-findOwnInput' :: ScriptContext -> TxInInfo
-findOwnInput' ctx = fromMaybe (error ()) (findOwnInput ctx)
-
 {-# INLINABLE valueWithin #-}
 valueWithin :: TxInInfo -> Value
 valueWithin = txOutValue . txInInfoResolved

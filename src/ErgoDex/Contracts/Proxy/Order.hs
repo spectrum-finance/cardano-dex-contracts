@@ -29,11 +29,20 @@
 
 module ErgoDex.Contracts.Proxy.Order where
 
-import           Ledger
-import           ErgoDex.Contracts.Types
-import           PlutusTx.Prelude
-import           ErgoDex.Plutus   (adaAssetClass)
+import Ledger
+import PlutusTx.Prelude
+import ErgoDex.Plutus   (adaAssetClass)
 
 {-# INLINABLE isAda #-}
 isAda :: AssetClass -> Bool
 isAda cls = cls == adaAssetClass
+
+{-# INLINABLE findOrderInput #-}
+findOrderInput :: ScriptContext -> TxOut
+findOrderInput ctx = txInInfoResolved $ fromMaybe (error ()) (findOwnInput ctx)
+
+{-# INLINABLE findRewardInput #-}
+findRewardInput :: ScriptContext -> PubKeyHash -> TxOut
+findRewardInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} pkh =
+  txInInfoResolved $ fromMaybe (error ()) (find isReward txInfoInputs)
+    where isReward TxInInfo{txInInfoResolved} = maybe False (== pkh) (pubKeyOutput txInInfoResolved)

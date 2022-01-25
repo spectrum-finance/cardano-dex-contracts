@@ -29,7 +29,10 @@ flag defer-plugin-errors
 
 common lang
     default-language:   Haskell2010
-    default-extensions: MultiParamTypeClasses
+    default-extensions:
+        MultiParamTypeClasses
+      , DerivingStrategies
+      , RecordWildCards
     ghc-options:
       -Wall -Wnoncanonical-monad-instances
       -Wincomplete-uni-patterns -Wincomplete-record-updates
@@ -53,6 +56,9 @@ library
       ErgoDex.Contracts.Proxy.Swap
       ErgoDex.Contracts.Proxy.Deposit
       ErgoDex.Contracts.Proxy.Redeem
+      ErgoDex.Contracts.Proxy.Typed.Swap
+      ErgoDex.Contracts.Proxy.Typed.Deposit
+      ErgoDex.Contracts.Proxy.Typed.Redeem
     build-depends:
       base >= 4.9 && < 5,
       aeson,

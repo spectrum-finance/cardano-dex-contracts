@@ -57,11 +57,12 @@ mkRedeemValidator RedeemConfig{..} _ ctx =
       traceIfFalse "Unfair execution fee taken" fairFee &&
       traceIfFalse "Insufficient amount of liquidity returned" fairShare
     )
+
   where
     txInfo = scriptContextTxInfo ctx
-    self   = Haskell.undefined --getOrderInput ctx 
+    self   = findOrderInput ctx
     pool   = getPoolInput ctx poolNft
-    reward = Haskell.undefined --getOrderRewardOutput ctx
+    reward = findRewardInput ctx rewardPkh
 
     poolValue = txOutValue pool
 

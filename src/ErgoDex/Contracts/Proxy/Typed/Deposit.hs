@@ -3,12 +3,9 @@ module ErgoDex.Contracts.Proxy.Typed.Deposit where
 import qualified Prelude as Haskell
 
 import           Ledger
-import qualified Ledger.Ada                     as Ada
-import           ErgoDex.Contracts.Proxy.Order
+import qualified ErgoDex.Contracts.Proxy.Deposit as D
+import           ErgoDex.Contracts.Class
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool         (PoolState(..), PoolConfig(..), getPoolInput, readPoolState, findPoolConfig)
-import qualified PlutusTx
-import           PlutusTx.Prelude
 
 data DepositConfig = DepositConfig
    { poolNft       :: Coin Nft
@@ -16,3 +13,18 @@ data DepositConfig = DepositConfig
    , rewardPkh     :: PubKeyHash
    , collateralAda :: Amount Lovelace
    } deriving stock (Haskell.Show)
+
+instance UnliftErased DepositConfig D.DepositConfig where
+  lift DepositConfig{..} = D.DepositConfig
+    { poolNft       = unCoin poolNft
+    , exFee         = unAmount exFee
+    , rewardPkh     = rewardPkh
+    , collateralAda = unAmount collateralAda
+    }
+
+  unlift D.DepositConfig{..} = DepositConfig
+    { poolNft       = Coin poolNft
+    , exFee         = Amount exFee
+    , rewardPkh     = rewardPkh
+    , collateralAda = Amount collateralAda
+    }

@@ -3,11 +3,9 @@ module ErgoDex.Contracts.Proxy.Typed.Swap where
 import qualified Prelude                          as Haskell
 
 import           Ledger
-import qualified Ledger.Ada                       as Ada
-import           ErgoDex.Contracts.Proxy.Order
+import qualified ErgoDex.Contracts.Proxy.Swap  as S
+import           ErgoDex.Contracts.Class
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Pool           (getPoolInput)
-import qualified PlutusTx
 import           PlutusTx.Prelude
 
 data SwapConfig = SwapConfig
@@ -21,3 +19,28 @@ data SwapConfig = SwapConfig
    , baseAmount       :: Amount Base
    , minQuoteAmount   :: Amount Quote
    } deriving stock (Haskell.Show)
+
+instance UnliftErased SwapConfig S.SwapConfig where
+  lift SwapConfig{..} = S.SwapConfig
+    { base             = unCoin base
+    , quote            = unCoin quote
+    , poolNft          = unCoin poolNft
+    , feeNum           = feeNum
+    , exFeePerTokenNum = exFeePerTokenNum
+    , exFeePerTokenDen = exFeePerTokenDen
+    , rewardPkh        = rewardPkh
+    , baseAmount       = unAmount baseAmount
+    , minQuoteAmount   = unAmount minQuoteAmount
+    }
+
+  unlift S.SwapConfig{..} = SwapConfig
+    { base             = Coin base
+    , quote            = Coin quote
+    , poolNft          = Coin poolNft
+    , feeNum           = feeNum
+    , exFeePerTokenNum = exFeePerTokenNum
+    , exFeePerTokenDen = exFeePerTokenDen
+    , rewardPkh        = rewardPkh
+    , baseAmount       = Amount baseAmount
+    , minQuoteAmount   = Amount minQuoteAmount
+    }
