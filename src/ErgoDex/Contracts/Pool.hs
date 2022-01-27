@@ -35,7 +35,6 @@ import           Ledger
 import           Ledger.Value            (flattenValue, assetClassValueOf)
 import           Playground.Contract     (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.Class
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
@@ -165,12 +164,12 @@ mkPoolValidator ps0@PoolConfig{..} action ctx =
     poolNftPreserved = assetClassValueOf (txOutValue successor) poolNft == 1
 
     selfDh = case txOutDatum self of
-      Nothing -> traceError "pool input datum hash not found"
-      Just h  -> h
+      Just h -> h
+      _      -> traceError "pool input datum hash not found"
 
     successorDh = case txOutDatum successor of
-      Nothing -> traceError "pool output datum hash not found"
-      Just h  -> h
+      Just h -> h
+      _      -> traceError "pool output datum hash not found"
 
     poolSettingsPreserved = successorDh == selfDh
 
