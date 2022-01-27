@@ -1,14 +1,17 @@
+{-# LANGUAGE NoImplicitPrelude          #-}
+{-# LANGUAGE DeriveAnyClass             #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DerivingStrategies         #-}
+
 module ErgoDex.Contracts.Typed where
 
-import           Ledger
-import           Ledger.Value            (flattenValue, assetClassValueOf)
+import qualified Prelude as Haskell
+
 import           Playground.Contract     (FromJSON, Generic, ToJSON, ToSchema)
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Contracts.Class
 import qualified ErgoDex.Contracts.Pool as P
-import qualified PlutusTx
 import           PlutusTx.Prelude
-import           PlutusTx.IsData.Class
 
 data PoolConfig = PoolConfig
   { poolNft    :: Coin Nft
