@@ -51,6 +51,7 @@ library
       ErgoDex.Contracts.Types
       ErgoDex.Contracts.Pool
       ErgoDex.Contracts.Class
+      ErgoDex.Contracts.Typed
       ErgoDex.Contracts.Proxy.OffChain
       ErgoDex.Contracts.Proxy.Order
       ErgoDex.Contracts.Proxy.Swap
