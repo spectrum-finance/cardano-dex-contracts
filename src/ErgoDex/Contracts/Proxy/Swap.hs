@@ -22,6 +22,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE NamedFieldPuns             #-}
+{-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:profile-all #-}
 {-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-specialise #-}
