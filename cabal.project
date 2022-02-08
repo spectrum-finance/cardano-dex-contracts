@@ -63,7 +63,7 @@ package cardano-crypto-praos
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus-apps.git
-  tag: v2022-01-17
+  tag: c330fc60d0cd174743c95de71e5c404b5008f186
   subdir:
     freer-extras
     plutus-chain-index
