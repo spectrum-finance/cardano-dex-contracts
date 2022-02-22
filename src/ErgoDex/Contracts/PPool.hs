@@ -14,7 +14,7 @@ import Plutarch.Api.V1 (PCurrencySymbol, PTokenName)
 
 type PAssetClass = PTuple PCurrencySymbol PTokenName
 
-data PPoolConfig (s :: S) = PPoolConfig
+newtype PPoolConfig (s :: S) = PPoolConfig
   (
     Term s (
       PDataRecord
