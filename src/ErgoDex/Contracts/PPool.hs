@@ -44,5 +44,21 @@ instance PlutusType PPoolAction where
     pif (x #== 0) (f PDeposit)
       (pif (x #== 1) (f PRedeem) (f PSwap))
 
-poolValidator :: Term s (PDatum :--> PRedeemer :--> PScriptContext :--> PUnit)
+newtype PPoolState (s :: S) = PPoolState
+  (
+    Term s (
+      PDataRecord
+      '[ "reservesX" ':= PInteger
+       , "reservesY" ':= PInteger
+       , "liquidity" ':= PInteger
+       ]
+    )
+  )
+  deriving stock (GHC.Generic)
+  deriving anyclass (Generic, PIsDataRepr)
+  deriving
+    (PlutusType, PIsData)
+    via PIsDataReprInstances PPoolState
+
+poolValidator :: Term s (PPoolConfig :--> PPoolAction :--> PScriptContext :--> PUnit)
 poolValidator = plam $ \datum redeemer context -> undefined 
