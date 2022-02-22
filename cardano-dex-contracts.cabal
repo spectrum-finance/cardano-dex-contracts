@@ -86,7 +86,7 @@ common lang
 
     ghc-options:
       -Wall -Wcompat -Wincomplete-uni-patterns -Wno-unused-do-bind
-      -Wno-partial-type-signatures -Wmissing-export-lists -Werror
+      -Wno-partial-type-signatures -Werror
       -Wincomplete-record-updates -Wmissing-deriving-strategies
       -Wno-name-shadowing -Wunused-foralls -fprint-explicit-foralls
       -fprint-explicit-kinds
