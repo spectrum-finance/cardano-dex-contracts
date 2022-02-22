@@ -99,6 +99,7 @@ library
       ErgoDex.Contracts.OffChain
       ErgoDex.Contracts.Types
       ErgoDex.Contracts.Pool
+      ErgoDex.Contracts.PPool
       ErgoDex.Contracts.Class
       ErgoDex.Contracts.Typed
       ErgoDex.Contracts.Proxy.OffChain
@@ -120,5 +121,6 @@ library
       plutus-tx-plugin,
       plutus-tx,
       plutus-ledger,
-      plutarch==1.1.0
+      plutarch==1.1.0,
+      generics-sop==0.5.1.0
     hs-source-dirs: src
