@@ -73,6 +73,7 @@ common lang
       PostfixOperators
       RankNTypes
       RelaxedPolyRec
+      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       StandaloneKindSignatures
@@ -86,9 +87,8 @@ common lang
 
     ghc-options:
       -Wall -Wcompat -Wincomplete-uni-patterns -Wno-unused-do-bind
-      -Wno-partial-type-signatures -Werror
-      -Wincomplete-record-updates -Wmissing-deriving-strategies
-      -Wno-name-shadowing -Wunused-foralls -fprint-explicit-foralls
+      -Wno-partial-type-signatures
+      -Wunused-foralls -fprint-explicit-foralls
       -fprint-explicit-kinds
 
 library
