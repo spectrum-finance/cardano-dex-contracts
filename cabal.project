@@ -59,9 +59,6 @@ package cardano-wallet-core-integration
 package cardano-crypto-praos
   flags: -external-libsodium-vrf
 
-package plutarch
-  flags: +development
-
 -- bring in plutus-apps that we need; then we copy the rest of the cabal.project from them
 source-repository-package
   type: git
@@ -264,4 +261,4 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/Plutonomicon/plutarch
-  tag: 7c6421735de75f76b2c8ecdc441ab1296b5d3f11
+  tag: 473424c89b4457e58e009e65d411ace1efc3ea9e
