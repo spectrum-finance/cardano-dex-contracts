@@ -99,7 +99,6 @@ library
       ErgoDex.Contracts.OffChain
       ErgoDex.Contracts.Types
       ErgoDex.Contracts.Pool
-      ErgoDex.Contracts.PPool
       ErgoDex.Contracts.Class
       ErgoDex.Contracts.Typed
       ErgoDex.Contracts.Proxy.OffChain
@@ -110,6 +109,9 @@ library
       ErgoDex.Contracts.Proxy.Typed.Swap
       ErgoDex.Contracts.Proxy.Typed.Deposit
       ErgoDex.Contracts.Proxy.Typed.Redeem
+      ErgoDex.PContracts.PPool
+      ErgoDex.PContracts.PData
+      ErgoDex.PContracts.PPlutusApi
     build-depends:
       base >= 4.9 && < 5,
       aeson,

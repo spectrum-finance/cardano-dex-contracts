@@ -1,6 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module ErgoDex.Contracts.PPool where
+module ErgoDex.PContracts.PPool where
 
 import qualified GHC.Generics as GHC
 import Generics.SOP (Generic, I (I))
@@ -9,10 +9,9 @@ import Plutarch
 import Plutarch.Prelude
 import Plutarch.DataRepr
 import Plutarch.Api.V1.Contexts
-import Plutarch.Api.V1.Scripts
-import Plutarch.Api.V1 (PCurrencySymbol, PTokenName)
+import Plutarch.Api.V1 (PValue(..))
 
-type PAssetClass = PTuple PCurrencySymbol PTokenName
+import ErgoDex.PContracts.PPlutusApi
 
 newtype PPoolConfig (s :: S) = PPoolConfig
   (
@@ -59,6 +58,12 @@ newtype PPoolState (s :: S) = PPoolState
   deriving
     (PlutusType, PIsData)
     via PIsDataReprInstances PPoolState
+
+maxLqCap :: Term s PInteger
+maxLqCap = pconstant 0x7fffffffffffffff
+
+readPoolState :: Term s (PPoolConfig :--> PValue :--> PPoolState)
+readPoolState = plam $ \conf vl -> undefined
 
 poolValidator :: Term s (PPoolConfig :--> PPoolAction :--> PScriptContext :--> PUnit)
 poolValidator = plam $ \datum redeemer context -> undefined 
