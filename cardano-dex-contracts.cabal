@@ -110,8 +110,14 @@ library
       ErgoDex.Contracts.Proxy.Typed.Deposit
       ErgoDex.Contracts.Proxy.Typed.Redeem
       ErgoDex.PContracts.PPool
-      ErgoDex.PContracts.PData
-      ErgoDex.PContracts.PPlutusApi
+      PExtra.Num
+      PExtra.Integer
+      PExtra.Pair
+      PExtra.Maybe
+      PExtra.List
+      PExtra.Monadic
+      PExtra.Map
+      PExtra.API
     build-depends:
       base >= 4.9 && < 5,
       aeson,

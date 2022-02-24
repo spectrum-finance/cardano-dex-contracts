@@ -11,7 +11,7 @@ import Plutarch.DataRepr
 import Plutarch.Api.V1.Contexts
 import Plutarch.Api.V1 (PValue(..))
 
-import ErgoDex.PContracts.PPlutusApi
+import PExtra.API
 
 newtype PPoolConfig (s :: S) = PPoolConfig
   (
