@@ -201,34 +201,6 @@ findPoolOutput =
         (const perror)
 
 poolValidator :: Term s (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
-poolValidator = plam $ \conf redeemer' ctx -> unTermCont $ do
-  redeemer    <- tcont $ pletFields @'["action", "selfix"] redeemer'
-  selfix      <- tletUnwrap $ hrecField @"selfix" redeemer
-  txinfo      <- tletField @"txInfo" ctx
-  inputs      <- tletField @"inputs" txinfo
-  outputs     <- tletField @"outputs" txinfo
-  selfIn      <- tlet $ pelemAt # selfix # inputs
-  self        <- tletField @"resolved" selfIn
-  nft         <- tletField @"poolNft" conf
-  successor   <- tlet $ pfromData $ findPoolOutput # nft # outputs
-
-  maybeSelfDh    <- tletField @"datumHash" self
-  maybeSuccDh    <- tletField @"datumHash" successor
-  PDJust selfDh' <- tmatch maybeSelfDh
-  PDJust succDh' <- tmatch maybeSuccDh
-  selfDh         <- tletField @"_0" selfDh'
-  succDh         <- tletField @"_0" succDh'
-  let confPreserved = succDh #== selfDh
-
-  s0   <- tlet $ readPoolState # conf # self
-  s1   <- tlet $ readPoolState # conf # successor
-  diff <- tlet $ poolDiff # s0 # s1
-
-  selfAddr <- tletField @"address" self
-  succAddr <- tletField @"address" successor
-  let scriptPreserved = succAddr #== selfAddr
-
-  action      <- tletUnwrap $ hrecField @"action" redeemer
-  validAction <- 
+poolValidator = undefined 
 
 
