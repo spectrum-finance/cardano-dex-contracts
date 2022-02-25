@@ -17,6 +17,8 @@ import PExtra.List (pelemAt)
 import PExtra.API
 
 import qualified ErgoDex.Contracts.Pool as P
+import Plutarch.Builtin (pforgetData, pasInt)
+import Plutarch.Unsafe (punsafeCoerce)
 
 newtype PoolConfig (s :: S) = PoolConfig
   (
@@ -40,6 +42,13 @@ instance PUnsafeLiftDecl PoolConfig where type PLifted PoolConfig = P.PoolConfig
 deriving via (DerivePConstantViaData P.PoolConfig PoolConfig) instance (PConstant P.PoolConfig)
 
 data PoolAction (s :: S) = Deposit | Redeem | Swap
+
+instance PIsData PoolAction where
+  pfromData tx =
+    let x = pasInt # pforgetData tx
+    in pmatch' x pcon
+  pdata x = pmatch x (punsafeCoerce . pdata . pcon')
+
 instance PlutusType PoolAction where
   type PInner PoolAction _ = PInteger
 
@@ -198,19 +207,19 @@ findPoolOutput =
             value = pfield @"value" # x
             amt   = assetClassValueOf # value # nft
           in pif (amt #== 1) x (self # xs))
-        (const perror)
+        (const $ ptraceError "Pool output not found")
 
 poolValidator :: Term s (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
 poolValidator = plam $ \conf redeemer' ctx -> unTermCont $ do
-  redeemer    <- tcont $ pletFields @'["action", "selfix"] redeemer'
-  selfix      <- tletUnwrap $ hrecField @"selfix" redeemer
-  txinfo      <- tletField @"txInfo" ctx
-  inputs      <- tletField @"inputs" txinfo
-  outputs     <- tletField @"outputs" txinfo
-  selfIn      <- tlet $ pelemAt # selfix # inputs
-  self        <- tletField @"resolved" selfIn
-  nft         <- tletField @"poolNft" conf
-  successor   <- tlet $ pfromData $ findPoolOutput # nft # outputs
+  redeemer  <- tcont $ pletFields @'["action", "selfix"] redeemer'
+  selfix    <- tletUnwrap $ hrecField @"selfix" redeemer
+  txinfo    <- tletField @"txInfo" ctx
+  inputs    <- tletField @"inputs" txinfo
+  outputs   <- tletField @"outputs" txinfo
+  selfIn    <- tlet $ pelemAt # selfix # inputs
+  self      <- tletField @"resolved" selfIn
+  nft       <- tletField @"poolNft" conf
+  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
 
   maybeSelfDh    <- tletField @"datumHash" self
   maybeSuccDh    <- tletField @"datumHash" successor
@@ -229,6 +238,10 @@ poolValidator = plam $ \conf redeemer' ctx -> unTermCont $ do
   let scriptPreserved = succAddr #== selfAddr
 
   action      <- tletUnwrap $ hrecField @"action" redeemer
-  validAction <- 
+  validAction <- tlet $ pmatch action $ \case
+    Deposit -> validDeposit # s0 # diff
+    Redeem  -> validRedeem # s0 # diff
+    Swap    -> validSwap # conf # s0 # diff
 
+  pure $ confPreserved #&& scriptPreserved #&& validAction
 
