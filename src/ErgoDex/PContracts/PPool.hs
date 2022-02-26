@@ -10,15 +10,19 @@ import Plutarch.Prelude
 import Plutarch.DataRepr
 import Plutarch.Lift
 import Plutarch.Api.V1.Contexts
-import Plutarch.Api.V1 (PTxOut, PMaybeData(PDJust))
+import Plutarch.Api.V1 (PTxOut, PMaybeData(PDJust), PMap)
 
 import PExtra.Monadic (tcon, tlet, tletField, tmatch)
+import PExtra.Map (plookup, mmap, findWithDefault, mapFromBuiltin)
 import PExtra.List (pelemAt)
 import PExtra.API
 
+import ErgoDex.PContracts.PData (pget)
 import qualified ErgoDex.Contracts.Pool as P
+
 import Plutarch.Builtin (pforgetData, pasInt)
 import Plutarch.Unsafe (punsafeCoerce)
+import Plutarch.Api.V1.Value (PCurrencySymbol, PValue(..))
 
 newtype PoolConfig (s :: S) = PoolConfig
   (
@@ -65,7 +69,7 @@ newtype PoolRedeemer (s :: S) = PoolRedeemer
     Term s (
       PDataRecord
         '[ "action" ':= PoolAction
-         , "selfix" ':= PInteger
+         , "selfIx" ':= PInteger
          ]
     )
   )
@@ -211,8 +215,8 @@ findPoolOutput =
 
 poolValidator :: Term s (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
 poolValidator = plam $ \conf redeemer' ctx -> unTermCont $ do
-  redeemer  <- tcont $ pletFields @'["action", "selfix"] redeemer'
-  selfix    <- tletUnwrap $ hrecField @"selfix" redeemer
+  redeemer  <- tcont $ pletFields @'["action", "selfIx"] redeemer'
+  selfix    <- tletUnwrap $ hrecField @"selfIx" redeemer
   txinfo    <- tletField @"txInfo" ctx
   inputs    <- tletField @"inputs" txinfo
   outputs   <- tletField @"outputs" txinfo
@@ -245,3 +249,44 @@ poolValidator = plam $ \conf redeemer' ctx -> unTermCont $ do
 
   pure $ confPreserved #&& scriptPreserved #&& validAction
 
+swapValidator :: Term s (PoolConfig :--> PInteger :--> PScriptContext :--> PBool)
+swapValidator = plam $ \conf poolIx ctx -> unTermCont $ do
+  txinfo'   <- tletField @"txInfo" ctx
+  txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
+  inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
+  outputs   <- tletUnwrap $ hrecField @"outputs" txinfo
+  selfIn    <- tlet $ pelemAt # poolIx # inputs
+  self      <- tletField @"resolved" selfIn
+  nft       <- tletField @"poolNft" conf
+  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
+
+  maybeSelfDh    <- tletField @"datumHash" self
+  maybeSuccDh    <- tletField @"datumHash" successor
+  PDJust selfDh' <- tmatch maybeSelfDh
+  PDJust succDh' <- tmatch maybeSuccDh
+  selfDh         <- tletField @"_0" selfDh'
+  succDh         <- tletField @"_0" succDh'
+  let confPreserved = succDh #== selfDh
+
+  s0   <- tlet $ readPoolState # conf # self
+  s1   <- tlet $ readPoolState # conf # successor
+  diff <- tlet $ poolDiff # s0 # s1
+
+  selfAddr <- tletField @"address" self
+  succAddr <- tletField @"address" successor
+  let scriptPreserved = succAddr #== selfAddr
+
+  let validAction = validSwap # conf # s0 # diff
+
+  pure $ confPreserved #&& scriptPreserved #&& validAction
+
+merklizedPoolValidator :: Term s (PUnit :--> PCurrencySymbol :--> PScriptContext :--> PBool)
+merklizedPoolValidator = plam $ \_ actionNft ctx -> unTermCont $ do
+  txinfo'    <- tletField @"txInfo" ctx
+  valueMint' <- tletField @"mint" txinfo'
+
+  PValue valueMint <- tmatch valueMint'
+
+  tlet $ pmatch (pget # actionNft # valueMint) $ \case
+    PNothing -> pconstant False
+    _        -> pconstant True
