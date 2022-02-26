@@ -10,11 +10,10 @@ import Plutarch.Prelude
 import Plutarch.DataRepr
 import Plutarch.Lift
 import Plutarch.Api.V1.Contexts
-import Plutarch.Api.V1 (PTxOut, PMaybeData(PDJust), PMap)
+import Plutarch.Api.V1 (PTxOut, PMaybeData(PDJust))
 
 import PExtra.Monadic (tcon, tlet, tletField, tmatch)
-import PExtra.Map (plookup, mmap, findWithDefault, mapFromBuiltin)
-import PExtra.List (pelemAt)
+import PExtra.List (pelemAt, pfind)
 import PExtra.API
 
 import ErgoDex.PContracts.PData (pget)
@@ -249,6 +248,68 @@ poolValidator = plam $ \conf redeemer' ctx -> unTermCont $ do
 
   pure $ confPreserved #&& scriptPreserved #&& validAction
 
+depositValidator :: Term s (PoolConfig :--> PInteger :--> PScriptContext :--> PBool)
+depositValidator = plam $ \conf poolIx ctx -> unTermCont $ do
+  txinfo'   <- tletField @"txInfo" ctx
+  txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
+  inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
+  outputs   <- tletUnwrap $ hrecField @"outputs" txinfo
+  selfIn    <- tlet $ pelemAt # poolIx # inputs
+  self      <- tletField @"resolved" selfIn
+  nft       <- tletField @"poolNft" conf
+  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
+
+  maybeSelfDh    <- tletField @"datumHash" self
+  maybeSuccDh    <- tletField @"datumHash" successor
+  PDJust selfDh' <- tmatch maybeSelfDh
+  PDJust succDh' <- tmatch maybeSuccDh
+  selfDh         <- tletField @"_0" selfDh'
+  succDh         <- tletField @"_0" succDh'
+  let confPreserved = succDh #== selfDh
+
+  s0   <- tlet $ readPoolState # conf # self
+  s1   <- tlet $ readPoolState # conf # successor
+  diff <- tlet $ poolDiff # s0 # s1
+
+  selfAddr <- tletField @"address" self
+  succAddr <- tletField @"address" successor
+  let scriptPreserved = succAddr #== selfAddr
+
+  let validAction = validDeposit # s0 # diff
+
+  pure $ confPreserved #&& scriptPreserved #&& validAction
+
+redeemValidator :: Term s (PoolConfig :--> PInteger :--> PScriptContext :--> PBool)
+redeemValidator = plam $ \conf poolIx ctx -> unTermCont $ do
+  txinfo'   <- tletField @"txInfo" ctx
+  txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
+  inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
+  outputs   <- tletUnwrap $ hrecField @"outputs" txinfo
+  selfIn    <- tlet $ pelemAt # poolIx # inputs
+  self      <- tletField @"resolved" selfIn
+  nft       <- tletField @"poolNft" conf
+  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
+
+  maybeSelfDh    <- tletField @"datumHash" self
+  maybeSuccDh    <- tletField @"datumHash" successor
+  PDJust selfDh' <- tmatch maybeSelfDh
+  PDJust succDh' <- tmatch maybeSuccDh
+  selfDh         <- tletField @"_0" selfDh'
+  succDh         <- tletField @"_0" succDh'
+  let confPreserved = succDh #== selfDh
+
+  s0   <- tlet $ readPoolState # conf # self
+  s1   <- tlet $ readPoolState # conf # successor
+  diff <- tlet $ poolDiff # s0 # s1
+
+  selfAddr <- tletField @"address" self
+  succAddr <- tletField @"address" successor
+  let scriptPreserved = succAddr #== selfAddr
+
+  let validAction = validRedeem # s0 # diff
+
+  pure $ confPreserved #&& scriptPreserved #&& validAction
+
 swapValidator :: Term s (PoolConfig :--> PInteger :--> PScriptContext :--> PBool)
 swapValidator = plam $ \conf poolIx ctx -> unTermCont $ do
   txinfo'   <- tletField @"txInfo" ctx
@@ -280,12 +341,14 @@ swapValidator = plam $ \conf poolIx ctx -> unTermCont $ do
 
   pure $ confPreserved #&& scriptPreserved #&& validAction
 
-merklizedPoolValidator :: Term s (PUnit :--> PCurrencySymbol :--> PScriptContext :--> PBool)
-merklizedPoolValidator = plam $ \_ actionNft ctx -> unTermCont $ do
+mkMerklizedPoolValidator :: Term s (PBuiltinList PCurrencySymbol) -> Term s (PUnit :--> PCurrencySymbol :--> PScriptContext :--> PBool)
+mkMerklizedPoolValidator allowedActions = plam $ \_ actionNft ctx -> unTermCont $ do
   txinfo'    <- tletField @"txInfo" ctx
   valueMint' <- tletField @"mint" txinfo'
 
   PValue valueMint <- tmatch valueMint'
+
+  PJust _ <- tmatch $ pfind # plam (#== actionNft) # allowedActions -- make sure a known minting policy is used
 
   tlet $ pmatch (pget # actionNft # valueMint) $ \case
     PNothing -> pconstant False
