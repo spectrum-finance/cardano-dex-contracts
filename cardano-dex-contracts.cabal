@@ -119,6 +119,9 @@ library
       PExtra.Monadic
       PExtra.Map
       PExtra.API
+      PExtra.Ada
+      ErgoDex.Contracts.Proxy.PlutarchSwap
+      ErgoDex.Contracts.Proxy.PUtils
     build-depends:
       base >= 4.9 && < 5,
       aeson,
@@ -131,5 +134,22 @@ library
       plutus-tx,
       plutus-ledger,
       plutarch==1.1.0,
-      generics-sop==0.5.1.0
+      generics-sop==0.5.1.0,
+      plutus-ledger-api,
+      text,
+      plutus-core
     hs-source-dirs: src
+
+executable cardano-contracts-exe
+  main-is: Main.hs
+  hs-source-dirs: app
+  build-depends:
+      base >= 4.9 && < 5
+    , cardano-dex-contracts
+    , plutarch==1.1.0
+    , rio
+    , plutus-tx
+    , plutus-core
+    , plutus-ledger-api
+    , text
+  default-language: Haskell2010
