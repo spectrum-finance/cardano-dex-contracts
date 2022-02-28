@@ -110,6 +110,7 @@ library
       ErgoDex.Contracts.Proxy.Typed.Deposit
       ErgoDex.Contracts.Proxy.Typed.Redeem
       ErgoDex.PContracts.PPool
+      ErgoDex.PContracts.PData
       PExtra.Num
       PExtra.Integer
       PExtra.Pair
