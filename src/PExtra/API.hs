@@ -116,20 +116,20 @@ newtype PAssetClass (s :: S)
     (PMatch, PIsData, PDataFields, PlutusType)
     via PIsDataReprInstances PAssetClass
 
+instance PEq PAssetClass where
+   a #== b =
+     pletFields @'["currencySymbol", "tokenName"] a $ \a' ->
+       pletFields @'["currencySymbol", "tokenName"] b $ \b' ->
+         let
+           a1 = pfromData $ hrecField @"tokenName" a'
+           a2 = pfromData $ hrecField @"tokenName" b'
+
+           b1 = pfromData $ hrecField @"currencySymbol" a'
+           b2 = pfromData $ hrecField @"currencySymbol" b'
+         in (a1 #== a2) #&& (b1 #== b2)
+
 type PAssetClass' = PPair PCurrencySymbol PTokenName
 type PMonoid (a :: PType) = forall s. Monoid (Term s a)
-
-instance PEq PAssetClass where
-  a #== b =
-    pletFields @'["currencySymbol", "tokenName"] a $ \a' ->
-      pletFields @'["currencySymbol", "tokenName"] b $ \b' ->
-        let
-          a1 = pfromData $ hrecField @"tokenName" a'
-          a2 = pfromData $ hrecField @"tokenName" b'
-
-          b1 = pfromData $ hrecField @"currencySymbol" a'
-          b2 = pfromData $ hrecField @"currencySymbol" b'
-        in (a1 #== a2) #&& (b1 #== b2)
 
 instance PEq PValue where
   a' #== b' =
