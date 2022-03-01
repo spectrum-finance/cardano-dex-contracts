@@ -23,7 +23,7 @@ import Plutarch.Builtin (pforgetData, pasInt)
 import Plutarch.Unsafe (punsafeCoerce)
 import Plutarch.Api.V1.Value (PCurrencySymbol, PValue(..))
 
-import ErgoDex.PContracts.PApi (tletUnwrap)
+import ErgoDex.PContracts.PApi
 
 newtype PoolConfig (s :: S) = PoolConfig
   (
@@ -129,9 +129,6 @@ poolDiff = plam $ \s0 s1 -> unTermCont $ do
     #$ pdcons @"diffY" @PInteger # pdata dy
     #$ pdcons @"diffLq" @PInteger # pdata dlq
      # pdnil
-
-maxLqCap :: Term s PInteger
-maxLqCap = pconstant 0x7fffffffffffffff
 
 feeDen :: Term s PInteger
 feeDen = pconstant 1000

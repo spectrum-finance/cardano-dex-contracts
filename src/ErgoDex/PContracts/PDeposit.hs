@@ -143,6 +143,6 @@ minTokenReward = plam $ \selfValue poolValue token liqToken exFee collateralAda 
       )
   let
     poolTokenReserve = assetClassValueOf # poolValue # token
-    poolLiqReserve   = assetClassValueOf # poolValue # liqToken
+    poolLiqReserve   =  maxLqCap - assetClassValueOf # poolValue # liqToken
     minValue = pdiv # (inputDeposit * poolLiqReserve) # poolTokenReserve
   pure $ minValue
