@@ -26,6 +26,7 @@ import Plutarch.Api.V1 (
 import ErgoDex.PContracts.PPool hiding (depositValidator, validDeposit)
 import Plutus.V1.Ledger.Scripts
 import PExtra.Monadic (tcon, tlet, tletField, tmatch, tmatchField)
+import ErgoDex.PContracts.PApi
 
 newtype PDepositConfig (s :: S) = PDepositConfig
   (
@@ -80,14 +81,9 @@ depositValidator = plam $ \datumT redeemer contextT -> unTermCont $ do
   exFee         <- tletUnwrap $ hrecField @"exFee" datum
   collateralAda <- tletUnwrap $ hrecField @"collateralAda" datum
   let
-    validRefund  = isValidRefund # txInfo # rewardPkh
+    validRefund  = hasValidSignatories # txInfo # rewardPkh
     validDeposit = isValidDeposit # txInfo # poolNft # tokenA # tokenB # tokenLp # exFee # rewardPkh # collateralAda # redeemer
   pure $ validRefund #|| validDeposit
-
-isValidRefund :: Term s (PTxInfo :--> PPubKeyHash :--> PBool)
-isValidRefund = plam $ \txInfo userPubKeyHash -> unTermCont $ do
-  let signatories = pfield @"signatories" # txInfo
-  pure (pelem # pdata userPubKeyHash # signatories)
 
 isValidDeposit
   :: Term s (
@@ -109,40 +105,16 @@ isValidDeposit = plam $ \txInfoT poolNft tokenA tokenB tokenLP exFee rewardPkh c
   rewardIndex     <- tletUnwrap $ hrecField @"rewardOutputIdx" depositRedeemer
   orderIndex      <- tletUnwrap $ hrecField @"orderIndex" depositRedeemer
   inputs          <- tletUnwrap $ hrecField @"inputs" txInfo
-  outputs         <- tletUnwrap $ hrecField @"outputs" txInfo
-  poolValue       <- tlet $ getInputValue # inputs # poolIndex # poolNft
-  orderValue      <- tlet $ getInputValue # inputs # orderIndex # poolNft
-  rewardValue     <- tlet $ getRewardValue # outputs # rewardIndex # rewardPkh
+  poolValue       <- tlet $ getInputValue # inputs # poolIndex
+  orderValue      <- tlet $ getInputValue # inputs # orderIndex
+  rewardValue     <- tlet $ getRewardValue # txInfoT # rewardIndex # rewardPkh
+  _               <- tlet $ poolCheckNft # poolValue # poolNft
   let
     validFee     = isFairFee # rewardValue # collateralAda
     validInputs  = validInputsQty # inputs
     validReward  = isValidReward # orderValue # rewardValue # poolValue # tokenA # tokenB # tokenLP # exFee # collateralAda
   pure $ validFee #&& validInputs #&& validReward
-
-getInputValue :: Term s (PBuiltinList (PAsData PTxInInfo) :--> PInteger :--> PAssetClass :--> PValue)
-getInputValue = plam $ \inputs poolIdx poolNft -> unTermCont $ do
-  possiblePoolInput <- tletUnwrap (pelemAt # poolIdx # inputs)
-  output            <- tletUnwrap $ pfield @"resolved" # possiblePoolInput
-  value             <- tletUnwrap $ pfield @"value" # output
-  let nftQty        =  assetClassValueOf # value # poolNft
-  pure $ pif (nftQty #== 1)
-    value
-    (ptraceError "Invalid pool")
-
-getRewardValue :: Term s (PBuiltinList (PAsData PTxOut) :--> PInteger :--> PPubKeyHash :--> PValue)
-getRewardValue = plam $ \outputs idx pubkeyHash -> unTermCont $ do
-  let output   = (pelemAt # idx # outputs)
-  adr          <- tletUnwrap $ pfield @"address" # output
-  pure $
-      pmatch (pfromData $ pfield @"credential" # adr) $ (\case
-        PPubKeyCredential cred -> unTermCont $ do
-          pkhOut <- tletUnwrap $ pfield @"_0" # cred
-          vl     <- tletUnwrap $ pfield @"value" # output
-          pure $ pif (pkhOut #== pubkeyHash)
-            vl
-            (ptraceError "Invalid reward proposition")
-        _ -> ptraceError "Invalid reward proposition")
-
+  
 isFairFee :: Term s (PValue :--> PInteger :--> PBool)
 isFairFee = plam $ \rewardValue collateralAda -> unTermCont $ do
   let outputAda = pGetLovelace # rewardValue
@@ -181,8 +153,3 @@ minTokenReward = plam $ \selfValue poolValue token liqToken exFee collateralAda 
     poolLiqReserve   = assetClassValueOf # poolValue # liqToken
     minValue = pdiv # (inputDeposit * poolLiqReserve) # poolTokenReserve
   pure $ minValue
-
-validInputsQty :: Term s (PBuiltinList (PAsData PTxInInfo) :--> PBool)
-validInputsQty = plam $ \inputs -> unTermCont $ do
-  let inputsLength = plength # inputs
-  pure $ inputsLength #== 2

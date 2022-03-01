@@ -23,6 +23,8 @@ import Plutarch.Builtin (pforgetData, pasInt)
 import Plutarch.Unsafe (punsafeCoerce)
 import Plutarch.Api.V1.Value (PCurrencySymbol, PValue(..))
 
+import ErgoDex.PContracts.PApi (tletUnwrap)
+
 newtype PoolConfig (s :: S) = PoolConfig
   (
     Term s (
@@ -156,9 +158,6 @@ readPoolState = plam $ \conf' out -> unTermCont $ do
 
 pmin :: POrd a => Term s (a :--> a :--> a)
 pmin = phoistAcyclic $ plam $ \a b -> pif (a #<= b) a b
-
-tletUnwrap :: (PIsData a) => Term s (PAsData a) -> TermCont @r s (Term s a)
-tletUnwrap = tlet . pfromData
 
 validDeposit :: Term s (PoolState :--> PoolDiff :--> PBool)
 validDeposit = plam $ \state' diff' -> unTermCont $ do

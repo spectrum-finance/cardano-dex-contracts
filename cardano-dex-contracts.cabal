@@ -109,9 +109,11 @@ library
       ErgoDex.Contracts.Proxy.Typed.Swap
       ErgoDex.Contracts.Proxy.Typed.Deposit
       ErgoDex.Contracts.Proxy.Typed.Redeem
+      ErgoDex.PContracts.PApi
       ErgoDex.PContracts.PPool
       ErgoDex.PContracts.PDeposit
       ErgoDex.PContracts.PData
+      ErgoDex.PContracts.PSwap
       PExtra.Ada
       PExtra.Num
       PExtra.Integer
@@ -121,8 +123,8 @@ library
       PExtra.Monadic
       PExtra.Map
       PExtra.API
-      ErgoDex.Contracts.Proxy.PlutarchSwap
       ErgoDex.Contracts.Proxy.PUtils
+
     build-depends:
       base >= 4.9 && < 5,
       aeson,

@@ -5,7 +5,7 @@ import Plutus.V1.Ledger.Api
 import qualified Plutus.V1.Ledger.Interval as Interval
 import qualified Plutus.V1.Ledger.Value as Value
 import Plutarch.Prelude
-import ErgoDex.Contracts.Proxy.PlutarchSwap 
+import ErgoDex.PContracts.PSwap 
 import PExtra.API
 import Data.Text (Text)
 import Plutarch.Evaluate (evaluateScript)
