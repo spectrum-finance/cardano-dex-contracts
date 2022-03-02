@@ -1,6 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module ErgoDex.Contracts.Proxy.PlutarchSwap where
+module ErgoDex.PContracts.PSwap where
 
 import qualified GHC.Generics as GHC
 import Plutarch
@@ -10,9 +10,10 @@ import Plutarch.Api.V1.Contexts
 import Plutarch.Api.V1
 import PExtra.API
 import PExtra.Monadic (tlet, tletField)
-import PExtra.List
 import Generics.SOP (Generic, I (I))
 import PExtra.Ada
+
+import ErgoDex.PContracts.PApi
 
 newtype PSwapRedeemer (s :: S) = PSwapRedeemer
   (
@@ -52,63 +53,52 @@ newtype PSwapConfig (s :: S) = PSwapConfig
     (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances PSwapConfig)
 
-tletUnwrap :: (PIsData a) => Term s (PAsData a) -> TermCont @r s (Term s a)
-tletUnwrap = tlet . pfromData
+pmkSwapValidator :: Term s (PSwapConfig :--> PSwapRedeemer :--> PScriptContext :--> PBool)
+pmkSwapValidator = plam $ \configT redeemerT cxtT -> unTermCont $ do
+  txInfo    <- tletField @"txInfo" cxtT
+  rewardPkh <- tletField @"rewardPkh" configT
 
-pMkSwapValidator :: Term s (PSwapConfig :--> PSwapRedeemer :--> PScriptContext :--> PBool)
-pMkSwapValidator = plam $ \configT redeemerT cxtT -> unTermCont $ do
-  txInfo  <- tletField @"txInfo" cxtT
+  isTxSignedByRewardKey <- tlet $ hasValidSignatories # txInfo # rewardPkh
+
+  pure $ isTxSignedByRewardKey #|| (pisValidSwap # txInfo # rewardPkh # redeemerT # configT)
+
+pisValidSwap :: Term s (PTxInfo :--> PPubKeyHash :--> PSwapRedeemer :--> PSwapConfig :--> PBool)
+pisValidSwap = plam $ \txInfo rewardPkh redeemerT configT -> unTermCont $ do
   indexes <- tcont $ pletFields @'["orderIndex", "poolIndex", "rewardIndex"] redeemerT
-  cfg     <- tcont $ pletFields @'["base", "quote", "poolNft", "feeNum", "exFeePerTokenNum", "exFeePerTokenDen",  "rewardPkh", "baseAmount", "minQuoteAmount"] configT
-
-  inputs      <- tletField @"inputs" txInfo
-  outputs     <- tletField @"outputs" txInfo
+  cfg     <- tcont $ pletFields @'["base", "quote", "poolNft", "exFeePerTokenNum", "exFeePerTokenDen", "baseAmount"] configT
 
   orderIndex  <- tletUnwrap $ hrecField @"orderIndex" indexes
   poolIndex   <- tletUnwrap $ hrecField @"poolIndex" indexes
   rewardIndex <- tletUnwrap $ hrecField @"rewardIndex" indexes
 
-  orderInput <- tletUnwrap $ pelemAt # orderIndex # inputs
-  poolInput  <- tletUnwrap $ pelemAt # poolIndex # inputs
+  rewardValue <- tlet $ getRewardValue # txInfo # rewardIndex # rewardPkh
 
-  orderResolved <- tletField @"resolved" orderInput
-  poolResolved <- tletField @"resolved" poolInput
+  inputs     <- tletField @"inputs" txInfo
+  poolValue  <- tlet $ getInputValue # inputs # poolIndex
+  orderValue <- tlet $ getInputValue # inputs # orderIndex
 
-  rewardOut <- tletUnwrap $ pelemAt # rewardIndex # outputs
-  
   base             <- tletUnwrap $ hrecField @"base" cfg
-  quote            <- tletUnwrap $ hrecField @"quote" cfg
-  feeNum           <- tletUnwrap $ hrecField @"feeNum" cfg
+  quote            <- tletUnwrap $ hrecField @"quote" cfg 
   exFeePerTokenNum <- tletUnwrap $ hrecField @"exFeePerTokenNum" cfg
   exFeePerTokenDen <- tletUnwrap $ hrecField @"exFeePerTokenDen" cfg
   baseAmount       <- tletUnwrap $ hrecField @"baseAmount" cfg
-  minQuoteAmount   <- tletUnwrap $ hrecField @"minQuoteAmount" cfg
-  rewardPkh        <- tletUnwrap $ hrecField @"rewardPkh" cfg
-  poolNft          <- tletUnwrap $ hrecField @"poolNft" cfg
+  
+  let 
+    quoteAmount  = pQuoteAmount # rewardValue # orderValue # quote # exFeePerTokenDen # exFeePerTokenNum
+    fairExFee    = pFairExFee # rewardValue # orderValue # base # baseAmount # quote # quoteAmount # exFeePerTokenNum # exFeePerTokenDen
+    fairPrice    = pFairPrice # quoteAmount # poolValue # base # quote # baseAmount # configT
+    correctQuote = pcorrectQuote # configT # quoteAmount
 
-  poolValue   <- tletField @"value" poolResolved
-  rewardValue <- tletField @"value" rewardOut
-  orderValue  <- tletField @"value" orderResolved
+  poolNft <- tletUnwrap $ hrecField @"poolNft" cfg
+  _       <- tlet $ poolCheckNft # poolValue # poolNft
+  _       <- tlet $ validInputsQty # inputs
 
-  rewardAddress <- tletField @"address" rewardOut
+  pure $ fairExFee #&& fairPrice #&& correctQuote
 
-  let
-    rewardPKH       = pToPubKeyHash # rewardAddress
-    validRewardProp = rewardPKH #== rewardPkh
-    validPool = plet (assetClassValueOf # poolValue # poolNft) $ \nftQty -> 
-                        pif (nftQty #== 1) (pcon PTrue) perror
-    validNumInputs = plet (plength # inputs) $ \outsNum -> pif (outsNum #== 2) (pcon PTrue) perror
-    quoteAmount = pQuoteAmount # rewardValue # orderValue # quote # exFeePerTokenDen # exFeePerTokenNum
-
-    fairExFee = pFairExFee # rewardValue # orderValue # base # baseAmount # quote # quoteAmount # exFeePerTokenNum # exFeePerTokenDen
-            
-    correctQuote = quoteAmount #< minQuoteAmount
-
-    fairPrice = pFairPrice # quoteAmount # poolValue # base # quote # feeNum # baseAmount
-
-    isTxSignedByRewardKey = pTxSignedBy # txInfo # rewardPKH
-
-  pure $ isTxSignedByRewardKey #|| (validPool #&& validNumInputs #&& validRewardProp #&& fairExFee #&& correctQuote #&& fairPrice)
+pcorrectQuote :: Term s (PSwapConfig :--> PInteger :--> PBool)
+pcorrectQuote = plam $ \cfg quoteAmount ->
+  let minQuoteAmount = pfield @"minQuoteAmount" # cfg
+  in quoteAmount #< minQuoteAmount
 
 pFairExFee 
   :: Term s (
@@ -142,12 +132,13 @@ pFairPrice
     :--> PValue 
     :--> PAssetClass 
     :--> PAssetClass 
-    :--> PInteger 
-    :--> PInteger 
+    :--> PInteger
+    :--> PSwapConfig 
     :--> PBool
     )
-pFairPrice = plam $ \quoteAmount poolValue base quote feeNum baseAmount ->
+pFairPrice = plam $ \quoteAmount poolValue base quote baseAmount configT ->
   let
+    feeNum        = pfield @"feeNum" # configT
     relaxedOut    = quoteAmount + 1
     reservesBase  = assetClassValueOf # poolValue # base
     reservesQuote = assetClassValueOf # poolValue # quote
@@ -163,18 +154,3 @@ pQuoteAmount = plam $ \rewardValue orderValue quote exFeePerTokenDen exFeePerTok
     quoteDelta = quoteOut - quoteIn
   in
     pif (pIsAda # quote) (pdiv # (quoteDelta * exFeePerTokenDen) # (exFeePerTokenDen - exFeePerTokenNum)) quoteDelta  
-
-zeroInteger :: Term s (PAsData PInteger)
-zeroInteger = pdata 0
-
-pToPubKeyHash :: Term s (PAddress :--> PPubKeyHash)
-pToPubKeyHash = plam $ \address ->
-  let credential = pfromData $ pfield @"credential" # address
-  in pmatch credential $ \case
-        PPubKeyCredential x -> pfromData $ pfield @"_0" # x
-        _ -> perror
-
-pTxSignedBy :: Term s (PTxInfo :--> PPubKeyHash :--> PBool)
-pTxSignedBy = plam $ \txInfo rpkh -> unTermCont $ do
-  signatories <- tletField @"signatories" txInfo
-  pure (pelem # pdata rpkh # signatories)
