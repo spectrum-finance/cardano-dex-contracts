@@ -5,27 +5,20 @@ module ErgoDex.PContracts.PDeposit where
 
 import qualified GHC.Generics as GHC
 import Generics.SOP (Generic, I (I))
-import Control.Monad.Trans.Cont (cont, runCont)
 
 import Plutarch
 import Plutarch.Prelude
 import Plutarch.DataRepr
 import Plutarch.Api.V1.Contexts
-import Plutarch.Api.V1.Scripts
-import PExtra.List
-import Plutarch.Api.V1.Tuple
 import PExtra.API
 import PExtra.Ada
 import Plutarch.Api.V1 (
   PPubKeyHash,
-  PTxInInfo,
   PValue,
-  PTxOut(..),
-  PCredential (PPubKeyCredential)
  )
 import ErgoDex.PContracts.PPool hiding (depositValidator, validDeposit)
 import Plutus.V1.Ledger.Scripts
-import PExtra.Monadic (tcon, tlet, tletField, tmatch, tmatchField)
+import PExtra.Monadic (tlet)
 import ErgoDex.PContracts.PApi
 
 newtype PDepositConfig (s :: S) = PDepositConfig

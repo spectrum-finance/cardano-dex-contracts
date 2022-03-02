@@ -349,6 +349,6 @@ mkMerklizedPoolValidator allowedActions = plam $ \_ actionNft ctx -> unTermCont 
 
   PJust _ <- tmatch $ pfind # plam (#== actionNft) # allowedActions -- make sure a known minting policy is used
 
-  tlet $ pmatch (pget # actionNft # valueMint) $ \case
+  tlet $ pmatch (pget # actionNft # valueMint) $ \case -- todo: possible vector of attack: Put Map(actionNft -> Map.empty) into value mint?
     PNothing -> pconstant False
     _        -> pconstant True

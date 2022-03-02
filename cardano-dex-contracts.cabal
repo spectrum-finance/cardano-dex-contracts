@@ -123,7 +123,6 @@ library
       PExtra.Monadic
       PExtra.Map
       PExtra.API
-      ErgoDex.Contracts.Proxy.PUtils
 
     build-depends:
       base >= 4.9 && < 5,
