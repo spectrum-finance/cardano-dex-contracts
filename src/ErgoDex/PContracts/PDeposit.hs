@@ -38,7 +38,7 @@ newtype PDepositConfig (s :: S) = PDepositConfig
   deriving stock (GHC.Generic)
   deriving anyclass (Generic, PIsDataRepr)
   deriving
-    (PMatch, PIsData, PDataFields)
+    (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances PDepositConfig)
 
 newtype DepositRedeemer (s :: S)
