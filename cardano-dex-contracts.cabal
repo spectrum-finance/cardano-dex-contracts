@@ -114,6 +114,7 @@ library
       ErgoDex.PContracts.PDeposit
       ErgoDex.PContracts.PData
       ErgoDex.PContracts.PSwap
+      ErgoDex.PContracts.PRedeem
       PExtra.Ada
       PExtra.Num
       PExtra.Integer
@@ -123,6 +124,7 @@ library
       PExtra.Monadic
       PExtra.Map
       PExtra.API
+      PExtra.PTriple
 
     build-depends:
       base >= 4.9 && < 5,

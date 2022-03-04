@@ -38,7 +38,7 @@ newtype PDepositConfig (s :: S) = PDepositConfig
   deriving stock (GHC.Generic)
   deriving anyclass (Generic, PIsDataRepr)
   deriving
-    (PMatch, PIsData, PDataFields)
+    (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances PDepositConfig)
 
 newtype DepositRedeemer (s :: S)
@@ -143,6 +143,6 @@ minTokenReward = plam $ \selfValue poolValue token liqToken exFee collateralAda 
       )
   let
     poolTokenReserve = assetClassValueOf # poolValue # token
-    poolLiqReserve   = assetClassValueOf # poolValue # liqToken
+    poolLiqReserve   =  maxLqCap - assetClassValueOf # poolValue # liqToken
     minValue = pdiv # (inputDeposit * poolLiqReserve) # poolTokenReserve
   pure $ minValue
