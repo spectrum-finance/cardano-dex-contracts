@@ -1,9 +1,9 @@
 module Main where
 
-import ErgoDex.Contracts.Proxy.PlutarchSwap
-import Plutarch 
+import Plutarch
 import RIO
-import ErgoDex.Contracts.Proxy.PUtils
+import PExtra.PUtils
+import ErgoDex.PContracts.PPool
 import Data.Text (Text)
 import Plutarch.Evaluate (evaluateScript)
 import Plutarch (ClosedTerm, compile)
@@ -14,5 +14,8 @@ import PlutusTx (Data)
 
 main :: IO ()
 main = do
-    void $ print $ printTerm (pMkSwapValidator)
-    --void $ print $ eval (pMkSwapValidator # pPSwapConfig # pPSwapRedeemer # ctx )
+    --void $ print $ printTerm (pMkSwapValidator)
+    _ <- print $ eval (poolValidator # pPPoolConfig # pPPoolSwapRedeemer # ctx)
+    _ <- print $ eval (poolValidator # pPPoolConfig # pPPoolDepositRedeemer # ctx)
+    _ <- print $ eval (poolValidator # pPPoolConfig # pPPoolRedeemRedeemer # ctx)
+    pure $ ()
