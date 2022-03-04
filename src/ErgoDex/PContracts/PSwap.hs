@@ -53,17 +53,17 @@ newtype PSwapConfig (s :: S) = PSwapConfig
     (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances PSwapConfig)
 
-pmkSwapValidator :: Term s (PSwapConfig :--> PSwapRedeemer :--> PScriptContext :--> PBool)
-pmkSwapValidator = plam $ \configT redeemerT cxtT -> unTermCont $ do
+mkSwapValidator :: Term s (PSwapConfig :--> PSwapRedeemer :--> PScriptContext :--> PBool)
+mkSwapValidator = plam $ \configT redeemerT cxtT -> unTermCont $ do
   txInfo    <- tletField @"txInfo" cxtT
   rewardPkh <- tletField @"rewardPkh" configT
 
   isTxSignedByRewardKey <- tlet $ hasValidSignatories # txInfo # rewardPkh
 
-  pure $ isTxSignedByRewardKey #|| (pisValidSwap # txInfo # rewardPkh # redeemerT # configT)
+  pure $ isTxSignedByRewardKey #|| (isValidSwap # txInfo # rewardPkh # redeemerT # configT)
 
-pisValidSwap :: Term s (PTxInfo :--> PPubKeyHash :--> PSwapRedeemer :--> PSwapConfig :--> PBool)
-pisValidSwap = plam $ \txInfo rewardPkh redeemerT configT -> unTermCont $ do
+isValidSwap :: Term s (PTxInfo :--> PPubKeyHash :--> PSwapRedeemer :--> PSwapConfig :--> PBool)
+isValidSwap = plam $ \txInfo rewardPkh redeemerT configT -> unTermCont $ do
   indexes <- tcont $ pletFields @'["orderIndex", "poolIndex", "rewardIndex"] redeemerT
   cfg     <- tcont $ pletFields @'["base", "quote", "poolNft", "exFeePerTokenNum", "exFeePerTokenDen", "baseAmount"] configT
 
@@ -84,10 +84,10 @@ pisValidSwap = plam $ \txInfo rewardPkh redeemerT configT -> unTermCont $ do
   baseAmount       <- tletUnwrap $ hrecField @"baseAmount" cfg
   
   let 
-    quoteAmount  = pQuoteAmount # rewardValue # orderValue # quote # exFeePerTokenDen # exFeePerTokenNum
-    fairExFee    = pFairExFee # rewardValue # orderValue # base # baseAmount # quote # quoteAmount # exFeePerTokenNum # exFeePerTokenDen
-    fairPrice    = pFairPrice # quoteAmount # poolValue # base # quote # baseAmount # configT
-    correctQuote = pcorrectQuote # configT # quoteAmount
+    quoteAmount  = calcQuoteAmount # rewardValue # orderValue # quote # exFeePerTokenDen # exFeePerTokenNum
+    fairExFee    = calcFairExFee # rewardValue # orderValue # base # baseAmount # quote # quoteAmount # exFeePerTokenNum # exFeePerTokenDen
+    fairPrice    = calcFairPrice # quoteAmount # poolValue # base # quote # baseAmount # configT
+    correctQuote = calcCorrectQuote # configT # quoteAmount
 
   poolNft <- tletUnwrap $ hrecField @"poolNft" cfg
   _       <- tlet $ poolCheckNft # poolValue # poolNft
@@ -95,12 +95,12 @@ pisValidSwap = plam $ \txInfo rewardPkh redeemerT configT -> unTermCont $ do
 
   pure $ fairExFee #&& fairPrice #&& correctQuote
 
-pcorrectQuote :: Term s (PSwapConfig :--> PInteger :--> PBool)
-pcorrectQuote = plam $ \cfg quoteAmount ->
+calcCorrectQuote :: Term s (PSwapConfig :--> PInteger :--> PBool)
+calcCorrectQuote = plam $ \cfg quoteAmount ->
   let minQuoteAmount = pfield @"minQuoteAmount" # cfg
   in quoteAmount #< minQuoteAmount
 
-pFairExFee 
+calcFairExFee 
   :: Term s (
          PValue 
     :--> PValue 
@@ -112,7 +112,7 @@ pFairExFee
     :--> PInteger 
     :--> PBool
     )
-pFairExFee = plam $ \rewardValue orderValue base baseAmount quote quoteAmount exFeePerTokenNum exFeePerTokenDen ->
+calcFairExFee = plam $ \rewardValue orderValue base baseAmount quote quoteAmount exFeePerTokenNum exFeePerTokenDen ->
   let
     bqAda  = 
       pif (pIsAda # base) 
@@ -126,7 +126,7 @@ pFairExFee = plam $ \rewardValue orderValue base baseAmount quote quoteAmount ex
   in 
     (inAda - baseAda - exFee) #< (outAda - quoteAda)
   
-pFairPrice 
+calcFairPrice 
   :: Term s (
          PInteger 
     :--> PValue 
@@ -136,7 +136,7 @@ pFairPrice
     :--> PSwapConfig 
     :--> PBool
     )
-pFairPrice = plam $ \quoteAmount poolValue base quote baseAmount configT ->
+calcFairPrice = plam $ \quoteAmount poolValue base quote baseAmount configT ->
   let
     feeNum        = pfield @"feeNum" # configT
     relaxedOut    = quoteAmount + 1
@@ -146,8 +146,8 @@ pFairPrice = plam $ \quoteAmount poolValue base quote baseAmount configT ->
   in
     reservesQuote * baseAmount * feeNum #<= relaxedOut * (reservesBase * feeDen + baseAmount * feeNum)
 
-pQuoteAmount :: Term s (PValue :--> PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger)
-pQuoteAmount = plam $ \rewardValue orderValue quote exFeePerTokenDen exFeePerTokenNum ->
+calcQuoteAmount :: Term s (PValue :--> PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger)
+calcQuoteAmount = plam $ \rewardValue orderValue quote exFeePerTokenDen exFeePerTokenNum ->
   let
     quoteOut   = assetClassValueOf # rewardValue # quote
     quoteIn    = assetClassValueOf # orderValue # quote

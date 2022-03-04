@@ -6,6 +6,8 @@ module ErgoDex.PContracts.PApi
  , poolCheckNft
  , validInputsQty
  , zeroInteger
+ , getPoolDatum
+ , maxLqCap
  ) where
 
 import Plutarch
@@ -15,6 +17,9 @@ import Plutarch.Prelude
 import PExtra.List
 import PExtra.Monadic (tlet)
 import PExtra.API
+
+maxLqCap :: Term s PInteger
+maxLqCap = pconstant 0x7fffffffffffffff
 
 tletUnwrap :: (PIsData a) => Term s (PAsData a) -> TermCont @r s (Term s a)
 tletUnwrap = tlet . pfromData
@@ -59,3 +64,10 @@ validInputsQty = plam $ \inputs -> unTermCont $ do
 
 zeroInteger :: Term s (PAsData PInteger)
 zeroInteger = pdata 0
+
+getPoolDatum :: Term s (PInteger :--> PTxInfo :--> PDatum)
+getPoolDatum = plam $ \index txInfo -> unTermCont $ do
+  datums     <- tletUnwrap $ pfield @"data" # txInfo
+  maybeTuple <- tlet $ pfromData (pelemAt # index # datums)
+  datum      <- tletUnwrap $ pfield @"_1" # maybeTuple
+  pure datum
