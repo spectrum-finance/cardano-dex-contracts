@@ -100,6 +100,16 @@ instance PEq PAddress where
       # a'
       # b'
 
+instance PEq PTxOutRef where
+   a' #== b' =
+     phoistAcyclic
+       ( plam $ \a b ->
+           (pfield @"id" # a) #== (pfield @"id" # b)
+             #&& (pfield @"idx" # a) #== (pfield @"idx" # b)
+       )
+       # a'
+       # b'
+
 newtype PAssetClass (s :: S)
   = PAssetClass
       ( Term
