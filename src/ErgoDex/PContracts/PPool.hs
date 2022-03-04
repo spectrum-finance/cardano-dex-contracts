@@ -326,7 +326,7 @@ mkSwapValidator conf = plam $ \poolIx ctx -> unTermCont $ do
   inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
   outputs   <- tletUnwrap $ hrecField @"outputs" txinfo
   selfIn    <- tlet $ pelemAt # poolIx # inputs
-  self      <- tletField @"resolved" selfIn -- todo: make sure self contains nft
+  self      <- tletField @"resolved" selfIn
   nft       <- tletField @"poolNft" conf
   successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
 

@@ -31,6 +31,3 @@ pIsAda = plam $ \ac -> ac #== pAdaAssetClass
 pGetLovelace :: Term s (PValue :--> PInteger)
 pGetLovelace = plam $ \value ->
   assetClassValueOf # value # pAdaAssetClass
-
-zeroInteger :: Term s (PAsData PInteger)
-zeroInteger = pdata 0
