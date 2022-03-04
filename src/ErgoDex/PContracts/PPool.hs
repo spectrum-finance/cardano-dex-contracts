@@ -211,7 +211,6 @@ findPoolOutput =
           in pif (amt #== 1) x (self # xs))
         (const $ ptraceError "Pool output not found")
 
--- todo: add self.txOutRef check
 poolValidator :: Term s (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
 poolValidator = plam $ \conf redeemer' ctx' -> unTermCont $ do
   redeemer  <- tcont $ pletFields @'["action", "selfIx"] redeemer'
