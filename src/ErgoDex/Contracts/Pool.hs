@@ -27,7 +27,18 @@
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
-module ErgoDex.Contracts.Pool where
+module ErgoDex.Contracts.Pool
+  ( PoolConfig(..)
+  , PoolAction(..)
+  , PoolRedeemer(..)
+  , PoolState(..)
+  , maxLqCap
+  , maxLqCapAmount
+  , getPoolInput
+  , findPoolConfig
+  , readPoolState
+  , mkPoolValidator
+  ) where
 
 import qualified Prelude as Haskell
 
@@ -57,6 +68,14 @@ PlutusTx.makeIsDataIndexed ''PoolAction [ ('Deposit, 0)
                                         , ('Swap, 2)
                                         ]
 PlutusTx.makeLift ''PoolAction
+
+data PoolRedeemer = PoolRedeemer
+  { action :: PoolAction
+  , selfIx :: Integer
+  }
+ deriving (Haskell.Show, Eq, Generic)
+PlutusTx.makeIsDataIndexed ''PoolRedeemer [('PoolRedeemer, 0)]
+PlutusTx.makeLift ''PoolRedeemer
 
 data PoolState = PoolState
   { reservesX :: Integer

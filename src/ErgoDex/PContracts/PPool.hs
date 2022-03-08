@@ -216,7 +216,7 @@ poolValidator = plam $ \conf redeemer' ctx' -> unTermCont $ do
   txinfo    <- tletUnwrap $ hrecField @"txInfo" ctx
   inputs    <- tletField @"inputs" txinfo
   outputs   <- tletField @"outputs" txinfo
-  selfIn'    <- tlet $ pelemAt # selfIx # inputs
+  selfIn'   <- tlet $ pelemAt # selfIx # inputs
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
   self      <- tletUnwrap $ hrecField @"resolved" selfIn
   nft       <- tletField @"poolNft" conf
