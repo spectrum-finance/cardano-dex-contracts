@@ -13,7 +13,7 @@ import Plutarch.Prelude
 import Plutarch.DataRepr
 
 newtype OrderRedeemer (s :: S)
-  = DepositRedeemer
+  = OrderRedeemer
       ( Term
           s
           ( PDataRecord
