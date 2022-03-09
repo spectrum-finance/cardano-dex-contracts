@@ -1,6 +1,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module ErgoDex.PContracts.PRedeem where
+module ErgoDex.PContracts.PRedeem
+  ( RedeemConfig(..)
+  , redeemValidatorT
+  ) where
 
 import qualified GHC.Generics as GHC
 import Plutarch
@@ -14,25 +17,10 @@ import Generics.SOP (Generic, I (I))
 import PExtra.Ada
 
 import ErgoDex.PContracts.PApi
+import ErgoDex.PContracts.POrder
 import PExtra.PTriple
 
-newtype PRedeemRedeemer (s :: S) = PSwapRedeemer
-  (
-    Term s (
-      PDataRecord
-      '[ "orderIndex"  ':= PInteger
-       , "poolIndex"   ':= PInteger
-       , "rewardIndex" ':= PInteger
-      ]
-    )
-  )
-  deriving stock (GHC.Generic)
-  deriving anyclass (Generic, PIsDataRepr)
-  deriving
-    (PMatch, PIsData, PDataFields, PlutusType)
-    via (PIsDataReprInstances PRedeemRedeemer)
-
-newtype PRedeemConfig (s :: S) = PSwapConfig
+newtype RedeemConfig (s :: S) = RedeemConfig
   (
     Term s (
       PDataRecord
@@ -49,69 +37,62 @@ newtype PRedeemConfig (s :: S) = PSwapConfig
   deriving anyclass (Generic, PIsDataRepr)
   deriving
     (PMatch, PIsData, PDataFields, PlutusType)
-    via (PIsDataReprInstances PRedeemConfig)
+    via (PIsDataReprInstances RedeemConfig)
 
-pmkRedeemValidator :: Term s (PRedeemConfig :--> PRedeemRedeemer :--> PScriptContext :--> PBool)
-pmkRedeemValidator = plam $ \configT redeemerT cxtT -> unTermCont $ do
+redeemValidatorT :: ClosedTerm (RedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
+redeemValidatorT = plam $ \configT redeemerT cxtT -> unTermCont $ do
   txInfo    <- tletField @"txInfo" cxtT
   rewardPkh <- tletField @"rewardPkh" configT
 
   isTxSignedByRewardKey <- tlet $ hasValidSignatories # txInfo # rewardPkh
 
-  return $ isTxSignedByRewardKey #|| (isValidRedeem # txInfo # rewardPkh # redeemerT # configT)
+  indexes <- tcont $ pletFields @'["orderInIx", "poolInIx", "rewardOutIx"] redeemerT
+  cfg     <- tcont $ pletFields @'["exFee", "poolNft", "poolX", "poolY", "poolLq"] configT
 
-isValidRedeem :: Term s (PTxInfo :--> PPubKeyHash :--> PRedeemRedeemer :--> PRedeemConfig :--> PBool)
-isValidRedeem = plam $ \txInfo rewardPkh redeemerT configT -> unTermCont $ do
-  indexes <- tcont $ pletFields @'["orderIndex", "poolIndex", "rewardIndex"] redeemerT
-  cfg     <- tcont $ pletFields @'["exFee", "poolNft"] configT
+  orderInIx   <- tletUnwrap $ hrecField @"orderInIx" indexes
+  poolInIx    <- tletUnwrap $ hrecField @"poolInIx" indexes
+  rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" indexes
 
-  orderIndex  <- tletUnwrap $ hrecField @"orderIndex" indexes
-  poolIndex   <- tletUnwrap $ hrecField @"poolIndex" indexes
-  rewardIndex <- tletUnwrap $ hrecField @"rewardIndex" indexes
-
-  rewardValue <- tlet $ getRewardValue # txInfo # rewardIndex # rewardPkh
+  rewardValue <- tlet $ getRewardValue # txInfo # rewardOutIx # rewardPkh
 
   inputs     <- tletField @"inputs" txInfo
-  poolValue  <- tlet $ getInputValue # inputs # poolIndex
-  orderValue <- tlet $ getInputValue # inputs # orderIndex
+  poolValue  <- tlet $ getInputValue # inputs # poolInIx
+  orderValue <- tlet $ getInputValue # inputs # orderInIx
 
   poolNft <- tletUnwrap $ hrecField @"poolNft" cfg
 
-  _ <- tlet $ poolCheckNft # poolValue # poolNft
-  _ <- tlet $ validInputsQty # inputs
+  let
+    validPoolNft = checkPoolNft # poolValue # poolNft
+    validInputs  = checkInputsQty # inputs
 
-  return $ isFair # configT # poolValue # rewardValue # orderValue
-
-isFair :: Term s (PRedeemConfig :--> PValue :--> PValue :--> PValue :--> PBool)
-isFair = plam $ \configT poolValue rewardValue orderValue -> unTermCont $ do
-  cfg    <- tcont $ pletFields @'["exFee", "poolX", "poolY", "poolLq"] configT
   poolX  <- tletUnwrap $ hrecField @"poolX" cfg
   poolY  <- tletUnwrap $ hrecField @"poolY" cfg
   poolLq <- tletUnwrap $ hrecField @"poolLq" cfg
 
-  inAda         <- tlet $ pGetLovelace # orderValue
+  let inAda = pGetLovelace # orderValue
   exFee         <- tletUnwrap $ hrecField @"exFee" cfg
   collateralAda <- tlet $ inAda - exFee
 
   outs <- tlet $ calcOut # rewardValue # poolX # poolY # collateralAda
 
-  outX  <- tlet $ pfromData $ pfield @"_0" # outs
-  outY  <- tlet $ pfromData $ pfield @"_1" # outs
-  opAda <- tlet $ pfromData $ pfield @"_2" # outs
-
-  outAda <- tlet $ pGetLovelace # rewardValue
-
-  inLq <- tlet $ assetClassValueOf # orderValue # poolLq 
-
+  inLq       <- tlet $ assetClassValueOf # orderValue # poolLq 
   liquidity  <- tlet $ maxLqCap - assetClassValueOf # poolValue # poolLq
 
-  minReturnX <- tlet $ calcMinReturn # liquidity # inLq # poolValue # poolX
-  minReturnY <- tlet $ calcMinReturn # liquidity # inLq # poolValue # poolY
+  let
+    outAda     = pGetLovelace # rewardValue
+    minReturnX = calcMinReturn # liquidity # inLq # poolValue # poolX
+    minReturnY = calcMinReturn # liquidity # inLq # poolValue # poolY
 
-  fairShare <- tlet $ minReturnX #< outX #&& minReturnY #< outY
-  fairFee   <- tlet $ opAda + collateralAda #< outAda
+    outX  = pfromData $ pfield @"_0" # outs
+    outY  = pfromData $ pfield @"_1" # outs
+    opAda = pfromData $ pfield @"_2" # outs
 
-  return $ fairShare #&& fairFee
+    fairShare  = minReturnX #< outX #&& minReturnY #< outY
+    fairFee    = opAda + collateralAda #< outAda
+
+    validRedeem = validPoolNft #&& validInputs #&& fairShare #&& fairFee
+
+  return $ isTxSignedByRewardKey #|| validRedeem
 
 calcMinReturn :: Term s (PInteger :--> PInteger :--> PValue :--> PAssetClass :--> PInteger)
 calcMinReturn = plam $ \liquidity inLq poolValue ac -> unTermCont $ do
@@ -128,7 +109,7 @@ calcOut = plam $ \rewardValue poolX poolY collateralAda -> unTermCont $ do
 
   ifX    <- tlet $ ptuple3 # pdata outX # pdata ry # pdata outX
   ifY    <- tlet $ ptuple3 # pdata rx # pdata outY # pdata outY
-  ifelse <- tlet $ ptuple3 # pdata rx # pdata ry # pdata 0
+  ifElse <- tlet $ ptuple3 # pdata rx # pdata ry # zeroAsData
 
-  pure $ pif (pIsAda # poolX) ifX (pif (pIsAda # poolY) ifY ifelse)
+  pure $ pif (pIsAda # poolX) ifX (pif (pIsAda # poolY) ifY ifElse)
     

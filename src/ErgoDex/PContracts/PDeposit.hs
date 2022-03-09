@@ -1,7 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module ErgoDex.PContracts.PDeposit where
+module ErgoDex.PContracts.PDeposit
+  ( DepositConfig(..)
+  , depositValidatorT
+  ) where
 
 import qualified GHC.Generics as GHC
 import Generics.SOP (Generic, I (I))
@@ -12,26 +15,22 @@ import Plutarch.DataRepr
 import Plutarch.Api.V1.Contexts
 import PExtra.API
 import PExtra.Ada
-import Plutarch.Api.V1 (
-  PPubKeyHash,
-  PValue,
- )
-import ErgoDex.PContracts.PPool hiding (depositValidator, validDeposit)
-import Plutus.V1.Ledger.Scripts
-import PExtra.Monadic (tlet)
+import Plutarch.Api.V1 (PPubKeyHash, PValue)
+import PExtra.Monadic  (tlet)
 import ErgoDex.PContracts.PApi
+import ErgoDex.PContracts.POrder
 
-newtype PDepositConfig (s :: S) = PDepositConfig
+newtype DepositConfig (s :: S) = DepositConfig
   (
     Term s (
       PDataRecord
-      '[ "poolNft"        ':= PAssetClass
-       , "tokenA"         ':= PAssetClass
-       , "tokenB"         ':= PAssetClass
-       , "tokenLp"        ':= PAssetClass
-       , "exFee"          ':= PInteger
-       , "rewardPkh"      ':= PPubKeyHash
-       , "collateralAda"  ':= PInteger
+      '[ "poolNft"       ':= PAssetClass
+       , "tokenA"        ':= PAssetClass
+       , "tokenB"        ':= PAssetClass
+       , "tokenLp"       ':= PAssetClass
+       , "exFee"         ':= PInteger
+       , "rewardPkh"     ':= PPubKeyHash
+       , "collateralAda" ':= PInteger
        ]
     )
   )
@@ -39,30 +38,10 @@ newtype PDepositConfig (s :: S) = PDepositConfig
   deriving anyclass (Generic, PIsDataRepr)
   deriving
     (PMatch, PIsData, PDataFields, PlutusType)
-    via (PIsDataReprInstances PDepositConfig)
+    via (PIsDataReprInstances DepositConfig)
 
-newtype DepositRedeemer (s :: S)
-  = DepositRedeemer
-      ( Term
-          s
-          ( PDataRecord
-              '[ "poolIndex"       ':= PInteger
-               , "orderIndex"      ':= PInteger
-               , "rewardOutputIdx" ':= PInteger
-               ]
-          )
-      )
-  deriving stock (GHC.Generic)
-  deriving anyclass (Generic, PIsDataRepr)
-  deriving
-    (PMatch, PIsData, PDataFields, PlutusType)
-    via PIsDataReprInstances DepositRedeemer
-
-validator :: Validator
-validator = Validator $ compile depositValidator
-
-depositValidator :: ClosedTerm (PDepositConfig :--> DepositRedeemer :--> PScriptContext :--> PBool)
-depositValidator = plam $ \datumT redeemer contextT -> unTermCont $ do
+depositValidatorT :: ClosedTerm (DepositConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
+depositValidatorT = plam $ \datumT redeemer contextT -> unTermCont $ do
   ctx           <- tcont $ pletFields @'["txInfo", "purpose"] contextT
   datum         <- tcont $ pletFields @'["tokenA", "tokenB", "tokenLp", "poolNft", "exFee", "rewardPkh", "collateralAda"] datumT
   txInfo        <- tletUnwrap $ hrecField @"txInfo" ctx
@@ -88,30 +67,30 @@ isValidDeposit
     :--> PInteger
     :--> PPubKeyHash
     :--> PInteger
-    :--> DepositRedeemer
+    :--> OrderRedeemer
     :--> PBool
   )
 isValidDeposit = plam $ \txInfoT poolNft tokenA tokenB tokenLP exFee rewardPkh collateralAda depositRedeemerT -> unTermCont $ do
   txInfo          <- tcont $ pletFields @'["inputs", "outputs"] txInfoT
-  depositRedeemer <- tcont $ pletFields @'["poolIndex", "rewardOutputIdx", "orderIndex"] depositRedeemerT
-  poolIndex       <- tletUnwrap $ hrecField @"poolIndex" depositRedeemer
-  rewardIndex     <- tletUnwrap $ hrecField @"rewardOutputIdx" depositRedeemer
-  orderIndex      <- tletUnwrap $ hrecField @"orderIndex" depositRedeemer
+  depositRedeemer <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx"] depositRedeemerT
+  poolInIx       <- tletUnwrap $ hrecField @"poolInIx" depositRedeemer
+  rewardIndex     <- tletUnwrap $ hrecField @"rewardOutIx" depositRedeemer
+  orderInIx      <- tletUnwrap $ hrecField @"orderInIx" depositRedeemer
   inputs          <- tletUnwrap $ hrecField @"inputs" txInfo
-  poolValue       <- tlet $ getInputValue # inputs # poolIndex
-  orderValue      <- tlet $ getInputValue # inputs # orderIndex
+  poolValue       <- tlet $ getInputValue # inputs # poolInIx
+  orderValue      <- tlet $ getInputValue # inputs # orderInIx
   rewardValue     <- tlet $ getRewardValue # txInfoT # rewardIndex # rewardPkh
-  _               <- tlet $ poolCheckNft # poolValue # poolNft
   let
     validFee     = isFairFee # rewardValue # collateralAda
-    validInputs  = validInputsQty # inputs
+    validPoolNft = checkPoolNft # poolValue # poolNft
+    validInputs  = checkInputsQty # inputs
     validReward  = isValidReward # orderValue # rewardValue # poolValue # tokenA # tokenB # tokenLP # exFee # collateralAda
-  pure $ validFee #&& validInputs #&& validReward
+  pure $ validPoolNft #&& validInputs #&& validFee #&& validReward
   
 isFairFee :: Term s (PValue :--> PInteger :--> PBool)
 isFairFee = plam $ \rewardValue collateralAda -> unTermCont $ do
   let outputAda = pGetLovelace # rewardValue
-  pure $ (collateralAda #<= outputAda)
+  pure $ collateralAda #<= outputAda
 
 isValidReward
   :: Term s (
@@ -136,13 +115,11 @@ isValidReward = plam $ \selfValue rewardValue poolValue tokenA tokenB tokenLP ex
 minTokenReward :: Term s (PValue :--> PValue :--> PAssetClass :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger)
 minTokenReward = plam $ \selfValue poolValue token liqToken exFee collateralAda -> unTermCont $ do
   inputReserve <- tlet $ assetClassValueOf # selfValue # token
-  inputDeposit <- tlet $ (
-        pif (pIsAda # token)
-        (inputReserve - exFee - collateralAda)
-        inputReserve
-      )
   let
+    inputDeposit = pif (pIsAda # token)
+      (inputReserve - exFee - collateralAda)
+      inputReserve
     poolTokenReserve = assetClassValueOf # poolValue # token
     poolLiqReserve   =  maxLqCap - assetClassValueOf # poolValue # liqToken
     minValue = pdiv # (inputDeposit * poolLiqReserve) # poolTokenReserve
-  pure $ minValue
+  pure minValue

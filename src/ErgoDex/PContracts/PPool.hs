@@ -1,6 +1,15 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module ErgoDex.PContracts.PPool where
+module ErgoDex.PContracts.PPool
+  ( PoolConfig(..)
+  , PoolAction(..)
+  , PoolRedeemer(..)
+  , poolValidatorT
+  , mkSwapValidatorT
+  , mkDepositValidatorT
+  , mkRedeemValidatorT
+  , merklizedPoolValidatorT
+  ) where
 
 import qualified GHC.Generics as GHC
 import Generics.SOP (Generic, I (I))
@@ -130,12 +139,6 @@ poolDiff = plam $ \s0 s1 -> unTermCont $ do
     #$ pdcons @"diffLq" @PInteger # pdata dlq
      # pdnil
 
-feeDen :: Term s PInteger
-feeDen = pconstant 1000
-
-zero :: Term s PInteger
-zero = pconstant 0
-
 readPoolState :: Term s (PoolConfig :--> PTxOut :--> PoolState)
 readPoolState = plam $ \conf' out -> unTermCont $ do
   value  <- tletField @"value" out
@@ -152,9 +155,6 @@ readPoolState = plam $ \conf' out -> unTermCont $ do
     #$ pdcons @"reservesY" @PInteger # y
     #$ pdcons @"liquidity" @PInteger # lq
      # pdnil
-
-pmin :: POrd a => Term s (a :--> a :--> a)
-pmin = phoistAcyclic $ plam $ \a b -> pif (a #<= b) a b
 
 validDeposit :: Term s (PoolState :--> PoolDiff :--> PBool)
 validDeposit = plam $ \state' diff' -> unTermCont $ do
@@ -208,8 +208,8 @@ findPoolOutput =
           in pif (amt #== 1) x (self # xs))
         (const $ ptraceError "Pool output not found")
 
-poolValidator :: Term s (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
-poolValidator = plam $ \conf redeemer' ctx' -> unTermCont $ do
+poolValidatorT :: ClosedTerm (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
+poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   redeemer  <- tcont $ pletFields @'["action", "selfIx"] redeemer'
   selfIx    <- tletUnwrap $ hrecField @"selfIx" redeemer
   ctx       <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
@@ -251,8 +251,8 @@ poolValidator = plam $ \conf redeemer' ctx' -> unTermCont $ do
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
-mkDepositValidator :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
-mkDepositValidator conf = plam $ \poolIx ctx -> unTermCont $ do
+mkDepositValidatorT :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
+mkDepositValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
   txinfo'   <- tletField @"txInfo" ctx
   txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
   inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
@@ -285,8 +285,8 @@ mkDepositValidator conf = plam $ \poolIx ctx -> unTermCont $ do
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
-mkRedeemValidator :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
-mkRedeemValidator conf = plam $ \poolIx ctx -> unTermCont $ do
+mkRedeemValidatorT :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
+mkRedeemValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
   txinfo'   <- tletField @"txInfo" ctx
   txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
   inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
@@ -319,8 +319,8 @@ mkRedeemValidator conf = plam $ \poolIx ctx -> unTermCont $ do
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
-mkSwapValidator :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
-mkSwapValidator conf = plam $ \poolIx ctx -> unTermCont $ do
+mkSwapValidatorT :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
+mkSwapValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
   txinfo'   <- tletField @"txInfo" ctx
   txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
   inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
@@ -353,8 +353,8 @@ mkSwapValidator conf = plam $ \poolIx ctx -> unTermCont $ do
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
-merklizedPoolValidator :: Term s (PBuiltinList PCurrencySymbol :--> PCurrencySymbol :--> PScriptContext :--> PBool)
-merklizedPoolValidator = plam $ \allowedActions actionNft ctx -> unTermCont $ do
+merklizedPoolValidatorT :: ClosedTerm (PBuiltinList PCurrencySymbol :--> PCurrencySymbol :--> PScriptContext :--> PBool)
+merklizedPoolValidatorT = plam $ \allowedActions actionNft ctx -> unTermCont $ do
   txinfo'    <- tletField @"txInfo" ctx
   valueMint' <- tletField @"mint" txinfo'
 
