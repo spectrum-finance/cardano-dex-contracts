@@ -29,14 +29,67 @@ flag defer-plugin-errors
 
 common lang
     default-language:   Haskell2010
+    default-extensions:
+      NoStarIsType
+      BangPatterns
+      BinaryLiterals
+      ConstrainedClassMethods
+      ConstraintKinds
+      DataKinds
+      DeriveAnyClass
+      DeriveDataTypeable
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveLift
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      DoAndIfThenElse
+      EmptyCase
+      EmptyDataDecls
+      EmptyDataDeriving
+      ExistentialQuantification
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      ForeignFunctionInterface
+      GADTSyntax
+      GeneralisedNewtypeDeriving
+      HexFloatLiterals
+      ImplicitPrelude
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      MonomorphismRestriction
+      MultiParamTypeClasses
+      NamedFieldPuns
+      NamedWildCards
+      NumericUnderscores
+      OverloadedStrings
+      PartialTypeSignatures
+      PatternGuards
+      PolyKinds
+      PostfixOperators
+      RankNTypes
+      RelaxedPolyRec
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      StandaloneKindSignatures
+      TraditionalRecordSyntax
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+
     ghc-options:
-      -Wall -Wnoncanonical-monad-instances
-      -Wincomplete-uni-patterns -Wincomplete-record-updates
-      -Wredundant-constraints -Widentities -rtsopts
-      -- See Plutus Tx readme
-      -fobject-code -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
-    if flag(defer-plugin-errors)
-        ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
+      -Wall -Wcompat -Wincomplete-uni-patterns -Wno-unused-do-bind
+      -Wno-partial-type-signatures
+      -Wunused-foralls -fprint-explicit-foralls
+      -fprint-explicit-kinds
 
 library
     import: lang
@@ -46,11 +99,34 @@ library
       ErgoDex.Contracts.OffChain
       ErgoDex.Contracts.Types
       ErgoDex.Contracts.Pool
+      ErgoDex.Contracts.Class
+      ErgoDex.Contracts.Typed
       ErgoDex.Contracts.Proxy.OffChain
       ErgoDex.Contracts.Proxy.Order
       ErgoDex.Contracts.Proxy.Swap
       ErgoDex.Contracts.Proxy.Deposit
       ErgoDex.Contracts.Proxy.Redeem
+      ErgoDex.Contracts.Proxy.Typed.Swap
+      ErgoDex.Contracts.Proxy.Typed.Deposit
+      ErgoDex.Contracts.Proxy.Typed.Redeem
+      ErgoDex.PContracts.PApi
+      ErgoDex.PContracts.POrder
+      ErgoDex.PContracts.PPool
+      ErgoDex.PContracts.PDeposit
+      ErgoDex.PContracts.PData
+      ErgoDex.PContracts.PSwap
+      ErgoDex.PContracts.PRedeem
+      PExtra.Ada
+      PExtra.Num
+      PExtra.Integer
+      PExtra.Pair
+      PExtra.Maybe
+      PExtra.List
+      PExtra.Monadic
+      PExtra.Map
+      PExtra.API
+      PExtra.PTriple
+
     build-depends:
       base >= 4.9 && < 5,
       aeson,
@@ -61,5 +137,11 @@ library
       plutus-contract,
       plutus-tx-plugin,
       plutus-tx,
-      plutus-ledger
+      plutus-ledger,
+      plutus-ledger-api,
+      plutarch==1.1.0,
+      generics-sop==0.5.1.0,
+      text,
+      plutus-core,
+      transformers
     hs-source-dirs: src

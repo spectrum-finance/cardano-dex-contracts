@@ -28,35 +28,35 @@ import qualified PlutusTx
 data ErgoDexDeposit
 instance Scripts.ValidatorTypes ErgoDexDeposit where
     type instance RedeemerType ErgoDexDeposit = PlutusTx.BuiltinData
-    type instance DatumType ErgoDexDeposit = DepositDatum
+    type instance DatumType ErgoDexDeposit = DepositConfig
 
 depositInstance :: Scripts.TypedValidator ErgoDexDeposit
 depositInstance = Scripts.mkTypedValidator @ErgoDexDeposit
     $$(PlutusTx.compile [|| mkDepositValidator ||])
     $$(PlutusTx.compile [|| wrap ||])
   where
-    wrap = Scripts.wrapValidator @DepositDatum
+    wrap = Scripts.wrapValidator @DepositConfig
 
 data ErgoDexSwap
 instance Scripts.ValidatorTypes ErgoDexSwap where
     type instance RedeemerType ErgoDexSwap = PlutusTx.BuiltinData
-    type instance DatumType ErgoDexSwap = SwapDatum
+    type instance DatumType ErgoDexSwap = SwapConfig
 
 swapInstance :: Scripts.TypedValidator ErgoDexSwap
 swapInstance = Scripts.mkTypedValidator @ErgoDexSwap
     $$(PlutusTx.compile [|| mkSwapValidator ||])
     $$(PlutusTx.compile [|| wrap ||])
   where
-    wrap = Scripts.wrapValidator @SwapDatum
+    wrap = Scripts.wrapValidator @SwapConfig
 
 data ErgoDexRedeem
 instance Scripts.ValidatorTypes ErgoDexRedeem where
     type instance RedeemerType ErgoDexRedeem = PlutusTx.BuiltinData
-    type instance DatumType ErgoDexRedeem = RedeemDatum
+    type instance DatumType ErgoDexRedeem = RedeemConfig
 
 redeemInstance :: Scripts.TypedValidator ErgoDexRedeem
 redeemInstance = Scripts.mkTypedValidator @ErgoDexRedeem
     $$(PlutusTx.compile [|| mkRedeemValidator ||])
     $$(PlutusTx.compile [|| wrap ||])
   where
-    wrap = Scripts.wrapValidator @RedeemDatum
+    wrap = Scripts.wrapValidator @RedeemConfig

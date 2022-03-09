@@ -27,23 +27,39 @@
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
-module ErgoDex.Contracts.Proxy.Order where
+module ErgoDex.Contracts.Proxy.Order
+  ( OrderRedeemer(..)
+  , isAda
+  , findOrderInput
+  , findRewardInput
+  ) where
+
+import qualified Prelude as Haskell
 
 import           Ledger
-import           ErgoDex.Contracts.Types
 import           PlutusTx.Prelude
-import           ErgoDex.Plutus   (adaAssetClass)
+import qualified PlutusTx
 
-{-# INLINABLE getOrderInput #-}
-getOrderInput :: ScriptContext -> TxOut
-getOrderInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} =
-  txInInfoResolved $ txInfoInputs !! 1 -- order box is always 2nd input
+import ErgoDex.Plutus (adaAssetClass)
 
-{-# INLINABLE getOrderRewardOutput #-}
-getOrderRewardOutput :: ScriptContext -> TxOut
-getOrderRewardOutput ScriptContext{scriptContextTxInfo=TxInfo{txInfoOutputs}} =
-  txInfoOutputs !! 1 -- order reward box is always 2nd output
+data OrderRedeemer = OrderRedeemer
+  { poolInIx    :: Integer
+  , orderInIx   :: Integer
+  , rewardOutIx :: Integer
+  } deriving stock (Haskell.Show)
+PlutusTx.makeIsDataIndexed ''OrderRedeemer [('OrderRedeemer, 0)]
+PlutusTx.makeLift ''OrderRedeemer
 
 {-# INLINABLE isAda #-}
-isAda :: Coin a -> Bool
-isAda (Coin cls) = cls == adaAssetClass
+isAda :: AssetClass -> Bool
+isAda cls = cls == adaAssetClass
+
+{-# INLINABLE findOrderInput #-}
+findOrderInput :: ScriptContext -> TxOut
+findOrderInput ctx = txInInfoResolved $ fromMaybe (error ()) (findOwnInput ctx)
+
+{-# INLINABLE findRewardInput #-}
+findRewardInput :: ScriptContext -> PubKeyHash -> TxOut
+findRewardInput ScriptContext{scriptContextTxInfo=TxInfo{txInfoInputs}} pkh =
+  txInInfoResolved $ fromMaybe (error ()) (find isReward txInfoInputs)
+    where isReward TxInInfo{txInInfoResolved} = maybe False (== pkh) (pubKeyOutput txInInfoResolved)
