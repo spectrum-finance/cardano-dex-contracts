@@ -110,6 +110,7 @@ library
       ErgoDex.Contracts.Proxy.Typed.Deposit
       ErgoDex.Contracts.Proxy.Typed.Redeem
       ErgoDex.PContracts.PApi
+      ErgoDex.PContracts.POrder
       ErgoDex.PContracts.PPool
       ErgoDex.PContracts.PDeposit
       ErgoDex.PContracts.PData

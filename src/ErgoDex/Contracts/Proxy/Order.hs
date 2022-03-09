@@ -27,11 +27,28 @@
 {-# OPTIONS_GHC -fno-specialise #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
-module ErgoDex.Contracts.Proxy.Order where
+module ErgoDex.Contracts.Proxy.Order
+  ( OrderRedeemer(..)
+  , isAda
+  , findOrderInput
+  , findRewardInput
+  ) where
 
-import Ledger
-import PlutusTx.Prelude
-import ErgoDex.Plutus   (adaAssetClass)
+import qualified Prelude as Haskell
+
+import           Ledger
+import           PlutusTx.Prelude
+import qualified PlutusTx
+
+import ErgoDex.Plutus (adaAssetClass)
+
+data OrderRedeemer = OrderRedeemer
+  { poolInIx    :: Integer
+  , orderInIx   :: Integer
+  , rewardOutIx :: Integer
+  } deriving stock (Haskell.Show)
+PlutusTx.makeIsDataIndexed ''OrderRedeemer [('OrderRedeemer, 0)]
+PlutusTx.makeLift ''OrderRedeemer
 
 {-# INLINABLE isAda #-}
 isAda :: AssetClass -> Bool

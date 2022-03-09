@@ -30,13 +30,13 @@
 
 module ErgoDex.Contracts.Proxy.Swap where
 
-import qualified Prelude                          as Haskell
+import qualified Prelude as Haskell
 
 import           Ledger
-import           Ledger.Value                    (assetClassValueOf)
-import qualified Ledger.Ada                       as Ada
+import           Ledger.Value                  (assetClassValueOf)
+import qualified Ledger.Ada                    as Ada
 import           ErgoDex.Contracts.Proxy.Order
-import           ErgoDex.Contracts.Pool           (getPoolInput)
+import           ErgoDex.Contracts.Pool        (getPoolInput)
 import qualified PlutusTx
 import           PlutusTx.Prelude
 

@@ -1,6 +1,15 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module ErgoDex.PContracts.PPool where
+module ErgoDex.PContracts.PPool
+  ( PoolConfig(..)
+  , PoolAction(..)
+  , PoolRedeemer(..)
+  , poolValidator
+  , mkSwapValidator
+  , mkDepositValidator
+  , mkRedeemValidator
+  , merklizedPoolValidator
+  ) where
 
 import qualified GHC.Generics as GHC
 import Generics.SOP (Generic, I (I))
@@ -130,12 +139,6 @@ poolDiff = plam $ \s0 s1 -> unTermCont $ do
     #$ pdcons @"diffLq" @PInteger # pdata dlq
      # pdnil
 
-feeDen :: Term s PInteger
-feeDen = pconstant 1000
-
-zero :: Term s PInteger
-zero = pconstant 0
-
 readPoolState :: Term s (PoolConfig :--> PTxOut :--> PoolState)
 readPoolState = plam $ \conf' out -> unTermCont $ do
   value  <- tletField @"value" out
@@ -152,9 +155,6 @@ readPoolState = plam $ \conf' out -> unTermCont $ do
     #$ pdcons @"reservesY" @PInteger # y
     #$ pdcons @"liquidity" @PInteger # lq
      # pdnil
-
-pmin :: POrd a => Term s (a :--> a :--> a)
-pmin = phoistAcyclic $ plam $ \a b -> pif (a #<= b) a b
 
 validDeposit :: Term s (PoolState :--> PoolDiff :--> PBool)
 validDeposit = plam $ \state' diff' -> unTermCont $ do
