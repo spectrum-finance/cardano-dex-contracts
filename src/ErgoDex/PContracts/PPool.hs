@@ -208,7 +208,7 @@ findPoolOutput =
           in pif (amt #== 1) x (self # xs))
         (const $ ptraceError "Pool output not found")
 
-poolValidatorT :: Term s (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
+poolValidatorT :: ClosedTerm (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
 poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   redeemer  <- tcont $ pletFields @'["action", "selfIx"] redeemer'
   selfIx    <- tletUnwrap $ hrecField @"selfIx" redeemer
@@ -353,7 +353,7 @@ mkSwapValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
-merklizedPoolValidatorT :: Term s (PBuiltinList PCurrencySymbol :--> PCurrencySymbol :--> PScriptContext :--> PBool)
+merklizedPoolValidatorT :: ClosedTerm (PBuiltinList PCurrencySymbol :--> PCurrencySymbol :--> PScriptContext :--> PBool)
 merklizedPoolValidatorT = plam $ \allowedActions actionNft ctx -> unTermCont $ do
   txinfo'    <- tletField @"txInfo" ctx
   valueMint' <- tletField @"mint" txinfo'

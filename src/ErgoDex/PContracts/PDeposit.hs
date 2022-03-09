@@ -24,13 +24,13 @@ newtype DepositConfig (s :: S) = DepositConfig
   (
     Term s (
       PDataRecord
-      '[ "poolNft"        ':= PAssetClass
-       , "tokenA"         ':= PAssetClass
-       , "tokenB"         ':= PAssetClass
-       , "tokenLp"        ':= PAssetClass
-       , "exFee"          ':= PInteger
-       , "rewardPkh"      ':= PPubKeyHash
-       , "collateralAda"  ':= PInteger
+      '[ "poolNft"       ':= PAssetClass
+       , "tokenA"        ':= PAssetClass
+       , "tokenB"        ':= PAssetClass
+       , "tokenLp"       ':= PAssetClass
+       , "exFee"         ':= PInteger
+       , "rewardPkh"     ':= PPubKeyHash
+       , "collateralAda" ':= PInteger
        ]
     )
   )

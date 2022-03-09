@@ -39,7 +39,7 @@ newtype RedeemConfig (s :: S) = RedeemConfig
     (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances RedeemConfig)
 
-redeemValidatorT :: Term s (RedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
+redeemValidatorT :: ClosedTerm (RedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 redeemValidatorT = plam $ \configT redeemerT cxtT -> unTermCont $ do
   txInfo    <- tletField @"txInfo" cxtT
   rewardPkh <- tletField @"rewardPkh" configT
