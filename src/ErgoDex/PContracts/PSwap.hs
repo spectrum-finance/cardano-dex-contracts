@@ -2,7 +2,7 @@
 
 module ErgoDex.PContracts.PSwap
   ( SwapConfig(..)
-  , swapValidator
+  , swapValidatorT
   ) where
 
 import qualified GHC.Generics as GHC
@@ -41,8 +41,8 @@ newtype SwapConfig (s :: S) = SwapConfig
     (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances SwapConfig)
 
-swapValidator :: Term s (SwapConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
-swapValidator = plam $ \configT redeemerT cxtT -> unTermCont $ do
+swapValidatorT :: Term s (SwapConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
+swapValidatorT = plam $ \configT redeemerT cxtT -> unTermCont $ do
   txInfo    <- tletField @"txInfo" cxtT
   rewardPkh <- tletField @"rewardPkh" configT
 

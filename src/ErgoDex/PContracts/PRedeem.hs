@@ -1,6 +1,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module ErgoDex.PContracts.PRedeem where
+module ErgoDex.PContracts.PRedeem
+  ( RedeemConfig(..)
+  , redeemValidatorT
+  ) where
 
 import qualified GHC.Generics as GHC
 import Plutarch
@@ -17,7 +20,7 @@ import ErgoDex.PContracts.PApi
 import ErgoDex.PContracts.POrder
 import PExtra.PTriple
 
-newtype PRedeemConfig (s :: S) = PSwapConfig
+newtype RedeemConfig (s :: S) = RedeemConfig
   (
     Term s (
       PDataRecord
@@ -34,10 +37,10 @@ newtype PRedeemConfig (s :: S) = PSwapConfig
   deriving anyclass (Generic, PIsDataRepr)
   deriving
     (PMatch, PIsData, PDataFields, PlutusType)
-    via (PIsDataReprInstances PRedeemConfig)
+    via (PIsDataReprInstances RedeemConfig)
 
-pmkRedeemValidator :: Term s (PRedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
-pmkRedeemValidator = plam $ \configT redeemerT cxtT -> unTermCont $ do
+redeemValidatorT :: Term s (RedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
+redeemValidatorT = plam $ \configT redeemerT cxtT -> unTermCont $ do
   txInfo    <- tletField @"txInfo" cxtT
   rewardPkh <- tletField @"rewardPkh" configT
 

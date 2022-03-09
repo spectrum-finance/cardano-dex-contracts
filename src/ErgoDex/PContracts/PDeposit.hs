@@ -1,7 +1,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module ErgoDex.PContracts.PDeposit where
+module ErgoDex.PContracts.PDeposit
+  ( DepositConfig(..)
+  , depositValidatorT
+  ) where
 
 import qualified GHC.Generics as GHC
 import Generics.SOP (Generic, I (I))
@@ -12,12 +15,8 @@ import Plutarch.DataRepr
 import Plutarch.Api.V1.Contexts
 import PExtra.API
 import PExtra.Ada
-import Plutarch.Api.V1 (
-  PPubKeyHash,
-  PValue,
- )
-import Plutus.V1.Ledger.Scripts
-import PExtra.Monadic (tlet)
+import Plutarch.Api.V1 (PPubKeyHash, PValue)
+import PExtra.Monadic  (tlet)
 import ErgoDex.PContracts.PApi
 import ErgoDex.PContracts.POrder
 
@@ -41,11 +40,8 @@ newtype DepositConfig (s :: S) = DepositConfig
     (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances DepositConfig)
 
-validator :: Validator
-validator = Validator $ compile depositValidator
-
-depositValidator :: ClosedTerm (DepositConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
-depositValidator = plam $ \datumT redeemer contextT -> unTermCont $ do
+depositValidatorT :: ClosedTerm (DepositConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
+depositValidatorT = plam $ \datumT redeemer contextT -> unTermCont $ do
   ctx           <- tcont $ pletFields @'["txInfo", "purpose"] contextT
   datum         <- tcont $ pletFields @'["tokenA", "tokenB", "tokenLp", "poolNft", "exFee", "rewardPkh", "collateralAda"] datumT
   txInfo        <- tletUnwrap $ hrecField @"txInfo" ctx
