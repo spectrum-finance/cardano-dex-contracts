@@ -9,6 +9,9 @@ import           ErgoDex.Contracts.Types
 
 data DepositConfig = DepositConfig
    { poolNft       :: Coin Nft
+   , tokenA        :: Coin X
+   , tokenB        :: Coin Y
+   , tokenLp       :: Coin Liquidity
    , exFee         :: Amount Lovelace
    , rewardPkh     :: PubKeyHash
    , collateralAda :: Amount Lovelace
@@ -17,6 +20,9 @@ data DepositConfig = DepositConfig
 instance UnliftErased DepositConfig D.DepositConfig where
   lift DepositConfig{..} = D.DepositConfig
     { poolNft       = unCoin poolNft
+    , tokenA        = unCoin tokenA
+    , tokenB        = unCoin tokenB
+    , tokenLp       = unCoin tokenLp
     , exFee         = unAmount exFee
     , rewardPkh     = rewardPkh
     , collateralAda = unAmount collateralAda
@@ -24,6 +30,9 @@ instance UnliftErased DepositConfig D.DepositConfig where
 
   unlift D.DepositConfig{..} = DepositConfig
     { poolNft       = Coin poolNft
+    , tokenA        = Coin tokenA
+    , tokenB        = Coin tokenB
+    , tokenLp       = Coin tokenLp
     , exFee         = Amount exFee
     , rewardPkh     = rewardPkh
     , collateralAda = Amount collateralAda
