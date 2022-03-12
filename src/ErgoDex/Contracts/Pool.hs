@@ -50,7 +50,6 @@ import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
 import           PlutusTx.Builtins
-import qualified PlutusCore.Data   as PLC
 
 -- Unwrapped representation of PoolConfig
 data PoolConfig = PoolConfig
