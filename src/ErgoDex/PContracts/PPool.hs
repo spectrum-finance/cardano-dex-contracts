@@ -122,7 +122,7 @@ newtype PoolDiff (s :: S) = PoolDiff
     via PIsDataReprInstances PoolDiff
 
 readPoolState :: Term s (PoolConfig :--> PTxOut :--> PoolState)
-readPoolState = plam $ \conf' out -> unTermCont $ do
+readPoolState = phoistAcyclic $ plam $ \conf' out -> unTermCont $ do
   value  <- tletField @"value" out
   poolX  <- tletField @"poolX" conf'
   poolY  <- tletField @"poolY" conf'
@@ -139,7 +139,7 @@ readPoolState = plam $ \conf' out -> unTermCont $ do
      # pdnil
 
 validDeposit :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
-validDeposit = plam $ \state' dx dy dlq -> unTermCont $ do
+validDeposit = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
   state <- tcont $ pletFields @'["reservesX", "reservesY", "liquidity"] state'
   rx    <- tletUnwrap $ hrecField @"reservesX" state
   ry    <- tletUnwrap $ hrecField @"reservesY" state
@@ -148,7 +148,7 @@ validDeposit = plam $ \state' dx dy dlq -> unTermCont $ do
   pure $ dlq #<= liquidityUnlocked
 
 validRedeem :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
-validRedeem = plam $ \state' dx dy dlq -> unTermCont $ do
+validRedeem = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
   state <- tcont $ pletFields @'["reservesX", "reservesY", "liquidity"] state'
   rx    <- tletUnwrap $ hrecField @"reservesX" state
   ry    <- tletUnwrap $ hrecField @"reservesY" state
@@ -156,7 +156,7 @@ validRedeem = plam $ \state' dx dy dlq -> unTermCont $ do
   pure $ lq * rx #<= dx * lq #&& dlq * ry #<= dy * lq
 
 validSwap :: Term s (PoolConfig :--> PoolState :--> PInteger :--> PInteger :--> PBool)
-validSwap = plam $ \conf state' dx dy -> unTermCont $ do
+validSwap = phoistAcyclic $ plam $ \conf state' dx dy -> unTermCont $ do
   state   <- tcont $ pletFields @'["reservesX", "reservesY"] state'
   rx      <- tletUnwrap $ hrecField @"reservesX" state
   ry      <- tletUnwrap $ hrecField @"reservesY" state
