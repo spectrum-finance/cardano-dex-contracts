@@ -40,12 +40,12 @@ pmin :: POrd a => Term s (a :--> a :--> a)
 pmin = phoistAcyclic $ plam $ \a b -> pif (a #<= b) a b
 
 hasValidSignatories :: Term s (PTxInfo :--> PPubKeyHash :--> PBool)
-hasValidSignatories = plam $ \txInfo userPubKeyHash -> unTermCont $ do
+hasValidSignatories = phoistAcyclic $ plam $ \txInfo userPubKeyHash -> unTermCont $ do
   let signatories = pfield @"signatories" # txInfo
   pure (pelem # pdata userPubKeyHash # signatories)
 
 getRewardValue :: Term s (PTxInfo :--> PInteger :--> PPubKeyHash :--> PValue)
-getRewardValue = plam $ \txInfo idx pubkeyHash -> unTermCont $ do
+getRewardValue = phoistAcyclic $ plam $ \txInfo idx pubkeyHash -> unTermCont $ do
   outputs      <- tletUnwrap $ pfield @"outputs" # txInfo
   let output   = pelemAt # idx # outputs
   adr          <- tletUnwrap $ pfield @"address" # output
@@ -60,25 +60,25 @@ getRewardValue = plam $ \txInfo idx pubkeyHash -> unTermCont $ do
         _ -> ptraceError "Invalid reward proposition"
 
 getInputValue :: Term s (PBuiltinList (PAsData PTxInInfo) :--> PInteger :--> PValue)
-getInputValue = plam $ \inputs index -> unTermCont $ do
+getInputValue = phoistAcyclic $ plam $ \inputs index -> unTermCont $ do
   possiblePoolInput <- tletUnwrap (pelemAt # index # inputs)
   output            <- tletUnwrap $ pfield @"resolved" # possiblePoolInput
   pure $ pfield @"value" # output
 
 checkPoolNft :: Term s (PValue :--> PAssetClass :--> PBool)
-checkPoolNft = plam $ \value poolNft ->
+checkPoolNft = phoistAcyclic $ plam $ \value poolNft ->
   let nftQty = assetClassValueOf # value # poolNft
   in pif (nftQty #== 1)
     (pcon PTrue)
     (ptraceError "Invalid pool")
 
 checkInputsQty :: Term s (PBuiltinList (PAsData PTxInInfo) :--> PBool)
-checkInputsQty = plam $ \inputs ->
+checkInputsQty = phoistAcyclic $ plam $ \inputs ->
   let inputsLength = plength # inputs
   in inputsLength #== 2
 
 getPoolDatum :: Term s (PInteger :--> PTxInfo :--> PDatum)
-getPoolDatum = plam $ \index txInfo -> unTermCont $ do
+getPoolDatum = phoistAcyclic $ plam $ \index txInfo -> unTermCont $ do
   datums     <- tletUnwrap $ pfield @"data" # txInfo
   maybeTuple <- tlet $ pfromData (pelemAt # index # datums)
   tletUnwrap $ pfield @"_1" # maybeTuple

@@ -121,26 +121,8 @@ newtype PoolDiff (s :: S) = PoolDiff
     (PlutusType, PIsData, PDataFields)
     via PIsDataReprInstances PoolDiff
 
-poolDiff :: Term s (PoolState :--> PoolState :--> PoolDiff)
-poolDiff = plam $ \s0 s1 -> unTermCont $ do
-  rx0 <- tletField @"reservesX" s0
-  rx1 <- tletField @"reservesX" s1
-  ry0 <- tletField @"reservesY" s0
-  ry1 <- tletField @"reservesY" s1
-  lq0 <- tletField @"liquidity" s0
-  lq1 <- tletField @"liquidity" s1
-  let
-    dx  = rx1 - rx0
-    dy  = ry1 - ry0
-    dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
-  tcon $ PoolDiff
-     $ pdcons @"diffX" @PInteger # pdata dx
-    #$ pdcons @"diffY" @PInteger # pdata dy
-    #$ pdcons @"diffLq" @PInteger # pdata dlq
-     # pdnil
-
 readPoolState :: Term s (PoolConfig :--> PTxOut :--> PoolState)
-readPoolState = plam $ \conf' out -> unTermCont $ do
+readPoolState = phoistAcyclic $ plam $ \conf' out -> unTermCont $ do
   value  <- tletField @"value" out
   poolX  <- tletField @"poolX" conf'
   poolY  <- tletField @"poolY" conf'
@@ -156,39 +138,28 @@ readPoolState = plam $ \conf' out -> unTermCont $ do
     #$ pdcons @"liquidity" @PInteger # lq
      # pdnil
 
-validDeposit :: Term s (PoolState :--> PoolDiff :--> PBool)
-validDeposit = plam $ \state' diff' -> unTermCont $ do
+validDeposit :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
+validDeposit = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
   state <- tcont $ pletFields @'["reservesX", "reservesY", "liquidity"] state'
   rx    <- tletUnwrap $ hrecField @"reservesX" state
   ry    <- tletUnwrap $ hrecField @"reservesY" state
   lq    <- tletUnwrap $ hrecField @"liquidity" state
-  diff  <- tcont $ pletFields @'["diffX", "diffY", "diffLq"] diff'
-  dx    <- tletUnwrap $ hrecField @"diffX" diff
-  dy    <- tletUnwrap $ hrecField @"diffY" diff
-  dlq   <- tletUnwrap $ hrecField @"diffLq" diff
   let liquidityUnlocked = pmin # (pdiv # (dx * lq) # rx) # (pdiv # (dy * lq) # ry) -- todo: this allows deposit shrinking attack
   pure $ dlq #<= liquidityUnlocked
 
-validRedeem :: Term s (PoolState :--> PoolDiff :--> PBool)
-validRedeem = plam $ \state' diff' -> unTermCont $ do
+validRedeem :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
+validRedeem = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
   state <- tcont $ pletFields @'["reservesX", "reservesY", "liquidity"] state'
   rx    <- tletUnwrap $ hrecField @"reservesX" state
   ry    <- tletUnwrap $ hrecField @"reservesY" state
   lq    <- tletUnwrap $ hrecField @"liquidity" state
-  diff  <- tcont $ pletFields @'["diffX", "diffY", "diffLq"] diff'
-  dx    <- tletUnwrap $ hrecField @"diffX" diff
-  dy    <- tletUnwrap $ hrecField @"diffY" diff
-  dlq   <- tletUnwrap $ hrecField @"diffLq" diff
   pure $ lq * rx #<= dx * lq #&& dlq * ry #<= dy * lq
 
-validSwap :: Term s (PoolConfig :--> PoolState :--> PoolDiff :--> PBool)
-validSwap = plam $ \conf state' diff' -> unTermCont $ do
+validSwap :: Term s (PoolConfig :--> PoolState :--> PInteger :--> PInteger :--> PBool)
+validSwap = phoistAcyclic $ plam $ \conf state' dx dy -> unTermCont $ do
   state   <- tcont $ pletFields @'["reservesX", "reservesY"] state'
   rx      <- tletUnwrap $ hrecField @"reservesX" state
   ry      <- tletUnwrap $ hrecField @"reservesY" state
-  diff    <- tcont $ pletFields @'["diffX", "diffY", "diffLq"] diff'
-  dx      <- tletUnwrap $ hrecField @"diffX" diff
-  dy      <- tletUnwrap $ hrecField @"diffY" diff
   feeNum  <- tletField @"feeNum" conf
   feeDen' <- tlet feeDen
   pure $ pif (zero #< dx)
@@ -237,7 +208,16 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
 
   s0   <- tlet $ readPoolState # conf # self
   s1   <- tlet $ readPoolState # conf # successor
-  diff <- tlet $ poolDiff # s0 # s1
+  rx0  <- tletField @"reservesX" s0
+  rx1  <- tletField @"reservesX" s1
+  ry0  <- tletField @"reservesY" s0
+  ry1  <- tletField @"reservesY" s1
+  lq0  <- tletField @"liquidity" s0
+  lq1  <- tletField @"liquidity" s1
+  let
+    dx  = rx1 - rx0
+    dy  = ry1 - ry0
+    dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
 
   selfAddr <- tletField @"address" self
   succAddr <- tletField @"address" successor
@@ -245,9 +225,9 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
 
   action      <- tletUnwrap $ hrecField @"action" redeemer
   validAction <- tlet $ pmatch action $ \case
-    Deposit -> validDeposit # s0 # diff
-    Redeem  -> validRedeem # s0 # diff
-    Swap    -> validSwap # conf # s0 # diff
+    Deposit -> validDeposit # s0 # dx # dy # dlq
+    Redeem  -> validRedeem # s0 # dx # dy # dlq
+    Swap    -> validSwap # conf # s0 # dx # dy
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
@@ -275,13 +255,22 @@ mkDepositValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
 
   s0   <- tlet $ readPoolState # conf # self
   s1   <- tlet $ readPoolState # conf # successor
-  diff <- tlet $ poolDiff # s0 # s1
+  rx0  <- tletField @"reservesX" s0
+  rx1  <- tletField @"reservesX" s1
+  ry0  <- tletField @"reservesY" s0
+  ry1  <- tletField @"reservesY" s1
+  lq0  <- tletField @"liquidity" s0
+  lq1  <- tletField @"liquidity" s1
+  let
+    dx  = rx1 - rx0
+    dy  = ry1 - ry0
+    dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
 
   selfAddr <- tletField @"address" self
   succAddr <- tletField @"address" successor
   let scriptPreserved = succAddr #== selfAddr
 
-  let validAction = validDeposit # s0 # diff
+  let validAction = validDeposit # s0 # dx # dy # dlq
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
@@ -309,13 +298,22 @@ mkRedeemValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
 
   s0   <- tlet $ readPoolState # conf # self
   s1   <- tlet $ readPoolState # conf # successor
-  diff <- tlet $ poolDiff # s0 # s1
+  rx0  <- tletField @"reservesX" s0
+  rx1  <- tletField @"reservesX" s1
+  ry0  <- tletField @"reservesY" s0
+  ry1  <- tletField @"reservesY" s1
+  lq0  <- tletField @"liquidity" s0
+  lq1  <- tletField @"liquidity" s1
+  let
+    dx  = rx1 - rx0
+    dy  = ry1 - ry0
+    dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
 
   selfAddr <- tletField @"address" self
   succAddr <- tletField @"address" successor
   let scriptPreserved = succAddr #== selfAddr
 
-  let validAction = validRedeem # s0 # diff
+  let validAction = validRedeem # s0 # dx # dy # dlq
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
@@ -343,13 +341,19 @@ mkSwapValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
 
   s0   <- tlet $ readPoolState # conf # self
   s1   <- tlet $ readPoolState # conf # successor
-  diff <- tlet $ poolDiff # s0 # s1
+  rx0  <- tletField @"reservesX" s0
+  rx1  <- tletField @"reservesX" s1
+  ry0  <- tletField @"reservesY" s0
+  ry1  <- tletField @"reservesY" s1
+  let
+    dx = rx1 - rx0
+    dy = ry1 - ry0
 
   selfAddr <- tletField @"address" self
   succAddr <- tletField @"address" successor
   let scriptPreserved = succAddr #== selfAddr
 
-  let validAction = validSwap # conf # s0 # diff
+  let validAction = validSwap # conf # s0 # dx # dy
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
