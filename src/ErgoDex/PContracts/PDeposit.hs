@@ -20,9 +20,11 @@ import PExtra.Ada
 import Plutarch.Api.V1 (PPubKeyHash, PValue)
 import PExtra.Monadic  (tlet, tmatch, tletField)
 import PExtra.List     (pelemAt)
+import Plutarch.Lift
 
 import ErgoDex.PContracts.PApi   (getRewardValue', maxLqCap, pmin, tletUnwrap, containsSignature)
 import ErgoDex.PContracts.POrder (OrderRedeemer, OrderAction(Refund, Apply))
+import qualified ErgoDex.Contracts.Proxy.Deposit as D
 
 import qualified ErgoDex.Contracts.Proxy.Deposit as D
 
@@ -126,6 +128,11 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       in minReward #<= actualReward
 
   action <- tletUnwrap $ hrecField @"action" redeemer
+  _ <- tlet $ ptraceIfFalse "poolIdentity" poolIdentity
+  _ <- tlet $ ptraceIfFalse "selfIdentity" selfIdentity
+  _ <- tlet $ ptraceIfFalse "strictInputs" strictInputs
+  _ <- tlet $ ptraceIfFalse "validChange" validChange
+  _ <- tlet $ ptraceIfFalse "validReward" validReward
   pure $ pmatch action $ \case
     Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& validChange #&& validReward
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
