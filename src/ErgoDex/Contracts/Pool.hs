@@ -49,6 +49,7 @@ import           ErgoDex.Contracts.Types
 import qualified PlutusTx
 import           PlutusTx.Prelude
 import           PlutusTx.IsData.Class
+import           PlutusTx.Builtins
 
 -- Unwrapped representation of PoolConfig
 data PoolConfig = PoolConfig
@@ -63,11 +64,28 @@ PlutusTx.makeLift ''PoolConfig
 
 data PoolAction = Deposit | Redeem | Swap
   deriving Haskell.Show
-PlutusTx.makeIsDataIndexed ''PoolAction [ ('Deposit, 0)
-                                        , ('Redeem, 1)
-                                        , ('Swap, 2)
-                                        ]
 PlutusTx.makeLift ''PoolAction
+
+instance FromData PoolAction where
+  {-# INLINE fromBuiltinData #-}
+  fromBuiltinData d = matchData' d (\_ _ -> Nothing) (const Nothing) (const Nothing) chooseAction (const Nothing)
+    where
+      chooseAction i
+        | i == 0    = Just Deposit
+        | i == 1    = Just Redeem
+        | i == 2    = Just Swap
+        | otherwise = Nothing
+
+instance UnsafeFromData PoolAction where
+  {-# INLINE unsafeFromBuiltinData #-}
+  unsafeFromBuiltinData = maybe (error ()) id . fromBuiltinData
+
+instance ToData PoolAction where
+  {-# INLINE toBuiltinData #-}
+  toBuiltinData a = mkI $ case a of
+    Deposit -> 0
+    Redeem  -> 1
+    Swap    -> 2
 
 data PoolRedeemer = PoolRedeemer
   { action :: PoolAction
