@@ -41,6 +41,9 @@ import           PlutusTx.Prelude
 
 data DepositConfig = DepositConfig
    { poolNft       :: AssetClass
+   , tokenA        :: AssetClass
+   , tokenB        :: AssetClass
+   , tokenLp       :: AssetClass
    , exFee         :: Integer
    , rewardPkh     :: PubKeyHash
    , collateralAda :: Integer

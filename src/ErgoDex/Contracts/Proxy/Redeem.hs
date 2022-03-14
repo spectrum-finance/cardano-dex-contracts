@@ -41,6 +41,9 @@ import           PlutusTx.Prelude
 
 data RedeemConfig = RedeemConfig
    { poolNft   :: AssetClass
+   , poolX     :: AssetClass
+   , poolY     :: AssetClass
+   , poolLp    :: AssetClass
    , exFee     :: Integer
    , rewardPkh :: PubKeyHash
    } deriving stock (Haskell.Show)
