@@ -30,8 +30,18 @@
 module ErgoDex.Plutus where
 
 import qualified Ledger.Ada   as Ada
-import           Ledger.Value (AssetClass, assetClass)
+import           Ledger.Value (assetClass)
+import           Ledger
+import           PlutusTx.Prelude
 
 {-# INLINABLE adaAssetClass #-}
 adaAssetClass :: AssetClass
 adaAssetClass = assetClass Ada.adaSymbol Ada.adaToken
+
+{-# INLINABLE valueWithin #-}
+valueWithin :: TxInInfo -> Value
+valueWithin = txOutValue . txInInfoResolved
+
+{-# INLINABLE inputsNum #-}
+inputsNum :: ScriptContext -> Integer
+inputsNum sCtx = length $ txInfoInputs $ scriptContextTxInfo sCtx

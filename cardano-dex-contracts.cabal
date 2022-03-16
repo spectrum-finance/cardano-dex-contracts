@@ -94,7 +94,6 @@ common lang
 library
     import: lang
     exposed-modules:
-      Utils
       ErgoDex.Plutus
       ErgoDex.Contracts.OffChain
       ErgoDex.Contracts.Types
@@ -116,6 +115,7 @@ library
       ErgoDex.PContracts.PData
       ErgoDex.PContracts.PSwap
       ErgoDex.PContracts.PRedeem
+      ErgoDex.PValidators
       PExtra.Ada
       PExtra.Num
       PExtra.Integer
