@@ -4,6 +4,7 @@ module ErgoDex.PValidators
   , depositValidator
   , redeemValidator
   , validatorAddress
+  , wrapValidator
   ) where
 
 import Plutus.V1.Ledger.Api (Validator, Address)
