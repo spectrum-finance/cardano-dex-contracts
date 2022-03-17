@@ -110,7 +110,7 @@ isValidReward = plam $ \selfValue rewardValue poolValue tokenA tokenB tokenLP ex
     minTokenBReward = minTokenReward # selfValue # poolValue # tokenB # tokenLP # exFee # collateralAda
     minValue        = pmin # minTokenAReward # minTokenBReward
     lpInReward      = assetClassValueOf # rewardValue # tokenLP
-  pure $ pnot # (lpInReward #< minValue)
+  pure $ pnot # (lpInReward #<= minValue)
 
 minTokenReward :: Term s (PValue :--> PValue :--> PAssetClass :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger)
 minTokenReward = plam $ \selfValue poolValue token liqToken exFee collateralAda -> unTermCont $ do
