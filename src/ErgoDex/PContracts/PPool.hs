@@ -184,9 +184,10 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   redeemer  <- tcont $ pletFields @'["action", "selfIx"] redeemer'
   selfIx    <- tletUnwrap $ hrecField @"selfIx" redeemer
   ctx       <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-  txinfo    <- tletUnwrap $ hrecField @"txInfo" ctx
-  inputs    <- tletField @"inputs" txinfo
-  outputs   <- tletField @"outputs" txinfo
+  txinfo'   <- tletUnwrap $ hrecField @"txInfo" ctx
+  txInfo    <- tcont $ pletFields @'["inputs", "outputs"] txinfo'
+  inputs    <- tletUnwrap $ hrecField @"inputs" txInfo
+  outputs   <- tletUnwrap $ hrecField @"outputs" txInfo
   selfIn'   <- tlet $ pelemAt # selfIx # inputs
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
   self      <- tletUnwrap $ hrecField @"resolved" selfIn
