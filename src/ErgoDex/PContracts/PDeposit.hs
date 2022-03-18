@@ -44,13 +44,13 @@ newtype DepositConfig (s :: S) = DepositConfig
     via (PIsDataReprInstances DepositConfig)
 
 depositValidatorT :: ClosedTerm (DepositConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
-depositValidatorT = plam $ \datum' redeemer' ctx' -> unTermCont $ do
-  ctx       <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-  datum     <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "collateralAda"] datum'
-  txInfo'   <- tletUnwrap $ hrecField @"txInfo" ctx
-  txInfo    <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
-  inputs    <- tletUnwrap $ hrecField @"inputs" txInfo
-  outputs   <- tletUnwrap $ hrecField @"outputs" txInfo
+depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
+  ctx     <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
+  conf    <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "collateralAda"] conf'
+  txInfo' <- tletUnwrap $ hrecField @"txInfo" ctx
+  txInfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
+  inputs  <- tletUnwrap $ hrecField @"inputs" txInfo
+  outputs <- tletUnwrap $ hrecField @"outputs" txInfo
 
   redeemer    <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx"] redeemer'
   poolInIx    <- tletUnwrap $ hrecField @"poolInIx" redeemer
@@ -58,7 +58,7 @@ depositValidatorT = plam $ \datum' redeemer' ctx' -> unTermCont $ do
   rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" redeemer
 
   rewardOut   <- tlet $ pelemAt # rewardOutIx # outputs
-  rewardPkh   <- tletUnwrap $ hrecField @"rewardPkh" datum
+  rewardPkh   <- tletUnwrap $ hrecField @"rewardPkh" conf
   rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh
 
   poolIn'   <- tlet $ pelemAt # poolInIx # inputs
@@ -69,7 +69,7 @@ depositValidatorT = plam $ \datum' redeemer' ctx' -> unTermCont $ do
   let
     poolIdentity =
       let
-        requiredNft = pfromData $ hrecField @"poolNft" datum
+        requiredNft = pfromData $ hrecField @"poolNft" conf
         nftAmount   = assetClassValueOf # poolValue # requiredNft
       in pif (nftAmount #== 1) (pcon PTrue) (pcon PFalse) 
 
@@ -87,12 +87,12 @@ depositValidatorT = plam $ \datum' redeemer' ctx' -> unTermCont $ do
         selfInRef = pfromData $ hrecField @"outRef" selfIn
       in selfRef #== selfInRef
 
-  x  <- tletUnwrap $ hrecField @"x" datum
-  y  <- tletUnwrap $ hrecField @"y" datum
-  lq <- tletUnwrap $ hrecField @"lq" datum
+  x  <- tletUnwrap $ hrecField @"x" conf
+  y  <- tletUnwrap $ hrecField @"y" conf
+  lq <- tletUnwrap $ hrecField @"lq" conf
 
-  exFee         <- tletUnwrap $ hrecField @"exFee" datum
-  collateralAda <- tletUnwrap $ hrecField @"collateralAda" datum
+  exFee         <- tletUnwrap $ hrecField @"exFee" conf
+  collateralAda <- tletUnwrap $ hrecField @"collateralAda" conf
 
   let
     strictInputs =
