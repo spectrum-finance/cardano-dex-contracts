@@ -224,7 +224,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   succAddr <- tletField @"address" successor
   let scriptPreserved = succAddr #== selfAddr -- validator preserved
 
-  action      <- tletUnwrap $ hrecField @"action" redeemer
+  action <- tletUnwrap $ hrecField @"action" redeemer
   let
     validAction = pmatch action $ \case
       Deposit -> validDeposit # s0 # dx # dy # dlq
