@@ -107,13 +107,10 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       let minOutput = pfromData $ hrecField @"minQuoteAmount" conf
       in minOutput #<= quoteAmount
     fairExFee = validExFee # rewardValue # selfValue # base # baseAmount # quote # quoteAmount # exFeePerTokenNum # exFeePerTokenDen
-    fairPrice =
-      let feeNum = pfromData $ hrecField @"feeNum" conf
-      in validPrice # quoteAmount # poolValue # base # quote # baseAmount # feeNum
 
   action <- tletUnwrap $ hrecField @"action" redeemer
   pure $ pmatch action $ \case
-    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& minSatisfaction #&& fairExFee #&& fairPrice
+    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& minSatisfaction #&& fairExFee
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
               in containsSignature # sigs # rewardPkh
 

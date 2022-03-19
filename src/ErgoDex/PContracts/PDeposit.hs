@@ -20,7 +20,7 @@ import Plutarch.Api.V1 (PPubKeyHash, PValue)
 import PExtra.Monadic  (tlet, tmatch, tletField)
 import PExtra.List     (pelemAt)
 
-import ErgoDex.PContracts.PApi   (getRewardValue', maxLqCap, pmin, tletUnwrap, containsSignature)
+import ErgoDex.PContracts.PApi   (getRewardValue', maxLqCap, tletUnwrap, containsSignature)
 import ErgoDex.PContracts.POrder (OrderRedeemer, OrderAction(Refund, Apply))
 
 newtype DepositConfig (s :: S) = DepositConfig
@@ -110,6 +110,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   reservesY    <- tlet $ assetClassValueOf # poolValue # y
   minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
   minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
+
   let
     validChange =
       pif (minRewardByX #== minRewardByY)
@@ -117,14 +118,10 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
         (pif (minRewardByX #< minRewardByY)
           (validChange' # rewardValue # y # minRewardByY # minRewardByX # reservesY # liquidity)
           (validChange' # rewardValue # x # minRewardByX # minRewardByY # reservesX # liquidity))
-    minReward   = pmin # minRewardByX # minRewardByY
-    validReward =
-      let actualReward = assetClassValueOf # rewardValue # lq
-      in minReward #<= actualReward
 
   action <- tletUnwrap $ hrecField @"action" redeemer
   pure $ pmatch action $ \case
-    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validChange #&& validReward
+    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validChange
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
               in containsSignature # sigs # rewardPkh
 
