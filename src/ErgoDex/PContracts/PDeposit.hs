@@ -101,8 +101,10 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     fairFee =
       let outputAda = pGetLovelace # rewardValue
       in collateralAda #<= outputAda
-    lqNegative   = assetClassValueOf # poolValue # lq
-    liquidity    = maxLqCap - lqNegative
+
+  liquidity <-
+    let lqNegative = assetClassValueOf # poolValue # lq
+    in tlet $ maxLqCap - lqNegative
 
   reservesX <- tlet $ assetClassValueOf # poolValue # x
   reservesY <- tlet $ assetClassValueOf # poolValue # y
