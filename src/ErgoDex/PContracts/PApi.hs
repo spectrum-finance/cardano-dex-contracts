@@ -1,6 +1,6 @@
 module ErgoDex.PContracts.PApi
  ( hasValidSignatories
- , hasValidSignatories'
+ , containsSignature
  , getRewardValue
  , getRewardValue'
  , tletUnwrap
@@ -46,8 +46,8 @@ hasValidSignatories = phoistAcyclic $ plam $ \txInfo userPubKeyHash -> unTermCon
   let signatories = pfield @"signatories" # txInfo
   pure (pelem # pdata userPubKeyHash # signatories)
 
-hasValidSignatories' :: Term s (PBuiltinList (PAsData PPubKeyHash) :--> PPubKeyHash :--> PBool)
-hasValidSignatories' = phoistAcyclic $ plam $ \signatories userPubKeyHash -> pelem # pdata userPubKeyHash # signatories
+containsSignature :: Term s (PBuiltinList (PAsData PPubKeyHash) :--> PPubKeyHash :--> PBool)
+containsSignature = phoistAcyclic $ plam $ \signatories userPubKeyHash -> pelem # pdata userPubKeyHash # signatories
 
 getRewardValue :: Term s (PTxInfo :--> PInteger :--> PPubKeyHash :--> PValue)
 getRewardValue = phoistAcyclic $ plam $ \txInfo idx pubkeyHash -> unTermCont $ do

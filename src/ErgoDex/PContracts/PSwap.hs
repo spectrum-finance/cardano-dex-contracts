@@ -18,7 +18,7 @@ import Generics.SOP   (Generic, I (I))
 import PExtra.Ada     (pGetLovelace, pIsAda)
 
 import ErgoDex.PContracts.PApi
-import ErgoDex.PContracts.POrder
+import ErgoDex.PContracts.POrder (OrderRedeemer(..), OrderAction(..))
 
 newtype SwapConfig (s :: S) = SwapConfig
   (
@@ -45,13 +45,13 @@ newtype SwapConfig (s :: S) = SwapConfig
 swapValidatorT :: ClosedTerm (SwapConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   ctx     <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-  conf    <- tcont $ pletFields @'["base", "quote", "poolNft", "feeNum", "exFeePerTokenNum", "exFeePerTokenDen", "rewardPkh", "baseAmount"] conf'
+  conf    <- tcont $ pletFields @'["base", "quote", "poolNft", "feeNum", "exFeePerTokenNum", "exFeePerTokenDen", "rewardPkh", "baseAmount", "minQuoteAmount"] conf'
   txInfo' <- tletUnwrap $ hrecField @"txInfo" ctx
   txInfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
   inputs  <- tletUnwrap $ hrecField @"inputs" txInfo
   outputs <- tletUnwrap $ hrecField @"outputs" txInfo
 
-  redeemer    <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx"] redeemer'
+  redeemer    <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx", "action"] redeemer'
   poolInIx    <- tletUnwrap $ hrecField @"poolInIx" redeemer
   orderInIx   <- tletUnwrap $ hrecField @"orderInIx" redeemer
   rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" redeemer
@@ -102,18 +102,20 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   let
     strictInputs =
       let inputsLength = plength # inputs
-      in inputsLength #== 2
+      in inputsLength #== 2 -- address double satisfaction attack
+    minSatisfaction =
+      let minOutput = pfromData $ hrecField @"minQuoteAmount" conf
+      in minOutput #<= quoteAmount
     fairExFee = validExFee # rewardValue # selfValue # base # baseAmount # quote # quoteAmount # exFeePerTokenNum # exFeePerTokenDen
     fairPrice =
       let feeNum = pfromData $ hrecField @"feeNum" conf
       in validPrice # quoteAmount # poolValue # base # quote # baseAmount # feeNum
 
-    validRefund =
-      let sigs = pfromData $ hrecField @"signatories" txInfo
-      in hasValidSignatories' # sigs # rewardPkh
-    validSwap = poolIdentity #&& selfIdentity #&& strictInputs #&& fairExFee #&& fairPrice
-
-  pure $ validRefund #|| validSwap
+  action <- tletUnwrap $ hrecField @"action" redeemer
+  pure $ pmatch action $ \case
+    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& minSatisfaction #&& fairExFee #&& fairPrice
+    Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
+              in containsSignature # sigs # rewardPkh
 
 validExFee 
   :: Term s (

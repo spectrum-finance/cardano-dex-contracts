@@ -192,12 +192,12 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
   self      <- tletUnwrap $ hrecField @"resolved" selfIn
   nft       <- tletField @"poolNft" conf
-  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
+  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs -- nft is preserved
 
   PSpending selfRef' <- tmatch (pfromData $ hrecField @"purpose" ctx)
   selfRef            <- tletField @"_0" selfRef'
   selfInRef          <- tletUnwrap $ hrecField @"outRef" selfIn
-  let selfIdentity = selfRef #== selfInRef
+  let selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
 
   maybeSelfDh    <- tletField @"datumHash" self
   maybeSuccDh    <- tletField @"datumHash" successor
@@ -205,7 +205,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   PDJust succDh' <- tmatch maybeSuccDh
   selfDh         <- tletField @"_0" selfDh'
   succDh         <- tletField @"_0" succDh'
-  let confPreserved = succDh #== selfDh
+  let confPreserved = succDh #== selfDh -- config preserved
 
   s0   <- tlet $ readPoolState # conf # self
   s1   <- tlet $ readPoolState # conf # successor
@@ -222,13 +222,14 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
 
   selfAddr <- tletField @"address" self
   succAddr <- tletField @"address" successor
-  let scriptPreserved = succAddr #== selfAddr
+  let scriptPreserved = succAddr #== selfAddr -- validator preserved
 
   action      <- tletUnwrap $ hrecField @"action" redeemer
-  validAction <- tlet $ pmatch action $ \case
-    Deposit -> validDeposit # s0 # dx # dy # dlq
-    Redeem  -> validRedeem # s0 # dx # dy # dlq
-    Swap    -> validSwap # conf # s0 # dx # dy
+  let
+    validAction = pmatch action $ \case
+      Deposit -> validDeposit # s0 # dx # dy # dlq
+      Redeem  -> validRedeem # s0 # dx # dy # dlq
+      Swap    -> validSwap # conf # s0 # dx # dy
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 

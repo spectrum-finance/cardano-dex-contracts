@@ -20,8 +20,8 @@ import Plutarch.Api.V1 (PPubKeyHash, PValue)
 import PExtra.Monadic  (tlet, tmatch, tletField)
 import PExtra.List     (pelemAt)
 
-import ErgoDex.PContracts.PApi
-import ErgoDex.PContracts.POrder
+import ErgoDex.PContracts.PApi   (getRewardValue', maxLqCap, pmin, tletUnwrap, containsSignature)
+import ErgoDex.PContracts.POrder (OrderRedeemer, OrderAction(Refund, Apply))
 
 newtype DepositConfig (s :: S) = DepositConfig
   (
@@ -52,7 +52,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   inputs  <- tletUnwrap $ hrecField @"inputs" txInfo
   outputs <- tletUnwrap $ hrecField @"outputs" txInfo
 
-  redeemer    <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx"] redeemer'
+  redeemer    <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx", "action"] redeemer'
   poolInIx    <- tletUnwrap $ hrecField @"poolInIx" redeemer
   orderInIx   <- tletUnwrap $ hrecField @"orderInIx" redeemer
   rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" redeemer
@@ -103,20 +103,19 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       in collateralAda #<= outputAda
     validReward =
       let
-        lqNegative = assetClassValueOf # poolValue # lq
-        liquidity  = maxLqCap - lqNegative
+        lqNegative   = assetClassValueOf # poolValue # lq
+        liquidity    = maxLqCap - lqNegative
         minRewardByX = minAssetReward # selfValue # poolValue # x # liquidity # exFee # collateralAda
         minRewardByY = minAssetReward # selfValue # poolValue # y # liquidity # exFee # collateralAda
         minReward    = pmin # minRewardByX # minRewardByY -- todo: deposit slashing attack
         actualReward = assetClassValueOf # rewardValue # lq
       in minReward #<= actualReward
-    
-    validRefund  =
-      let sigs = pfromData $ hrecField @"signatories" txInfo
-      in hasValidSignatories' # sigs # rewardPkh
-    validDeposit = poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validReward
-    
-  pure $ validRefund #|| validDeposit
+
+  action <- tletUnwrap $ hrecField @"action" redeemer
+  pure $ pmatch action $ \case
+    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validReward
+    Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
+              in containsSignature # sigs # rewardPkh
 
 minAssetReward :: Term s (PValue :--> PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
 minAssetReward =
