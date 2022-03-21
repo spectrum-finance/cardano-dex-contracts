@@ -1,6 +1,6 @@
 module ErgoDex.PContracts.PApi
- ( hasValidSignatories
- , getRewardValue
+ ( containsSignature
+ , getRewardValue'
  , tletUnwrap
  , pmin
  , getInputValue
@@ -18,7 +18,7 @@ import Plutarch.Api.V1
 import Plutarch.Prelude
 
 import PExtra.List
-import PExtra.Monadic (tlet)
+import PExtra.Monadic (tlet, tletField)
 import PExtra.API
 
 maxLqCap :: Term s PInteger
@@ -39,25 +39,21 @@ tletUnwrap = tlet . pfromData
 pmin :: POrd a => Term s (a :--> a :--> a)
 pmin = phoistAcyclic $ plam $ \a b -> pif (a #<= b) a b
 
-hasValidSignatories :: Term s (PTxInfo :--> PPubKeyHash :--> PBool)
-hasValidSignatories = phoistAcyclic $ plam $ \txInfo userPubKeyHash -> unTermCont $ do
-  let signatories = pfield @"signatories" # txInfo
-  pure (pelem # pdata userPubKeyHash # signatories)
+containsSignature :: Term s (PBuiltinList (PAsData PPubKeyHash) :--> PPubKeyHash :--> PBool)
+containsSignature = phoistAcyclic $ plam $ \signatories userPubKeyHash -> pelem # pdata userPubKeyHash # signatories
 
-getRewardValue :: Term s (PTxInfo :--> PInteger :--> PPubKeyHash :--> PValue)
-getRewardValue = phoistAcyclic $ plam $ \txInfo idx pubkeyHash -> unTermCont $ do
-  outputs      <- tletUnwrap $ pfield @"outputs" # txInfo
-  let output   = pelemAt # idx # outputs
-  adr          <- tletUnwrap $ pfield @"address" # output
-  pure $
-      pmatch (pfromData $ pfield @"credential" # adr) $ \case
-        PPubKeyCredential cred -> unTermCont $ do
-          pkhOut <- tletUnwrap $ pfield @"_0" # cred
-          vl     <- tletUnwrap $ pfield @"value" # output
-          pure $ pif (pkhOut #== pubkeyHash)
-            vl
-            (ptraceError "Invalid reward proposition")
-        _ -> ptraceError "Invalid reward proposition"
+-- Guarantees reward prposition correctness
+getRewardValue' :: Term s (PAsData PTxOut :--> PPubKeyHash :--> PValue)
+getRewardValue' = phoistAcyclic $ plam $ \out pubkeyHash -> unTermCont $ do
+  let addr = pfield @"address" # out
+  cred <- tletField @"credential" addr
+  pure $ pmatch cred $ \case
+    PPubKeyCredential pcred ->
+      let
+        pkh   = pfield @"_0" # pcred
+        value = pfield @"value" # out
+      in pif (pkh #== pubkeyHash) value (ptraceError "Invalid reward proposition")
+    _ -> ptraceError "Invalid reward proposition"
 
 getInputValue :: Term s (PBuiltinList (PAsData PTxInInfo) :--> PInteger :--> PValue)
 getInputValue = phoistAcyclic $ plam $ \inputs index -> unTermCont $ do

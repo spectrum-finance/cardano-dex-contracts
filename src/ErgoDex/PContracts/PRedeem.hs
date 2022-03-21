@@ -19,6 +19,7 @@ import PExtra.Ada
 import ErgoDex.PContracts.PApi
 import ErgoDex.PContracts.POrder
 import PExtra.PTriple
+import PExtra.List
 
 newtype RedeemConfig (s :: S) = RedeemConfig
   (
@@ -40,22 +41,22 @@ newtype RedeemConfig (s :: S) = RedeemConfig
     via (PIsDataReprInstances RedeemConfig)
 
 redeemValidatorT :: ClosedTerm (RedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
-redeemValidatorT = plam $ \configT redeemerT cxtT -> unTermCont $ do
-  txInfo    <- tletField @"txInfo" cxtT
-  rewardPkh <- tletField @"rewardPkh" configT
+redeemValidatorT = plam $ \cfg' redeemer' ctx' -> unTermCont $ do
+  txInfo'  <- tletField @"txInfo" ctx'
+  txInfo   <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
+  inputs   <- tletUnwrap $ hrecField @"inputs" txInfo
+  outputs  <- tletUnwrap $ hrecField @"outputs" txInfo
+  redeemer <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx", "action"] redeemer'
+  cfg      <- tcont $ pletFields @'["exFee", "poolNft", "poolX", "poolY", "poolLq", "rewardPkh"] cfg'
 
-  isTxSignedByRewardKey <- tlet $ hasValidSignatories # txInfo # rewardPkh
+  orderInIx   <- tletUnwrap $ hrecField @"orderInIx" redeemer
+  poolInIx    <- tletUnwrap $ hrecField @"poolInIx" redeemer
+  rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" redeemer
 
-  indexes <- tcont $ pletFields @'["orderInIx", "poolInIx", "rewardOutIx"] redeemerT
-  cfg     <- tcont $ pletFields @'["exFee", "poolNft", "poolX", "poolY", "poolLq"] configT
+  rewardPkh   <- tletUnwrap $ hrecField @"rewardPkh" cfg
+  rewardOut   <- tlet $ pelemAt # rewardOutIx # outputs
+  rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh
 
-  orderInIx   <- tletUnwrap $ hrecField @"orderInIx" indexes
-  poolInIx    <- tletUnwrap $ hrecField @"poolInIx" indexes
-  rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" indexes
-
-  rewardValue <- tlet $ getRewardValue # txInfo # rewardOutIx # rewardPkh
-
-  inputs     <- tletField @"inputs" txInfo
   poolValue  <- tlet $ getInputValue # inputs # poolInIx
   orderValue <- tlet $ getInputValue # inputs # orderInIx
 
@@ -72,11 +73,10 @@ redeemValidatorT = plam $ \configT redeemerT cxtT -> unTermCont $ do
   let inAda = pGetLovelace # orderValue
   exFee         <- tletUnwrap $ hrecField @"exFee" cfg
   collateralAda <- tlet $ inAda - exFee
-
-  outs <- tlet $ calcOut # rewardValue # poolX # poolY # collateralAda
-
-  inLq       <- tlet $ assetClassValueOf # orderValue # poolLq 
-  liquidity  <- tlet $ maxLqCap - assetClassValueOf # poolValue # poolLq
+  
+  outs      <- tlet $ calcOut # rewardValue # poolX # poolY # collateralAda
+  inLq      <- tlet $ assetClassValueOf # orderValue # poolLq 
+  liquidity <- tlet $ maxLqCap - assetClassValueOf # poolValue # poolLq
 
   let
     outAda     = pGetLovelace # rewardValue
@@ -90,9 +90,11 @@ redeemValidatorT = plam $ \configT redeemerT cxtT -> unTermCont $ do
     fairShare  = minReturnX #< outX #&& minReturnY #< outY
     fairFee    = opAda + collateralAda #< outAda
 
-    validRedeem = validPoolNft #&& validInputs #&& fairShare #&& fairFee
-
-  return $ isTxSignedByRewardKey #|| validRedeem
+  action <- tletUnwrap $ hrecField @"action" redeemer
+  pure $ pmatch action $ \case
+    Apply  -> validPoolNft #&& validInputs #&& fairShare #&& fairFee
+    Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
+              in containsSignature # sigs # rewardPkh
 
 calcMinReturn :: Term s (PInteger :--> PInteger :--> PValue :--> PAssetClass :--> PInteger)
 calcMinReturn = plam $ \liquidity inLq poolValue ac -> unTermCont $ do
