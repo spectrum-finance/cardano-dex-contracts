@@ -374,3 +374,4 @@ merklizedPoolValidatorT = plam $ \allowedActions actionNft ctx -> unTermCont $ d
   tlet $ pmatch (pget # actionNft # valueMint) $ \case -- todo: possible vector of attack: Put Map(actionNft -> Map.empty) into value mint?
     PNothing -> pconstant False
     _        -> pconstant True
+    

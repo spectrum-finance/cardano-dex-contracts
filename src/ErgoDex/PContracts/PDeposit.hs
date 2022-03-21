@@ -147,3 +147,4 @@ minAssetReward =
         assetInput <- tlet $ assetClassValueOf # selfValue # asset
         let depositInput = pif (pIsAda # asset) (assetInput - exFee - collateralAda) assetInput
         pure $ pdiv # (depositInput * liquidity) # assetReserves
+        
