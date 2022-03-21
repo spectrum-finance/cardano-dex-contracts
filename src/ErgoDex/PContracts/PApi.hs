@@ -1,7 +1,5 @@
 module ErgoDex.PContracts.PApi
- ( hasValidSignatories
- , hasValidSignatories'
- , getRewardValue
+ ( containsSignature
  , getRewardValue'
  , tletUnwrap
  , pmin
@@ -41,28 +39,8 @@ tletUnwrap = tlet . pfromData
 pmin :: POrd a => Term s (a :--> a :--> a)
 pmin = phoistAcyclic $ plam $ \a b -> pif (a #<= b) a b
 
-hasValidSignatories :: Term s (PTxInfo :--> PPubKeyHash :--> PBool)
-hasValidSignatories = phoistAcyclic $ plam $ \txInfo userPubKeyHash -> unTermCont $ do
-  let signatories = pfield @"signatories" # txInfo
-  pure (pelem # pdata userPubKeyHash # signatories)
-
-hasValidSignatories' :: Term s (PBuiltinList (PAsData PPubKeyHash) :--> PPubKeyHash :--> PBool)
-hasValidSignatories' = phoistAcyclic $ plam $ \signatories userPubKeyHash -> pelem # pdata userPubKeyHash # signatories
-
-getRewardValue :: Term s (PTxInfo :--> PInteger :--> PPubKeyHash :--> PValue)
-getRewardValue = phoistAcyclic $ plam $ \txInfo idx pubkeyHash -> unTermCont $ do
-  outputs      <- tletUnwrap $ pfield @"outputs" # txInfo
-  let output   = pelemAt # idx # outputs
-  adr          <- tletUnwrap $ pfield @"address" # output
-  pure $
-      pmatch (pfromData $ pfield @"credential" # adr) $ \case
-        PPubKeyCredential cred -> unTermCont $ do
-          pkhOut <- tletUnwrap $ pfield @"_0" # cred
-          vl     <- tletUnwrap $ pfield @"value" # output
-          pure $ pif (pkhOut #== pubkeyHash)
-            vl
-            (ptraceError "Invalid reward proposition")
-        _ -> ptraceError "Invalid reward proposition"
+containsSignature :: Term s (PBuiltinList (PAsData PPubKeyHash) :--> PPubKeyHash :--> PBool)
+containsSignature = phoistAcyclic $ plam $ \signatories userPubKeyHash -> pelem # pdata userPubKeyHash # signatories
 
 -- Guarantees reward prposition correctness
 getRewardValue' :: Term s (PAsData PTxOut :--> PPubKeyHash :--> PValue)

@@ -20,8 +20,8 @@ import Plutarch.Api.V1 (PPubKeyHash, PValue)
 import PExtra.Monadic  (tlet, tmatch, tletField)
 import PExtra.List     (pelemAt)
 
-import ErgoDex.PContracts.PApi
-import ErgoDex.PContracts.POrder
+import ErgoDex.PContracts.PApi   (getRewardValue', maxLqCap, pmin, tletUnwrap, containsSignature)
+import ErgoDex.PContracts.POrder (OrderRedeemer, OrderAction(Refund, Apply))
 
 newtype DepositConfig (s :: S) = DepositConfig
   (
@@ -44,21 +44,21 @@ newtype DepositConfig (s :: S) = DepositConfig
     via (PIsDataReprInstances DepositConfig)
 
 depositValidatorT :: ClosedTerm (DepositConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
-depositValidatorT = plam $ \datum' redeemer' ctx' -> unTermCont $ do
-  ctx       <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-  datum     <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "collateralAda"] datum'
-  txInfo'   <- tletUnwrap $ hrecField @"txInfo" ctx
-  txInfo    <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
-  inputs    <- tletUnwrap $ hrecField @"inputs" txInfo
-  outputs   <- tletUnwrap $ hrecField @"outputs" txInfo
+depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
+  ctx     <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
+  conf    <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "collateralAda"] conf'
+  txInfo' <- tletUnwrap $ hrecField @"txInfo" ctx
+  txInfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
+  inputs  <- tletUnwrap $ hrecField @"inputs" txInfo
+  outputs <- tletUnwrap $ hrecField @"outputs" txInfo
 
-  redeemer    <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx"] redeemer'
+  redeemer    <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx", "action"] redeemer'
   poolInIx    <- tletUnwrap $ hrecField @"poolInIx" redeemer
   orderInIx   <- tletUnwrap $ hrecField @"orderInIx" redeemer
   rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" redeemer
 
   rewardOut   <- tlet $ pelemAt # rewardOutIx # outputs
-  rewardPkh   <- tletUnwrap $ hrecField @"rewardPkh" datum
+  rewardPkh   <- tletUnwrap $ hrecField @"rewardPkh" conf
   rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh
 
   poolIn'   <- tlet $ pelemAt # poolInIx # inputs
@@ -69,7 +69,7 @@ depositValidatorT = plam $ \datum' redeemer' ctx' -> unTermCont $ do
   let
     poolIdentity =
       let
-        requiredNft = pfromData $ hrecField @"poolNft" datum
+        requiredNft = pfromData $ hrecField @"poolNft" conf
         nftAmount   = assetClassValueOf # poolValue # requiredNft
       in pif (nftAmount #== 1) (pcon PTrue) (pcon PFalse) 
 
@@ -87,12 +87,12 @@ depositValidatorT = plam $ \datum' redeemer' ctx' -> unTermCont $ do
         selfInRef = pfromData $ hrecField @"outRef" selfIn
       in selfRef #== selfInRef
 
-  x  <- tletUnwrap $ hrecField @"x" datum
-  y  <- tletUnwrap $ hrecField @"y" datum
-  lq <- tletUnwrap $ hrecField @"lq" datum
+  x  <- tletUnwrap $ hrecField @"x" conf
+  y  <- tletUnwrap $ hrecField @"y" conf
+  lq <- tletUnwrap $ hrecField @"lq" conf
 
-  exFee         <- tletUnwrap $ hrecField @"exFee" datum
-  collateralAda <- tletUnwrap $ hrecField @"collateralAda" datum
+  exFee         <- tletUnwrap $ hrecField @"exFee" conf
+  collateralAda <- tletUnwrap $ hrecField @"collateralAda" conf
 
   let
     strictInputs =
@@ -101,32 +101,50 @@ depositValidatorT = plam $ \datum' redeemer' ctx' -> unTermCont $ do
     fairFee =
       let outputAda = pGetLovelace # rewardValue
       in collateralAda #<= outputAda
-    validReward =
-      let
-        lqNegative = assetClassValueOf # poolValue # lq
-        liquidity  = maxLqCap - lqNegative
-        minRewardByX = minAssetReward # selfValue # poolValue # x # liquidity # exFee # collateralAda
-        minRewardByY = minAssetReward # selfValue # poolValue # y # liquidity # exFee # collateralAda
-        minReward    = pmin # minRewardByX # minRewardByY -- todo: deposit slashing attack
-        actualReward = assetClassValueOf # rewardValue # lq
-      in minReward #<= actualReward
-    
-    validRefund  =
-      let sigs = pfromData $ hrecField @"signatories" txInfo
-      in hasValidSignatories' # sigs # rewardPkh
-    validDeposit = poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validReward
-    
-  pure $ validRefund #|| validDeposit
 
-minAssetReward :: Term s (PValue :--> PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
+  liquidity <-
+    let lqNegative = assetClassValueOf # poolValue # lq
+    in tlet $ maxLqCap - lqNegative
+
+  reservesX    <- tlet $ assetClassValueOf # poolValue # x
+  reservesY    <- tlet $ assetClassValueOf # poolValue # y
+  minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
+  minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
+  let
+    validChange =
+      pif (minRewardByX #== minRewardByY)
+        (pcon PTrue)
+        (pif (minRewardByX #< minRewardByY)
+          (validChange' # rewardValue # y # minRewardByY # minRewardByX # reservesY # liquidity)
+          (validChange' # rewardValue # x # minRewardByX # minRewardByY # reservesX # liquidity))
+    minReward   = pmin # minRewardByX # minRewardByY
+    validReward =
+      let actualReward = assetClassValueOf # rewardValue # lq
+      in minReward #<= actualReward
+
+  action <- tletUnwrap $ hrecField @"action" redeemer
+  pure $ pmatch action $ \case
+    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validChange #&& validReward
+    Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
+              in containsSignature # sigs # rewardPkh
+
+-- Checks whether an asset overflow is returned back to user
+validChange' :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PBool)
+validChange' =
+  phoistAcyclic $
+    plam $ \rewardValue overflowAsset overflowAssetInput otherAssetInput overflowAssetReserves liquidity ->
+      let
+        diff   = overflowAssetInput - otherAssetInput
+        excess = pdiv # (diff * overflowAssetReserves) # liquidity
+        change = assetClassValueOf # rewardValue # overflowAsset
+      in excess #<= change
+
+minAssetReward :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
 minAssetReward =
   phoistAcyclic $
-    plam $ \selfValue poolValue asset liquidity exFee collateralAda ->
+    plam $ \selfValue asset assetReserves liquidity exFee collateralAda ->
       unTermCont $ do
         assetInput <- tlet $ assetClassValueOf # selfValue # asset
-        let
-          inputDeposit = pif (pIsAda # asset)
-            (assetInput - exFee - collateralAda)
-            assetInput
-          tokenReserves = assetClassValueOf # poolValue # asset
-        pure $ pdiv # (inputDeposit * liquidity) # tokenReserves
+        let depositInput = pif (pIsAda # asset) (assetInput - exFee - collateralAda) assetInput
+        pure $ pdiv # (depositInput * liquidity) # assetReserves
+        

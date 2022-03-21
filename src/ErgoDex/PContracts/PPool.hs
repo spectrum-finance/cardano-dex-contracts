@@ -162,9 +162,12 @@ validSwap = phoistAcyclic $ plam $ \conf state' dx dy -> unTermCont $ do
   ry      <- tletUnwrap $ hrecField @"reservesY" state
   feeNum  <- tletField @"feeNum" conf
   feeDen' <- tlet feeDen
+
+  dxf <- tlet $ dx * feeNum
+  dyf <- tlet $ dy * feeNum
   pure $ pif (zero #< dx)
-    (-dy * (rx * feeDen' + dx * feeNum) #<= ry * dx * feeDen')
-    (-dx * (ry * feeDen' + dy * feeNum) #<= rx * dy * feeDen')
+    (-dy * (rx * feeDen' + dxf) #<= ry * dxf)
+    (-dx * (ry * feeDen' + dyf) #<= rx * dyf)
 
 -- Guarantees preservation of pool NFT
 findPoolOutput :: Term s (PAssetClass :--> PBuiltinList (PAsData PTxOut) :--> PAsData PTxOut)
@@ -192,12 +195,12 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
   self      <- tletUnwrap $ hrecField @"resolved" selfIn
   nft       <- tletField @"poolNft" conf
-  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
+  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs -- nft is preserved
 
   PSpending selfRef' <- tmatch (pfromData $ hrecField @"purpose" ctx)
   selfRef            <- tletField @"_0" selfRef'
   selfInRef          <- tletUnwrap $ hrecField @"outRef" selfIn
-  let selfIdentity = selfRef #== selfInRef
+  let selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
 
   maybeSelfDh    <- tletField @"datumHash" self
   maybeSuccDh    <- tletField @"datumHash" successor
@@ -205,7 +208,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   PDJust succDh' <- tmatch maybeSuccDh
   selfDh         <- tletField @"_0" selfDh'
   succDh         <- tletField @"_0" succDh'
-  let confPreserved = succDh #== selfDh
+  let confPreserved = succDh #== selfDh -- config preserved
 
   s0   <- tlet $ readPoolState # conf # self
   s1   <- tlet $ readPoolState # conf # successor
@@ -222,13 +225,14 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
 
   selfAddr <- tletField @"address" self
   succAddr <- tletField @"address" successor
-  let scriptPreserved = succAddr #== selfAddr
+  let scriptPreserved = succAddr #== selfAddr -- validator preserved
 
-  action      <- tletUnwrap $ hrecField @"action" redeemer
-  validAction <- tlet $ pmatch action $ \case
-    Deposit -> validDeposit # s0 # dx # dy # dlq
-    Redeem  -> validRedeem # s0 # dx # dy # dlq
-    Swap    -> validSwap # conf # s0 # dx # dy
+  action <- tletUnwrap $ hrecField @"action" redeemer
+  let
+    validAction = pmatch action $ \case
+      Deposit -> validDeposit # s0 # dx # dy # dlq
+      Redeem  -> validRedeem # s0 # dx # dy # dlq
+      Swap    -> validSwap # conf # s0 # dx # dy
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
@@ -370,3 +374,4 @@ merklizedPoolValidatorT = plam $ \allowedActions actionNft ctx -> unTermCont $ d
   tlet $ pmatch (pget # actionNft # valueMint) $ \case -- todo: possible vector of attack: Put Map(actionNft -> Map.empty) into value mint?
     PNothing -> pconstant False
     _        -> pconstant True
+    
