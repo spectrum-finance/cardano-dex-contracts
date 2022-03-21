@@ -144,8 +144,8 @@ validDeposit = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
   rx    <- tletUnwrap $ hrecField @"reservesX" state
   ry    <- tletUnwrap $ hrecField @"reservesY" state
   lq    <- tletUnwrap $ hrecField @"liquidity" state
-  let liquidityUnlocked = pmin # (pdiv # (dx * lq) # rx) # (pdiv # (dy * lq) # ry)
-  pure $ dlq #== liquidityUnlocked
+  let liquidityUnlocked = pmin # (pdiv # (dx * lq) # rx) # (pdiv # (dy * lq) # ry) -- todo: this allows deposit shrinking attack
+  pure $ dlq #<= liquidityUnlocked
 
 validRedeem :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
 validRedeem = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
@@ -153,7 +153,7 @@ validRedeem = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
   rx    <- tletUnwrap $ hrecField @"reservesX" state
   ry    <- tletUnwrap $ hrecField @"reservesY" state
   lq    <- tletUnwrap $ hrecField @"liquidity" state
-  pure $ lq * rx #== dx * lq #&& dlq * ry #== dy * lq
+  pure $ lq * rx #<= dx * lq #&& dlq * ry #<= dy * lq
 
 validSwap :: Term s (PoolConfig :--> PoolState :--> PInteger :--> PInteger :--> PBool)
 validSwap = phoistAcyclic $ plam $ \conf state' dx dy -> unTermCont $ do
@@ -165,14 +165,9 @@ validSwap = phoistAcyclic $ plam $ \conf state' dx dy -> unTermCont $ do
 
   dxf <- tlet $ dx * feeNum
   dyf <- tlet $ dy * feeNum
-  let
-    rhsX = rx * feeDen' + dxf
-    rhsY = ry * feeDen' + dyf
-    lhsX = rx * dyf
-    lhsY = ry * dxf
   pure $ pif (zero #< dx)
-    (-dy * rhsX #<= lhsY #&& lhsY #<= -(dy - 1) * rhsX)
-    (-dx * rhsY #<= lhsX #&& lhsX #<= -(dx - 1) * rhsY)
+    (-dy * (rx * feeDen' + dxf) #<= ry * dxf)
+    (-dx * (ry * feeDen' + dyf) #<= rx * dyf)
 
 -- Guarantees preservation of pool NFT
 findPoolOutput :: Term s (PAssetClass :--> PBuiltinList (PAsData PTxOut) :--> PAsData PTxOut)
