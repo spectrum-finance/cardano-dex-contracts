@@ -106,19 +106,18 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     let lqNegative = assetClassValueOf # poolValue # lq
     in tlet $ maxLqCap - lqNegative
 
-  reservesX <- tlet $ assetClassValueOf # poolValue # x
-  reservesY <- tlet $ assetClassValueOf # poolValue # y
+  reservesX    <- tlet $ assetClassValueOf # poolValue # x
+  reservesY    <- tlet $ assetClassValueOf # poolValue # y
+  minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
+  minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
   let
-    minRewardByX = minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
-    minRewardByY = minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
-    minReward    = pmin # minRewardByX # minRewardByY
-
     validChange =
       pif (minRewardByX #== minRewardByY)
         (pcon PTrue)
         (pif (minRewardByX #< minRewardByY)
           (validChange' # rewardValue # y # minRewardByY # minRewardByX # reservesY # liquidity)
           (validChange' # rewardValue # x # minRewardByX # minRewardByY # reservesX # liquidity))
+    minReward   = pmin # minRewardByX # minRewardByY
     validReward =
       let actualReward = assetClassValueOf # rewardValue # lq
       in minReward #<= actualReward

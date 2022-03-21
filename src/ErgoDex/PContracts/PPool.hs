@@ -162,9 +162,12 @@ validSwap = phoistAcyclic $ plam $ \conf state' dx dy -> unTermCont $ do
   ry      <- tletUnwrap $ hrecField @"reservesY" state
   feeNum  <- tletField @"feeNum" conf
   feeDen' <- tlet feeDen
+
+  dxf <- tlet $ dx * feeNum
+  dyf <- tlet $ dy * feeNum
   pure $ pif (zero #< dx)
-    (-dy * (rx * feeDen' + dx * feeNum) #<= ry * dx * feeNum)
-    (-dx * (ry * feeDen' + dy * feeNum) #<= rx * dy * feeNum)
+    (-dy * (rx * feeDen' + dxf) #<= ry * dxf)
+    (-dx * (ry * feeDen' + dyf) #<= rx * dyf)
 
 -- Guarantees preservation of pool NFT
 findPoolOutput :: Term s (PAssetClass :--> PBuiltinList (PAsData PTxOut) :--> PAsData PTxOut)
