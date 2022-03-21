@@ -161,3 +161,4 @@ validPrice =
       reservesBase  = assetClassValueOf # poolValue # base
       reservesQuote = assetClassValueOf # poolValue # quote
     in reservesQuote * baseAmount * feeNum #<= relaxedOut * (reservesBase * feeDen + baseAmount * feeNum)
+    
