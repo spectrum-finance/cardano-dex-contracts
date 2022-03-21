@@ -97,9 +97,11 @@ redeemValidatorT = plam $ \cfg' redeemer' ctx' -> unTermCont $ do
               in containsSignature # sigs # rewardPkh
 
 calcMinReturn :: Term s (PInteger :--> PInteger :--> PValue :--> PAssetClass :--> PInteger)
-calcMinReturn = plam $ \liquidity inLq poolValue ac -> unTermCont $ do
-  reservesX  <- tlet $ assetClassValueOf # poolValue # ac
-  return $ pdiv # (inLq * reservesX) # liquidity
+calcMinReturn =
+  phoistAcyclic $
+    plam $ \liquidity inLq poolValue ac ->
+      let reservesX = assetClassValueOf # poolValue # ac
+      in pdiv # (inLq * reservesX) # liquidity
 
 calcOut :: Term s (PValue :--> PAssetClass :--> PAssetClass :--> PInteger :--> PTuple3 PInteger PInteger PInteger)
 calcOut = plam $ \rewardValue poolX poolY collateralAda -> unTermCont $ do
@@ -109,9 +111,8 @@ calcOut = plam $ \rewardValue poolX poolY collateralAda -> unTermCont $ do
   outX <- tlet $ rx - collateralAda
   outY <- tlet $ ry - collateralAda
 
-  ifX    <- tlet $ ptuple3 # pdata outX # pdata ry # pdata outX
-  ifY    <- tlet $ ptuple3 # pdata rx # pdata outY # pdata outY
-  ifElse <- tlet $ ptuple3 # pdata rx # pdata ry # zeroAsData
-
+  let
+    ifX    = ptuple3 # pdata outX # pdata ry # pdata outX
+    ifY    = ptuple3 # pdata rx # pdata outY # pdata outY
+    ifElse = ptuple3 # pdata rx # pdata ry # zeroAsData
   pure $ pif (pIsAda # poolX) ifX (pif (pIsAda # poolY) ifY ifElse)
-    
