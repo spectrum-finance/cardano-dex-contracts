@@ -101,31 +101,50 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     fairFee =
       let outputAda = pGetLovelace # rewardValue
       in collateralAda #<= outputAda
+
+  liquidity <-
+    let lqNegative = assetClassValueOf # poolValue # lq
+    in tlet $ maxLqCap - lqNegative
+
+  reservesX    <- tlet $ assetClassValueOf # poolValue # x
+  reservesY    <- tlet $ assetClassValueOf # poolValue # y
+  minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
+  minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
+  let
+    validChange =
+      pif (minRewardByX #== minRewardByY)
+        (pcon PTrue)
+        (pif (minRewardByX #< minRewardByY)
+          (validChange' # rewardValue # y # minRewardByY # minRewardByX # reservesY # liquidity)
+          (validChange' # rewardValue # x # minRewardByX # minRewardByY # reservesX # liquidity))
+    minReward   = pmin # minRewardByX # minRewardByY
     validReward =
-      let
-        lqNegative   = assetClassValueOf # poolValue # lq
-        liquidity    = maxLqCap - lqNegative
-        minRewardByX = minAssetReward # selfValue # poolValue # x # liquidity # exFee # collateralAda
-        minRewardByY = minAssetReward # selfValue # poolValue # y # liquidity # exFee # collateralAda
-        minReward    = pmin # minRewardByX # minRewardByY -- todo: deposit slashing attack
-        actualReward = assetClassValueOf # rewardValue # lq
+      let actualReward = assetClassValueOf # rewardValue # lq
       in minReward #<= actualReward
 
   action <- tletUnwrap $ hrecField @"action" redeemer
   pure $ pmatch action $ \case
-    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validReward
+    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validChange #&& validReward
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
               in containsSignature # sigs # rewardPkh
 
-minAssetReward :: Term s (PValue :--> PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
+-- Checks whether an asset overflow is returned back to user
+validChange' :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PBool)
+validChange' =
+  phoistAcyclic $
+    plam $ \rewardValue overflowAsset overflowAssetInput otherAssetInput overflowAssetReserves liquidity ->
+      let
+        diff   = overflowAssetInput - otherAssetInput
+        excess = pdiv # (diff * overflowAssetReserves) # liquidity
+        change = assetClassValueOf # rewardValue # overflowAsset
+      in excess #<= change
+
+minAssetReward :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
 minAssetReward =
   phoistAcyclic $
-    plam $ \selfValue poolValue asset liquidity exFee collateralAda ->
+    plam $ \selfValue asset assetReserves liquidity exFee collateralAda ->
       unTermCont $ do
         assetInput <- tlet $ assetClassValueOf # selfValue # asset
-        let
-          inputDeposit = pif (pIsAda # asset)
-            (assetInput - exFee - collateralAda)
-            assetInput
-          tokenReserves = assetClassValueOf # poolValue # asset
-        pure $ pdiv # (inputDeposit * liquidity) # tokenReserves
+        let depositInput = pif (pIsAda # asset) (assetInput - exFee - collateralAda) assetInput
+        pure $ pdiv # (depositInput * liquidity) # assetReserves
+        

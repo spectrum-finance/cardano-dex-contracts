@@ -162,9 +162,12 @@ validSwap = phoistAcyclic $ plam $ \conf state' dx dy -> unTermCont $ do
   ry      <- tletUnwrap $ hrecField @"reservesY" state
   feeNum  <- tletField @"feeNum" conf
   feeDen' <- tlet feeDen
+
+  dxf <- tlet $ dx * feeNum
+  dyf <- tlet $ dy * feeNum
   pure $ pif (zero #< dx)
-    (-dy * (rx * feeDen' + dx * feeNum) #<= ry * dx * feeNum)
-    (-dx * (ry * feeDen' + dy * feeNum) #<= rx * dy * feeNum)
+    (-dy * (rx * feeDen' + dxf) #<= ry * dxf)
+    (-dx * (ry * feeDen' + dyf) #<= rx * dyf)
 
 -- Guarantees preservation of pool NFT
 findPoolOutput :: Term s (PAssetClass :--> PBuiltinList (PAsData PTxOut) :--> PAsData PTxOut)
@@ -224,7 +227,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   succAddr <- tletField @"address" successor
   let scriptPreserved = succAddr #== selfAddr -- validator preserved
 
-  action      <- tletUnwrap $ hrecField @"action" redeemer
+  action <- tletUnwrap $ hrecField @"action" redeemer
   let
     validAction = pmatch action $ \case
       Deposit -> validDeposit # s0 # dx # dy # dlq
@@ -371,3 +374,4 @@ merklizedPoolValidatorT = plam $ \allowedActions actionNft ctx -> unTermCont $ d
   tlet $ pmatch (pget # actionNft # valueMint) $ \case -- todo: possible vector of attack: Put Map(actionNft -> Map.empty) into value mint?
     PNothing -> pconstant False
     _        -> pconstant True
+    
