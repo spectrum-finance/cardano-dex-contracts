@@ -33,9 +33,9 @@ newtype RedeemConfig (s :: S) = RedeemConfig
     Term s (
       PDataRecord
         '[ "poolNft"   ':= PAssetClass
-         , "x"     ':= PAssetClass
-         , "y"     ':= PAssetClass
-         , "lq"    ':= PAssetClass
+         , "x"         ':= PAssetClass
+         , "y"         ':= PAssetClass
+         , "lq"        ':= PAssetClass
          , "exFee"     ':= PInteger
          , "rewardPkh" ':= PPubKeyHash
         ]
