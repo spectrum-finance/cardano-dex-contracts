@@ -70,7 +70,7 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       let
         requiredNft = pfromData $ hrecField @"poolNft" conf
         nftAmount   = assetClassValueOf # poolValue # requiredNft
-      in pif (nftAmount #== 1) (pcon PTrue) (pcon PFalse) 
+      in nftAmount #== 1
 
   selfIn'   <- tlet $ pelemAt # orderInIx # inputs
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
@@ -161,4 +161,3 @@ validPrice =
       reservesBase  = assetClassValueOf # poolValue # base
       reservesQuote = assetClassValueOf # poolValue # quote
     in reservesQuote * baseAmount * feeNum #<= relaxedOut * (reservesBase * feeDen + baseAmount * feeNum)
-    

@@ -71,7 +71,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       let
         requiredNft = pfromData $ hrecField @"poolNft" conf
         nftAmount   = assetClassValueOf # poolValue # requiredNft
-      in pif (nftAmount #== 1) (pcon PTrue) (pcon PFalse) 
+      in nftAmount #== 1
 
   selfIn'   <- tlet $ pelemAt # orderInIx # inputs
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
@@ -98,9 +98,6 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     strictInputs =
       let inputsLength = plength # inputs
       in inputsLength #== 2
-    fairFee =
-      let outputAda = pGetLovelace # rewardValue
-      in collateralAda #<= outputAda
 
   liquidity <-
     let lqNegative = assetClassValueOf # poolValue # lq
@@ -124,7 +121,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 
   action <- tletUnwrap $ hrecField @"action" redeemer
   pure $ pmatch action $ \case
-    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairFee #&& validChange #&& validReward
+    Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& validChange #&& validReward
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
               in containsSignature # sigs # rewardPkh
 
@@ -147,4 +144,3 @@ minAssetReward =
         assetInput <- tlet $ assetClassValueOf # selfValue # asset
         let depositInput = pif (pIsAda # asset) (assetInput - exFee - collateralAda) assetInput
         pure $ pdiv # (depositInput * liquidity) # assetReserves
-        
