@@ -11,6 +11,8 @@ import Plutarch.Prelude
 import Plutarch.DataRepr
 import Plutarch.Api.V1.Contexts
 import Plutarch.Api.V1
+import Plutarch.Lift
+
 import PExtra.API
 import PExtra.Monadic (tlet, tletField, tmatch)
 import PExtra.List    (pelemAt)
@@ -19,6 +21,8 @@ import PExtra.Ada     (pGetLovelace, pIsAda)
 
 import ErgoDex.PContracts.PApi
 import ErgoDex.PContracts.POrder (OrderRedeemer(..), OrderAction(..))
+
+import qualified ErgoDex.Contracts.Proxy.Swap as S
 
 newtype SwapConfig (s :: S) = SwapConfig
   (
@@ -41,6 +45,9 @@ newtype SwapConfig (s :: S) = SwapConfig
   deriving
     (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances SwapConfig)
+
+instance PUnsafeLiftDecl SwapConfig where type PLifted SwapConfig = S.SwapConfig
+deriving via (DerivePConstantViaData S.SwapConfig SwapConfig) instance (PConstant S.SwapConfig)
 
 swapValidatorT :: ClosedTerm (SwapConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
