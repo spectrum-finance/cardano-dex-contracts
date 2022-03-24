@@ -13,6 +13,7 @@ import Plutarch
 import Plutarch.Prelude
 import Plutarch.DataRepr
 import Plutarch.Api.V1.Contexts
+import Plutarch.Lift
 
 import PExtra.API
 import PExtra.Ada
@@ -22,6 +23,8 @@ import PExtra.List     (pelemAt)
 
 import ErgoDex.PContracts.PApi   (getRewardValue', maxLqCap, pmin, tletUnwrap, containsSignature)
 import ErgoDex.PContracts.POrder (OrderRedeemer, OrderAction(Refund, Apply))
+
+import qualified ErgoDex.Contracts.Proxy.Deposit as D
 
 newtype DepositConfig (s :: S) = DepositConfig
   (
@@ -42,6 +45,9 @@ newtype DepositConfig (s :: S) = DepositConfig
   deriving
     (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances DepositConfig)
+
+instance PUnsafeLiftDecl DepositConfig where type PLifted DepositConfig = D.DepositConfig
+deriving via (DerivePConstantViaData D.DepositConfig DepositConfig) instance (PConstant D.DepositConfig)
 
 depositValidatorT :: ClosedTerm (DepositConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do

@@ -11,9 +11,12 @@ import Generics.SOP (Generic, I (I))
 
 import Plutarch
 import Plutarch.Prelude
-import Plutarch.DataRepr (PDataFields, PIsDataReprInstances(..))
+import Plutarch.DataRepr (PDataFields, PIsDataReprInstances(..), DerivePConstantViaData(..))
 import Plutarch.Builtin  (pforgetData, pasInt)
 import Plutarch.Unsafe   (punsafeCoerce)
+import Plutarch.Lift
+
+import qualified ErgoDex.Contracts.Proxy.Order as O
 
 data OrderAction (s :: S) = Apply | Refund
 
@@ -49,3 +52,6 @@ newtype OrderRedeemer (s :: S)
   deriving
     (PMatch, PIsData, PDataFields, PlutusType)
     via PIsDataReprInstances OrderRedeemer
+
+instance PUnsafeLiftDecl OrderRedeemer where type PLifted OrderRedeemer = O.OrderRedeemer
+deriving via (DerivePConstantViaData O.OrderRedeemer OrderRedeemer) instance (PConstant O.OrderRedeemer)

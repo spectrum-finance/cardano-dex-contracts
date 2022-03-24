@@ -13,6 +13,7 @@ import Plutarch.Prelude
 import Plutarch.DataRepr
 import Plutarch.Api.V1.Contexts
 import Plutarch.Api.V1
+import Plutarch.Lift
 
 import PExtra.API
 import PExtra.Monadic (tlet, tletField, tmatch)
@@ -27,6 +28,8 @@ import ErgoDex.PContracts.PApi
 import ErgoDex.PContracts.POrder ( OrderRedeemer, OrderAction(Refund, Apply) )
 import PExtra.PTriple            ( ptuple3, PTuple3 )
 import PExtra.List               ( pelemAt )
+
+import qualified ErgoDex.Contracts.Proxy.Redeem as R
 
 newtype RedeemConfig (s :: S) = RedeemConfig
   (
@@ -46,6 +49,9 @@ newtype RedeemConfig (s :: S) = RedeemConfig
   deriving
     (PMatch, PIsData, PDataFields, PlutusType)
     via (PIsDataReprInstances RedeemConfig)
+
+instance PUnsafeLiftDecl RedeemConfig where type PLifted RedeemConfig = R.RedeemConfig
+deriving via (DerivePConstantViaData R.RedeemConfig RedeemConfig) instance (PConstant R.RedeemConfig)
 
 redeemValidatorT :: ClosedTerm (RedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
