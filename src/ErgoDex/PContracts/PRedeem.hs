@@ -86,7 +86,7 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   selfIn'   <- tlet $ pelemAt # orderInIx # inputs
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
   selfValue <-
-    let self = pfromData $ hrecField @"resolved" poolIn
+    let self = pfromData $ hrecField @"resolved" selfIn
     in tletField @"value" self
 
   PSpending selfRef' <- tmatch (pfromData $ hrecField @"purpose" ctx)

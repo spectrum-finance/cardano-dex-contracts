@@ -82,7 +82,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   selfIn'   <- tlet $ pelemAt # orderInIx # inputs
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
   selfValue <-
-    let self = pfromData $ hrecField @"resolved" poolIn
+    let self = pfromData $ hrecField @"resolved" selfIn
     in tletField @"value" self
 
   PSpending selfRef' <- tmatch (pfromData $ hrecField @"purpose" ctx)
@@ -137,10 +137,10 @@ validChange' =
   phoistAcyclic $
     plam $ \rewardValue overflowAsset overflowAssetInput otherAssetInput overflowAssetReserves liquidity ->
       let
-        diff   = overflowAssetInput - otherAssetInput
-        excess = pdiv # (diff * overflowAssetReserves) # liquidity
-        change = assetClassValueOf # rewardValue # overflowAsset
-      in excess #<= change
+        diff   = overflowAssetInput - otherAssetInput -- 100 - 10 = 90
+        excess = pdiv # (diff * overflowAssetReserves) # liquidity -- 90 * 10 / 10
+        change = assetClassValueOf # rewardValue # overflowAsset -- 0
+      in excess #<= change -- 90 <= 0
 
 minAssetReward :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
 minAssetReward =
