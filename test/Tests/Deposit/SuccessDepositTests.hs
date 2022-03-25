@@ -66,9 +66,9 @@ runSuccessDeposit = do
     orderDH      = genDatumHash orderDatum
 
     poolInValue  = genValues [genValue nft 1, genValue x 10, genValue y 10, genValue lq 9223372036854775797, genAdaValue 5000000] mempty
-    orderInValue = genValues [genValue x 100, genValue y 10, genAdaValue 5000000] mempty
+    orderInValue = genValues [genValue x 10, genValue y 10, genAdaValue 5000000] mempty
 
-    poolOutValue  = genValues [genValue nft 1, genValue x 110, genValue y 20, genValue lq 9223372036854775787, genAdaValue 3000000] mempty
+    poolOutValue  = genValues [genValue nft 1, genValue x 20, genValue y 20, genValue lq 9223372036854775787, genAdaValue 3000000] mempty
     orderOutValue = genValues [genValue lq 10, genAdaValue 2482704] mempty 
 
     poolInOut  = pgenPoolOut poolDH poolInValue pgenPoolValidator

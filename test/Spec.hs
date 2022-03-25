@@ -26,7 +26,7 @@ tests =
     [ 
     -- Deposit --
       runTest "Check deposit correctness" (successCase "Order contract should return true if input data is correct." runSuccessDeposit)
-    -- , TestLabel "Check deposit correctness." (TestCase $ runSuccessDeposit >>= (assertBool "Order contract should return true if input data is correct."))
+    --, TestLabel "Check deposit correctness." (TestCase $ runSuccessDeposit >>= (\res -> assertBool "Order contract should return true if input data is correct." (res)))
     , TestLabel "Check deposit redeemer." (TestCase $ (runFailureIcorrectDepositRedeemer 0) >>= (\res -> assertBool "If poolInIx in redeemer is incorrect the test should fail." (not res)))
     , TestLabel "Check deposit redeemer." (TestCase $ (runFailureIcorrectDepositRedeemer 1) >>= (\res -> assertBool "If orderInIx in deposit redeemer is incorrect the test should fail." (not res)))
     , TestLabel "Check deposit redeemer." (TestCase $ (runFailureIcorrectDepositRedeemer 2) >>= (\res -> assertBool "If rewardOutIx in deposit redeemer is incorrect the test should fail." (not res)))
