@@ -137,10 +137,10 @@ validChange' =
   phoistAcyclic $
     plam $ \rewardValue overflowAsset overflowAssetInput otherAssetInput overflowAssetReserves liquidity ->
       let
-        diff   = overflowAssetInput - otherAssetInput -- 100 - 10 = 90
-        excess = pdiv # (diff * overflowAssetReserves) # liquidity -- 90 * 10 / 10
-        change = assetClassValueOf # rewardValue # overflowAsset -- 0
-      in excess #<= change -- 90 <= 0
+        diff   = overflowAssetInput - otherAssetInput
+        excess = pdiv # (diff * overflowAssetReserves) # liquidity
+        change = assetClassValueOf # rewardValue # overflowAsset
+      in excess #<= change
 
 minAssetReward :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
 minAssetReward =
