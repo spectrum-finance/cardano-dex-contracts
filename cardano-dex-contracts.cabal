@@ -154,9 +154,12 @@ test-suite cardano-dex-contracts-test
   main-is: Spec.hs
   hs-source-dirs: test
   other-modules:
-    Tests.Deposit.FailureDepositTests
-    Tests.Deposit.SuccessDepositTests
-    Tests.Deposit.SuccessfullDepositPoolTests
+    Gen.Models
+    Gen.DepositGen
+    Gen.PoolGen
+    Gen.Utils
+    Tests.Deposit
+    Tests.Pool
     Tests.Deposit.FailureDepositPoolTests
     Models.Generator
     Models.Utils
@@ -180,3 +183,8 @@ test-suite cardano-dex-contracts-test
     , random-strings
     , plutus-core
     , plutarch
+    , hedgehog==1.0.5
+    , rio==0.1.21.0
+    , tasty-hunit==0.10.0.3
+    , tasty==1.4.2
+    , tasty-hedgehog==1.1.0.0
