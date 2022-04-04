@@ -33,7 +33,9 @@ module ErgoDex.Contracts.Proxy.Swap where
 import qualified Prelude as Haskell
 
 import           Ledger
+import           Data.Aeson                    (FromJSON, ToJSON)
 import           Ledger.Value                  (assetClassValueOf)
+import qualified GHC.Generics                  as GHC
 import qualified Ledger.Ada                    as Ada
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Pool        (getPoolInput)
@@ -50,7 +52,8 @@ data SwapConfig = SwapConfig
    , rewardPkh        :: PubKeyHash
    , baseAmount       :: Integer
    , minQuoteAmount   :: Integer
-   } deriving stock (Haskell.Show)
+   } deriving stock (Haskell.Show, GHC.Generic)
+     deriving (FromJSON, ToJSON)
 PlutusTx.makeIsDataIndexed ''SwapConfig [('SwapConfig, 0)]
 PlutusTx.makeLift ''SwapConfig
 

@@ -32,6 +32,8 @@ module ErgoDex.Contracts.Proxy.Deposit where
 import qualified Prelude                          as Haskell
 
 import           Ledger
+import           Data.Aeson                       (FromJSON, ToJSON)
+import qualified GHC.Generics                     as GHC
 import           Ledger.Value                     (assetClassValueOf)
 import qualified Ledger.Ada                       as Ada
 import           ErgoDex.Contracts.Proxy.Order
@@ -47,7 +49,8 @@ data DepositConfig = DepositConfig
    , exFee         :: Integer
    , rewardPkh     :: PubKeyHash
    , collateralAda :: Integer
-   } deriving stock (Haskell.Show)
+   } deriving stock (Haskell.Show, GHC.Generic)
+     deriving (FromJSON, ToJSON)
 PlutusTx.makeIsDataIndexed ''DepositConfig [('DepositConfig, 0)]
 PlutusTx.makeLift ''DepositConfig
 

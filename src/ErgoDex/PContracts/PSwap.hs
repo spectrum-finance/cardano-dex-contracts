@@ -18,6 +18,8 @@ import PExtra.Monadic (tlet, tletField, tmatch)
 import PExtra.List    (pelemAt)
 import Generics.SOP   (Generic, I (I))
 import PExtra.Ada     (pGetLovelace, pIsAda)
+import Data.Aeson (FromJSON, ToJSON)
+import Schema       (ToSchema)
 
 import ErgoDex.PContracts.PApi
 import ErgoDex.PContracts.POrder (OrderRedeemer(..), OrderAction(..))
