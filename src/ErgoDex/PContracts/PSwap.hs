@@ -78,7 +78,7 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
         requiredNft = pfromData $ hrecField @"poolNft" conf
         nftAmount   = assetClassValueOf # poolValue # requiredNft
       in nftAmount #== 1
-
+  
   selfIn'   <- tlet $ pelemAt # orderInIx # inputs
   selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
   selfValue <-
@@ -119,6 +119,14 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       in validPrice # quoteAmount # poolValue # base # quote # baseAmount # feeNum
 
   action <- tletUnwrap $ hrecField @"action" redeemer
+
+  _ <- tlet $ pif (poolIdentity) (pcon PUnit) (ptraceError "Pool identity is invalid")
+  _ <- tlet $ pif (selfIdentity) (pcon PUnit) (ptraceError "selfIdentity is invalid")
+  _ <- tlet $ pif (strictInputs) (pcon PUnit) (ptraceError "strictInputs is invalid")
+  _ <- tlet $ pif (minSatisfaction) (pcon PUnit) (ptraceError "minSatisfaction is invalid")
+  _ <- tlet $ pif (fairExFee) (pcon PUnit) (ptraceError "fairExFee is invalid")
+  _ <- tlet $ pif (fairPrice) (pcon PUnit) (ptraceError "fairPrice is invalid")
+  
   pure $ pmatch action $ \case
     Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& minSatisfaction #&& fairExFee #&& fairPrice
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo

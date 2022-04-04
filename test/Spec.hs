@@ -8,15 +8,18 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain tests
+main = do
+  defaultMain tests
 
 tests = testGroup "Contracts"
   [ checkSwap
-  --   checkDeposit
-  -- , checkDepositRedeemer
-  -- , checkDepositIdentity
-  -- , checkDepositLq
-  -- , checkDepositTokenReward
-  -- , checkPoolDeposit
-  -- , checkPoolDepositRedeemer
+  , checkSwapRedeemer
+  , checkSwapIdentity
+  , checkDeposit
+  , checkDepositRedeemer
+  , checkDepositIdentity
+  , checkDepositLq
+  , checkDepositTokenReward
+  , checkPoolDeposit
+  , checkPoolDepositRedeemer
   ]
