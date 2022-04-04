@@ -53,7 +53,7 @@ getRewardValue' = phoistAcyclic $ plam $ \out pubkeyHash -> unTermCont $ do
         pkh   = pfield @"_0" # pcred
         value = pfield @"value" # out
       in pif (pkh #== pubkeyHash) value (ptraceError "Invalid pubkey hash")
-    _ -> ptraceError "Invalid reward credential proposition"
+    PScriptCredential _ -> ptraceError ("Invalid reward credential proposition. Scriptcred")
 
 getInputValue :: Term s (PBuiltinList (PAsData PTxInInfo) :--> PInteger :--> PValue)
 getInputValue = phoistAcyclic $ plam $ \inputs index -> unTermCont $ do
