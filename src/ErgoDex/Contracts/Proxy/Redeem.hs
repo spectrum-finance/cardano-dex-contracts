@@ -33,6 +33,8 @@ import qualified Prelude as Haskell
 
 import           Ledger
 import           Ledger.Value                  (assetClassValueOf)
+import           Data.Aeson                    (FromJSON, ToJSON)
+import qualified GHC.Generics                  as GHC
 import qualified Ledger.Ada                    as Ada
 import           ErgoDex.Contracts.Proxy.Order
 import           ErgoDex.Contracts.Pool        (PoolState(..), PoolConfig(..), getPoolInput, readPoolState, findPoolConfig)
@@ -46,7 +48,8 @@ data RedeemConfig = RedeemConfig
    , poolLp    :: AssetClass
    , exFee     :: Integer
    , rewardPkh :: PubKeyHash
-   } deriving stock (Haskell.Show)
+   } deriving stock (Haskell.Show, GHC.Generic)
+     deriving (FromJSON, ToJSON)
 PlutusTx.makeIsDataIndexed ''RedeemConfig [('RedeemConfig, 0)]
 PlutusTx.makeLift ''RedeemConfig
 
