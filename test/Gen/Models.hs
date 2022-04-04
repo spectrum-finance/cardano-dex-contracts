@@ -15,6 +15,7 @@ module Gen.Models
   , mkDepositConfig
   , mkPoolRedeemer
   , mkDepositRedeemer
+  , mkOrderRedeemer
   , mkRedeemer
   , mkDatum
   , mkDatumHash
@@ -23,6 +24,7 @@ module Gen.Models
   , mkScriptCredential
   , genPkh
   , mkDepositValidator
+  , mkSwapValidator
   , mkPoolValidator
   , mkTxOut
   , mkTxOut'
@@ -112,6 +114,9 @@ mkPoolRedeemer ix action = P.PoolRedeemer action ix
 mkDepositRedeemer :: Integer -> Integer -> Integer -> O.OrderRedeemer
 mkDepositRedeemer a b c = O.OrderRedeemer a b c O.Apply
 
+mkOrderRedeemer :: Integer -> Integer -> Integer -> O.OrderRedeemer
+mkOrderRedeemer a b c = O.OrderRedeemer a b c O.Apply
+
 mkRedeemer :: ToData a => a -> Redeemer
 mkRedeemer = Redeemer . toBuiltinData
 
@@ -138,6 +143,9 @@ mkDepositValidator = LV.validatorHash $ LV.unsafeMkTypedValidator $ PScripts.dep
 
 mkPoolValidator :: ValidatorHash
 mkPoolValidator = LV.validatorHash $ LV.unsafeMkTypedValidator $ PScripts.poolValidator
+
+mkSwapValidator :: ValidatorHash
+mkSwapValidator = LV.validatorHash $ LV.unsafeMkTypedValidator $ PScripts.swapValidator
 
 mkTxOut :: DatumHash -> Value -> ValidatorHash -> TxOut
 mkTxOut dh v vh =

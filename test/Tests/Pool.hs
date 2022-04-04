@@ -38,9 +38,10 @@ successPoolDeposit = property $ do
     (cfgData, dh) = genDConfig x y nft lq 2 pkh 1
     orderTxIn     = genTxIn orderTxRef dh x 10 y 10 1000000
     orderTxOut    = genTxOut dh lq 10 (1000000 - 300) pkh
+    
   
   poolTxRef <- forAll genTxOutRef
-  let (pcfg, pdh) = genPConfig1 x y nft lq 1
+  let (pcfg, pdh) = genPConfig x y nft lq 1
 
   let
     poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000
@@ -53,7 +54,7 @@ successPoolDeposit = property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Deposit
 
-    result = eraseRight $ evalWithArgs (wrapValidator PPool.poolValidatorT) [cfgData, poolRedeemToData, cxtToData]
+    result = eraseRight $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
 
   result === Right ()
 
@@ -68,7 +69,7 @@ poolDepositRedeemerIncorrectIx = property $ do
     orderTxOut    = genTxOut dh lq 10 (1000000 - 300) pkh
   
   poolTxRef <- forAll genTxOutRef
-  let (pcfg, pdh) = genPConfig1 x y nft lq 1
+  let (pcfg, pdh) = genPConfig x y nft lq 1
 
   let
     poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000
@@ -81,7 +82,7 @@ poolDepositRedeemerIncorrectIx = property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 1 Pool.Deposit
 
-    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [cfgData, poolRedeemToData, cxtToData]
+    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
 
   result === Left ()
 
@@ -96,7 +97,7 @@ poolDepositRedeemerIncorrectAction = property $ do
     orderTxOut    = genTxOut dh lq 10 (1000000 - 300) pkh
   
   poolTxRef <- forAll genTxOutRef
-  let (pcfg, pdh) = genPConfig1 x y nft lq 1
+  let (pcfg, pdh) = genPConfig x y nft lq 1
 
   let
     poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000
@@ -109,6 +110,6 @@ poolDepositRedeemerIncorrectAction = property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Swap
 
-    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [cfgData, poolRedeemToData, cxtToData]
+    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
 
   result === Left ()

@@ -154,9 +154,11 @@ test-suite cardano-dex-contracts-test
     Gen.Models
     Gen.DepositGen
     Gen.PoolGen
+    Gen.SwapGen
     Gen.Utils
     Tests.Deposit
     Tests.Pool
+    Tests.Swap
     Eval
   build-depends:
     , base  == 4.14.1.0
