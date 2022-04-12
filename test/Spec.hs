@@ -18,10 +18,11 @@ tests = testGroup "Contracts"
   , checkDepositIdentity
   , checkDepositLq
   , checkDepositTokenReward
+
+  , checkPoolDeposit
+  , checkPoolDepositRedeemer
   ]
   -- [ checkSwap
   -- , checkSwapRedeemer
   -- , checkSwapIdentity
-  -- , checkPoolDeposit
-  -- , checkPoolDepositRedeemer
   -- ]

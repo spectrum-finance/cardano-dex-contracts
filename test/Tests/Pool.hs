@@ -35,21 +35,19 @@ successPoolDeposit = property $ do
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
   let
-    (cfgData, dh) = genDConfig x y nft lq 2 pkh 1
-    orderTxIn     = genTxIn orderTxRef dh x 10 y 10 1000000
-    orderTxOut    = genTxOut dh lq 10 (1000000 - 300) pkh
-    
+    (cfgData, dh) = genDConfig x y nft lq 2 pkh 10000
+    orderTxIn     = genTxIn orderTxRef dh x 10 y 10 10004
+    orderTxOut    = genTxOut dh lq 10 10000 pkh
   
   poolTxRef <- forAll genTxOutRef
-  let (pcfg, pdh) = genPConfig x y nft lq 1
-
   let
-    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000
-    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 1000000
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
+    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 10000
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
-    purpose = mkPurpose orderTxRef
+    purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Deposit
@@ -77,7 +75,7 @@ poolDepositRedeemerIncorrectIx = property $ do
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
-    purpose = mkPurpose orderTxRef
+    purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 1 Pool.Deposit
@@ -105,7 +103,7 @@ poolDepositRedeemerIncorrectAction = property $ do
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
-    purpose = mkPurpose orderTxRef
+    purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Swap

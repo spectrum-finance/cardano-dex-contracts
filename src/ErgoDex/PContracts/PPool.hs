@@ -234,6 +234,11 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
       Redeem  -> validRedeem # s0 # dx # dy # dlq
       Swap    -> validSwap # conf # s0 # dx # dy
 
+  _ <- tlet $ pif (selfIdentity) (pcon PUnit) (ptraceError "selfIdentity")
+  _ <- tlet $ pif (confPreserved) (pcon PUnit) (ptraceError "confPreserved")
+  _ <- tlet $ pif (scriptPreserved) (pcon PUnit) (ptraceError "scriptPreserved")
+  _ <- tlet $ pif (validAction) (pcon PUnit) (ptraceError "validAction")
+
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
 mkDepositValidatorT :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
