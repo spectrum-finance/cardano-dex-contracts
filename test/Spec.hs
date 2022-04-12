@@ -11,15 +11,17 @@ main :: IO ()
 main = do
   defaultMain tests
 
-tests = testGroup "Contracts"
-  [ checkSwap
-  , checkSwapRedeemer
-  , checkSwapIdentity
-  , checkDeposit
+tests = testGroup "Contracts" 
+  [ checkDeposit 
+  , checkDepositChange
   , checkDepositRedeemer
   , checkDepositIdentity
   , checkDepositLq
   , checkDepositTokenReward
-  , checkPoolDeposit
-  , checkPoolDepositRedeemer
   ]
+  -- [ checkSwap
+  -- , checkSwapRedeemer
+  -- , checkSwapIdentity
+  -- , checkPoolDeposit
+  -- , checkPoolDepositRedeemer
+  -- ]

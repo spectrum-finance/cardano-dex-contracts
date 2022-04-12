@@ -7,6 +7,7 @@ import Eval
 import Gen.Utils
 
 import Plutus.V1.Ledger.Api
+import Plutus.V1.Ledger.Value
 
 import Hedgehog
 
@@ -17,6 +18,14 @@ import Test.Tasty.Hedgehog as HH
 import Gen.Models
 import Gen.DepositGen
 import Gen.PoolGen
+
+import Plutarch
+import Plutarch.Prelude
+import Plutarch.DataRepr
+import Plutarch.Api.V1.Contexts
+import Plutarch.Lift
+import PExtra.Ada
+import qualified PExtra.API as API
 
 checkDeposit = testGroup "CheckDepositContract"
   [ HH.testProperty "deposit_is_correct" successDeposit
@@ -42,6 +51,10 @@ checkDepositLq = testGroup "CheckDepositLq"
 
 checkDepositTokenReward = testGroup "CheckDepositLq"
   [ HH.testProperty "fail_if_token_reward_is_incorrect" incorrectTokenReward
+  ]
+
+checkDepositChange = testGroup "CheckDepositChange"
+  [ HH.testProperty "deposit_has_incorrect_change_with_x_is_ada"incorrectChangeWithAda
   ]
   
 successDeposit :: Property
@@ -78,15 +91,15 @@ successDepositXIsAda = property $ do
   orderTxRef      <- forAll genTxOutRef
   let
     x             = mkAdaAssetClass 
-    (cfgData, dh) = genDConfig x y nft lq 2 pkh 1
-    orderTxIn     = genTxIn orderTxRef dh x 10 y 10 1000000
-    orderTxOut    = genTxOut dh lq 10 (1000000 - 300) pkh
+    (cfgData, dh) = genDConfig x y nft lq 2 pkh 10000
+    orderTxIn     = genTxIn orderTxRef dh x 10 y 10 10004
+    orderTxOut    = genTxOut dh lq 10 10000 pkh
   
   poolTxRef <- forAll genTxOutRef
   let
     (pcfg, pdh) = genPConfig x y nft lq 1
-    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000
-    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 1000000
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
+    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 10000
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
@@ -106,15 +119,15 @@ successDepositYIsAda = property $ do
   orderTxRef      <- forAll genTxOutRef
   let
     y             = mkAdaAssetClass 
-    (cfgData, dh) = genDConfig x y nft lq 2 pkh 1
-    orderTxIn     = genTxIn orderTxRef dh x 10 y 10 1000000
-    orderTxOut    = genTxOut dh lq 10 (1000000 - 300) pkh
+    (cfgData, dh) = genDConfig x y nft lq 2 pkh 10000
+    orderTxIn     = genTxIn orderTxRef dh x 10 y 10 10004
+    orderTxOut    = genTxOut dh lq 10 10000 pkh
   
   poolTxRef <- forAll genTxOutRef
   let
     (pcfg, pdh) = genPConfig x y nft lq 1
-    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000
-    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 1000000
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
+    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 10000
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
@@ -126,6 +139,34 @@ successDepositYIsAda = property $ do
     result = eraseRight $ evalWithArgs (wrapValidator PDeposit.depositValidatorT) [cfgData, orderRedeemToData, cxtToData]
 
   result === Right ()
+
+incorrectChangeWithAda :: Property
+incorrectChangeWithAda = property $ do
+  let (_, y, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    x             = mkAdaAssetClass 
+    (cfgData, dh) = genDConfig x y nft lq 2 pkh 10000
+    orderTxIn     = genTxIn orderTxRef dh x 10 y 10 10000
+    orderTxOut    = genTxOut dh lq 10 10000 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
+    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 10000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose orderTxRef
+
+    cxtToData          = toData $ mkContext txInfo purpose
+    orderRedeemToData  = toData $ mkDepositRedeemer 0 1 1
+
+    result = eraseBoth $ evalWithArgs (wrapValidator PDeposit.depositValidatorT) [cfgData, orderRedeemToData, cxtToData]
+
+  result === Left ()
 
 incorrectPoolInIx :: Property
 incorrectPoolInIx = property $ do

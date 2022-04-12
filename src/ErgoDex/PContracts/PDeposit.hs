@@ -4,6 +4,7 @@
 module ErgoDex.PContracts.PDeposit
   ( DepositConfig(..)
   , depositValidatorT
+  , minAssetReward
   ) where
 
 import qualified GHC.Generics as GHC
@@ -109,8 +110,9 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     let lqNegative = assetClassValueOf # poolValue # lq
     in tlet $ maxLqCap - lqNegative
 
-  reservesX    <- tlet $ assetClassValueOf # poolValue # x
-  reservesY    <- tlet $ assetClassValueOf # poolValue # y
+  reservesX <- tlet $ pif (pIsAda # x) ((assetClassValueOf # poolValue # x) - collateralAda) (assetClassValueOf # poolValue # x)
+  reservesY <- tlet $ pif (pIsAda # y) ((assetClassValueOf # poolValue # y) - collateralAda) (assetClassValueOf # poolValue # y)
+   
   minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
   minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
   let
@@ -126,6 +128,13 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       in minReward #<= actualReward
 
   action <- tletUnwrap $ hrecField @"action" redeemer
+
+  _ <- tlet $ pif (poolIdentity) (pcon PUnit) (ptraceError "poolIdentity")
+  _ <- tlet $ pif (selfIdentity) (pcon PUnit) (ptraceError "selfIdentity")
+  _ <- tlet $ pif (strictInputs) (pcon PUnit) (ptraceError "strictInputs")
+  _ <- tlet $ pif (validChange) (pcon PUnit) (ptraceError "validChange")
+  _ <- tlet $ pif (validReward) (pcon PUnit) (ptraceError "validReward")
+
   pure $ pmatch action $ \case
     Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& validChange #&& validReward
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo
@@ -135,12 +144,12 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 validChange' :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PBool)
 validChange' =
   phoistAcyclic $
-    plam $ \rewardValue overflowAsset overflowAssetInput otherAssetInput overflowAssetReserves liquidity ->
+    plam $ \rewardValue overflowAsset overflowAssetInput otherAssetInput overflowAssetReserves liquidity -> unTermCont $ do
       let
         diff   = overflowAssetInput - otherAssetInput
         excess = pdiv # (diff * overflowAssetReserves) # liquidity
         change = assetClassValueOf # rewardValue # overflowAsset
-      in excess #<= change
+      pure $ excess #<= change
 
 minAssetReward :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
 minAssetReward =
