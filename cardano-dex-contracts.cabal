@@ -115,6 +115,7 @@ library
       ErgoDex.PContracts.PData
       ErgoDex.PContracts.PSwap
       ErgoDex.PContracts.PRedeem
+      ErgoDex.PContracts.PAssets
       ErgoDex.PValidators
       PExtra.Ada
       PExtra.Num

@@ -4,6 +4,7 @@ module PExtra.List (
   timSort,
   preverse,
   pfind,
+  pexists,
   pelemAt
 ) where
 
@@ -45,6 +46,19 @@ pfind = phoistAcyclic $
              (self # f # ys)
        )
        (pcon PNothing)
+       xs
+
+pexists :: (PIsListLike l a) => Term s ((a :--> PBool) :--> l a :--> PBool)
+pexists = phoistAcyclic $
+   pfix #$ plam $ \self f xs ->
+     pelimList
+       ( \y ys ->
+           pif
+             (f # y)
+             (pcon PTrue)
+             (self # f # ys)
+       )
+       (pcon PFalse)
        xs
 
 -- TODO: decide on default sort
