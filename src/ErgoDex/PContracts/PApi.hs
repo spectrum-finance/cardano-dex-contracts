@@ -1,5 +1,6 @@
 module ErgoDex.PContracts.PApi
  ( containsSignature
+ , ownCurrencySymbol
  , getRewardValue'
  , tletUnwrap
  , pmin
@@ -18,7 +19,7 @@ import Plutarch.Api.V1
 import Plutarch.Prelude
 
 import PExtra.List
-import PExtra.Monadic (tlet, tletField)
+import PExtra.Monadic (tlet, tletField, tmatch, tmatchField)
 import PExtra.API
 
 maxLqCap :: Term s PInteger
@@ -78,3 +79,10 @@ getPoolDatum = phoistAcyclic $ plam $ \index txInfo -> unTermCont $ do
   datums     <- tletUnwrap $ pfield @"data" # txInfo
   maybeTuple <- tlet $ pfromData (pelemAt # index # datums)
   tletUnwrap $ pfield @"_1" # maybeTuple
+
+ownCurrencySymbol :: Term s (PScriptContext :--> PCurrencySymbol)
+ownCurrencySymbol = phoistAcyclic $
+  plam $ \sc -> unTermCont $ do
+    PScriptContext te <- tmatch sc
+    PMinting cs' <- tmatchField @"purpose" te
+    pure $ pfield @"_0" # cs'
