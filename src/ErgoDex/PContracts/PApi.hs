@@ -11,6 +11,7 @@ module ErgoDex.PContracts.PApi
  , zeroAsData
  , getPoolDatum
  , maxLqCap
+ , burnLqInitial
  , feeDen
  ) where
 
@@ -22,8 +23,13 @@ import PExtra.List
 import PExtra.Monadic (tlet, tletField, tmatch, tmatchField)
 import PExtra.API
 
+import qualified ErgoDex.Contracts.Pool as P
+
 maxLqCap :: Term s PInteger
-maxLqCap = pconstant 0x7fffffffffffffff
+maxLqCap = pconstant P.maxLqCap
+
+burnLqInitial :: Term s PInteger
+burnLqInitial = pconstant P.burnLqInitial
 
 feeDen :: Term s PInteger
 feeDen = pconstant 1000
