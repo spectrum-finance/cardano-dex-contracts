@@ -124,8 +124,10 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   _ <- tlet $ pif (selfIdentity) (pcon PUnit) (ptraceError "selfIdentity is invalid")
   _ <- tlet $ pif (strictInputs) (pcon PUnit) (ptraceError "strictInputs is invalid")
   _ <- tlet $ pif (minSatisfaction) (pcon PUnit) (ptraceError "minSatisfaction is invalid")
-  _ <- tlet $ pif (fairExFee) (pcon PUnit) (ptraceError "fairExFee is invalid")
+  
   _ <- tlet $ pif (fairPrice) (pcon PUnit) (ptraceError "fairPrice is invalid")
+
+  _ <- tlet $ pif (fairExFee) (pcon PUnit) (ptraceError "fairExFee is invalid")
   
   pure $ pmatch action $ \case
     Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& minSatisfaction #&& fairExFee #&& fairPrice

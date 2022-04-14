@@ -30,6 +30,7 @@ module Gen.Models
   , mkTxOut'
   , mkTxIn
   , mkTxInfo
+  , mkPoolTxInfo
   , mkPurpose
   , mkContext
   ) where
@@ -169,6 +170,22 @@ mkTxIn ref out =
     { txInInfoOutRef   = ref
     , txInInfoResolved = out
     }
+
+mkPoolTxInfo :: TxInInfo -> TxOut -> TxInfo
+mkPoolTxInfo pIn pOut =
+  TxInfo
+    { txInfoInputs = [pIn]
+    , txInfoOutputs = [pOut]
+    , txInfoFee = mempty
+    , txInfoMint = mempty
+    , txInfoDCert = []
+    , txInfoWdrl = []
+    , txInfoValidRange = Interval.always
+    , txInfoSignatories = mempty
+    , txInfoData = []
+    , txInfoId = "b0"
+    }
+
 
 mkTxInfo :: TxInInfo -> TxInInfo -> TxOut -> TxOut -> TxInfo
 mkTxInfo pIn oIn pOut oOut =
