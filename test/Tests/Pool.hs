@@ -32,13 +32,11 @@ checkPool = testGroup "CheckPoolContract"
 
 checkPoolRedeemer = testGroup "CheckPoolRedeemer"
   [ HH.testProperty "fail_if_pool_ix_is_incorrect_deposit" poolDepositRedeemerIncorrectIx
-  , HH.testProperty "fail_if_pool_action_is_incorrect_deposit_to_redeem" (poolDepositRedeemerIncorrectAction Pool.Redeem)
   , HH.testProperty "fail_if_pool_action_is_incorrect_deposit_to_swap" (poolDepositRedeemerIncorrectAction Pool.Swap)
   , HH.testProperty "fail_if_pool_ix_is_incorrect_swap" poolSwapRedeemerIncorrectIx
   , HH.testProperty "fail_if_pool_action_is_incorrect_swap_to_deposit" (poolSwapRedeemerIncorrectAction Pool.Deposit)
   , HH.testProperty "fail_if_pool_action_is_incorrect_swap_to_redeem" (poolSwapRedeemerIncorrectAction Pool.Redeem)
   , HH.testProperty "fail_if_pool_ix_is_incorrect_redeem" poolRedeemRedeemerIncorrectIx
-  , HH.testProperty "fail_if_pool_action_is_incorrect_redeem_to_deposit" (poolRedeemRedeemerIncorrectAction Pool.Deposit)
   , HH.testProperty "fail_if_pool_action_is_incorrect_redeem_to_swap" (poolRedeemRedeemerIncorrectAction Pool.Swap)
   ]
 

@@ -138,17 +138,8 @@ readPoolState = phoistAcyclic $ plam $ \conf' out -> unTermCont $ do
     #$ pdcons @"liquidity" @PInteger # lq
      # pdnil
 
-validDeposit :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
-validDeposit = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
-  state <- tcont $ pletFields @'["reservesX", "reservesY", "liquidity"] state'
-  rx    <- tletUnwrap $ hrecField @"reservesX" state
-  ry    <- tletUnwrap $ hrecField @"reservesY" state
-  lq    <- tletUnwrap $ hrecField @"liquidity" state
-  let liquidityUnlocked = pmin # (pdiv # (dx * lq) # rx) # (pdiv # (dy * lq) # ry) -- todo: this allows deposit shrinking attack
-  pure $ dlq #<= liquidityUnlocked
-
-validRedeem :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
-validRedeem = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
+validDepositRedeem :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
+validDepositRedeem = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
   state <- tcont $ pletFields @'["reservesX", "reservesY", "liquidity"] state'
   rx    <- tletUnwrap $ hrecField @"reservesX" state
   ry    <- tletUnwrap $ hrecField @"reservesY" state
@@ -230,9 +221,8 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   action <- tletUnwrap $ hrecField @"action" redeemer
   let
     validAction = pmatch action $ \case
-      Deposit -> 0 #< dx #&& 0 #< dy #&& validDeposit # s0 # dx # dy # dlq
-      Redeem  -> validRedeem # s0 # dx # dy # dlq
-      Swap    -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
+      Swap -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
+      _    -> validDepositRedeem # s0 # dx # dy # dlq
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
@@ -275,7 +265,7 @@ mkDepositValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
   succAddr <- tletField @"address" successor
   let scriptPreserved = succAddr #== selfAddr
 
-  let validAction = validDeposit # s0 # dx # dy # dlq
+  let validAction = validDepositRedeem # s0 # dx # dy # dlq
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
@@ -318,7 +308,7 @@ mkRedeemValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
   succAddr <- tletField @"address" successor
   let scriptPreserved = succAddr #== selfAddr
 
-  let validAction = validRedeem # s0 # dx # dy # dlq
+  let validAction = validDepositRedeem # s0 # dx # dy # dlq
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
