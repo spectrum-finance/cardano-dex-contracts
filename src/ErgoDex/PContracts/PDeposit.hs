@@ -4,7 +4,6 @@
 module ErgoDex.PContracts.PDeposit
   ( DepositConfig(..)
   , depositValidatorT
-  , minAssetReward
   ) where
 
 import qualified GHC.Generics as GHC
@@ -138,12 +137,12 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 validChange' :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PBool)
 validChange' =
   phoistAcyclic $
-    plam $ \rewardValue overflowAsset overflowAssetInput otherAssetInput overflowAssetReserves liquidity -> unTermCont $ do
+    plam $ \rewardValue overflowAsset overflowAssetInput otherAssetInput overflowAssetReserves liquidity ->
       let
         diff   = overflowAssetInput - otherAssetInput
         excess = pdiv # (diff * overflowAssetReserves) # liquidity
         change = assetClassValueOf # rewardValue # overflowAsset
-      pure $ excess #<= change
+      in excess #<= change
 
 minAssetReward :: Term s (PValue :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PInteger)
 minAssetReward =
