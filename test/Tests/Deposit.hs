@@ -70,8 +70,8 @@ successDeposit = property $ do
   poolTxRef <- forAll genTxOutRef
   let
     (pcfg, pdh) = genPConfig x y nft lq 1
-    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 5000000
-    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 3000000
+    poolTxIn    = genPTxIn poolTxRef pdh x 1000 y 1000 lq 9223372036854774807 nft 1 5000000
+    poolTxOut   = genPTxOut pdh x 1010 y 1010 lq 9223372036854774797 nft 1 3000000
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
@@ -92,14 +92,14 @@ successDepositXIsAda = property $ do
   let
     x             = mkAdaAssetClass 
     (cfgData, dh) = genDConfig x y nft lq 2 pkh 10000
-    orderTxIn     = genTxIn orderTxRef dh x 10 y 10 10004
+    orderTxIn     = genTxIn orderTxRef dh x 10012 y 10 0
     orderTxOut    = genTxOut dh lq 10 10000 pkh
   
   poolTxRef <- forAll genTxOutRef
   let
     (pcfg, pdh) = genPConfig x y nft lq 1
-    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
-    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 10000
+    poolTxIn    = genPTxIn poolTxRef pdh x 1000 y 1000 lq 9223372036854774807 nft 1 0
+    poolTxOut   = genPTxOut pdh x 1010 y 1010 lq 9223372036854774797 nft 1 0
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
@@ -126,8 +126,8 @@ successDepositYIsAda = property $ do
   poolTxRef <- forAll genTxOutRef
   let
     (pcfg, pdh) = genPConfig x y nft lq 1
-    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
-    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 10000
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 0
+    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 0
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut

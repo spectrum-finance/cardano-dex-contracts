@@ -109,8 +109,8 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     let lqNegative = assetClassValueOf # poolValue # lq
     in tlet $ maxLqCap - lqNegative
 
-  reservesX <- tlet $ pif (pIsAda # x) ((assetClassValueOf # poolValue # x) - collateralAda) (assetClassValueOf # poolValue # x)
-  reservesY <- tlet $ pif (pIsAda # y) ((assetClassValueOf # poolValue # y) - collateralAda) (assetClassValueOf # poolValue # y)
+  reservesX <- tlet $ assetClassValueOf # poolValue # x
+  reservesY <- tlet $ assetClassValueOf # poolValue # y
    
   minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
   minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
