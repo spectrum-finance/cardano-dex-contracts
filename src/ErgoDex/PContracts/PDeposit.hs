@@ -129,12 +129,6 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 
   action <- tletUnwrap $ hrecField @"action" redeemer
 
-  _ <- tlet $ pif (poolIdentity) (pcon PUnit) (ptraceError "poolIdentity")
-  _ <- tlet $ pif (selfIdentity) (pcon PUnit) (ptraceError "selfIdentity")
-  _ <- tlet $ pif (strictInputs) (pcon PUnit) (ptraceError "strictInputs")
-  _ <- tlet $ pif (validChange) (pcon PUnit) (ptraceError "validChange")
-  _ <- tlet $ pif (validReward) (pcon PUnit) (ptraceError "validReward")
-
   pure $ pmatch action $ \case
     Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& validChange #&& validReward
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo

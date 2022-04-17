@@ -153,7 +153,7 @@ validRedeem = phoistAcyclic $ plam $ \state' dx dy dlq -> unTermCont $ do
   rx    <- tletUnwrap $ hrecField @"reservesX" state
   ry    <- tletUnwrap $ hrecField @"reservesY" state
   lq    <- tletUnwrap $ hrecField @"liquidity" state
-  pure $ lq * rx #<= dx * lq #&& dlq * ry #<= dy * lq
+  pure $ dlq * rx #<= dx * lq #&& dlq * ry #<= dy * lq
 
 validSwap :: Term s (PoolConfig :--> PoolState :--> PInteger :--> PInteger :--> PBool)
 validSwap = phoistAcyclic $ plam $ \conf state' dx dy -> unTermCont $ do
@@ -221,7 +221,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   let
     dx  = rx1 - rx0
     dy  = ry1 - ry0
-    dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
+    dlq = lq1 - lq0 -- pool keeps only the negative part of LQ tokens
 
   selfAddr <- tletField @"address" self
   succAddr <- tletField @"address" successor
