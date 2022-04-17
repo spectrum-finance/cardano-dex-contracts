@@ -19,10 +19,12 @@ import Gen.Models
 import Gen.DepositGen
 import Gen.PoolGen
 import Gen.SwapGen
+import Gen.RedeemGen
 
 checkPool = testGroup "CheckPoolContract"
   [ HH.testProperty "pool_deposit_is_correct" successPoolDeposit
   , HH.testProperty "pool_swap_is_correct" successPoolSwap
+  , HH.testProperty "pool_redeem_is_correct" successPoolRedeem
   ]
 
 checkPoolRedeemer = testGroup "CheckPoolRedeemer"
@@ -32,7 +34,91 @@ checkPoolRedeemer = testGroup "CheckPoolRedeemer"
   , HH.testProperty "fail_if_pool_ix_is_incorrect_swap" poolSwapRedeemerIncorrectIx
   , HH.testProperty "fail_if_pool_action_is_incorrect_swap_to_deposit" (poolSwapRedeemerIncorrectAction Pool.Deposit)
   , HH.testProperty "fail_if_pool_action_is_incorrect_swap_to_redeem" (poolSwapRedeemerIncorrectAction Pool.Redeem)
+  , HH.testProperty "fail_if_pool_ix_is_incorrect_redeem" poolRedeemRedeemerIncorrectIx
+  , HH.testProperty "fail_if_pool_action_is_incorrect_redeem_to_deposit" (poolRedeemRedeemerIncorrectAction Pool.Deposit)
+  , HH.testProperty "fail_if_pool_action_is_incorrect_redeem_to_swap" (poolRedeemRedeemerIncorrectAction Pool.Swap)
   ]
+
+successPoolRedeem :: Property
+successPoolRedeem = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genRConfig x y lq nft 100 pkh
+    orderTxIn     = genRTxIn orderTxRef dh lq 10 5000000
+    orderTxOut    = genRTxOut dh x 10 y 10 5000000 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
+    poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Redeem
+
+    result = eraseRight $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Right ()
+
+poolRedeemRedeemerIncorrectIx :: Property
+poolRedeemRedeemerIncorrectIx = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genRConfig x y lq nft 100 pkh
+    orderTxIn     = genRTxIn orderTxRef dh lq 10 5000000
+    orderTxOut    = genRTxOut dh x 10 y 10 5000000 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
+    poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 1 Pool.Redeem
+
+    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
+
+poolRedeemRedeemerIncorrectAction :: Pool.PoolAction -> Property
+poolRedeemRedeemerIncorrectAction action = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genRConfig x y lq nft 100 pkh
+    orderTxIn     = genRTxIn orderTxRef dh lq 10 5000000
+    orderTxOut    = genRTxOut dh x 10 y 10 5000000 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
+    poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 action
+
+    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
 
 successPoolSwap :: Property
 successPoolSwap = property $ do
