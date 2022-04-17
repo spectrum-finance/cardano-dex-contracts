@@ -230,9 +230,9 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   action <- tletUnwrap $ hrecField @"action" redeemer
   let
     validAction = pmatch action $ \case
-      Deposit -> validDeposit # s0 # dx # dy # dlq
+      Deposit -> 0 #< dx #&& 0 #< dy #&& validDeposit # s0 # dx # dy # dlq
       Redeem  -> validRedeem # s0 # dx # dy # dlq
-      Swap    -> validSwap # conf # s0 # dx # dy
+      Swap    -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
 
   pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 

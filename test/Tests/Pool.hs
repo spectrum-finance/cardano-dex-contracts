@@ -25,6 +25,9 @@ checkPool = testGroup "CheckPoolContract"
   [ HH.testProperty "pool_deposit_is_correct" successPoolDeposit
   , HH.testProperty "pool_swap_is_correct" successPoolSwap
   , HH.testProperty "pool_redeem_is_correct" successPoolRedeem
+  , HH.testProperty "pool_redeem_too_much_liquidity_removed" poolRedeemTooMuchLiquidityRemoved
+  , HH.testProperty "pool_redeem_liquidity_removed_lq_intact" poolRedeemLiquidityRemovedLqIntact
+  , HH.testProperty "pool_redeem_liquidity_intact_lq_removed" poolRedeemLiquidityIntactLqRemoved
   ]
 
 checkPoolRedeemer = testGroup "CheckPoolRedeemer"
@@ -65,6 +68,87 @@ successPoolRedeem = property $ do
     result = eraseRight $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
 
   result === Right ()
+
+poolRedeemTooMuchLiquidityRemoved :: Property
+poolRedeemTooMuchLiquidityRemoved = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genRConfig x y lq nft 100 pkh
+    orderTxIn     = genRTxIn orderTxRef dh lq 10 5000000
+    orderTxOut    = genRTxOut dh x 10 y 10 5000000 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
+    poolTxOut   = genPTxOut pdh x 9 y 9 lq 9223372036854775797 nft 1 3000000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Redeem
+
+    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
+
+poolRedeemLiquidityRemovedLqIntact :: Property
+poolRedeemLiquidityRemovedLqIntact = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genRConfig x y lq nft 100 pkh
+    orderTxIn     = genRTxIn orderTxRef dh lq 10 5000000
+    orderTxOut    = genRTxOut dh x 10 y 10 5000000 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
+    poolTxOut   = genPTxOut pdh x 19 y 19 lq 9223372036854775787 nft 1 3000000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Redeem
+
+    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
+
+poolRedeemLiquidityIntactLqRemoved :: Property
+poolRedeemLiquidityIntactLqRemoved = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genRConfig x y lq nft 100 pkh
+    orderTxIn     = genRTxIn orderTxRef dh lq 10 5000000
+    orderTxOut    = genRTxOut dh x 10 y 10 5000000 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
+    poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775786 nft 1 3000000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Redeem
+
+    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
 
 poolRedeemRedeemerIncorrectIx :: Property
 poolRedeemRedeemerIncorrectIx = property $ do
