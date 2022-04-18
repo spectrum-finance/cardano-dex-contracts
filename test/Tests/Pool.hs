@@ -216,7 +216,7 @@ successPoolSwap = property $ do
   let
     (pcfg, pdh) = genPConfig x y nft lq 1000
     poolTxIn    = genPTxIn poolTxRef pdh x 100 y 10000 lq 9223372036854775797 nft 1 5000000
-    poolTxOut   = genPTxOut pdh x 11000 y 9000 lq 9223372036854775787 nft 1 3000000
+    poolTxOut   = genPTxOut pdh x 11000 y 9000 lq 9223372036854775797 nft 1 3000000
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
