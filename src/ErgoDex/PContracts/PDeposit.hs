@@ -109,8 +109,9 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     let lqNegative = assetClassValueOf # poolValue # lq
     in tlet $ maxLqCap - lqNegative
 
-  reservesX    <- tlet $ assetClassValueOf # poolValue # x
-  reservesY    <- tlet $ assetClassValueOf # poolValue # y
+  reservesX <- tlet $ assetClassValueOf # poolValue # x
+  reservesY <- tlet $ assetClassValueOf # poolValue # y
+   
   minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
   minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
   let
@@ -126,6 +127,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       in minReward #<= actualReward
 
   action <- tletUnwrap $ hrecField @"action" redeemer
+
   pure $ pmatch action $ \case
     Apply  -> poolIdentity #&& selfIdentity #&& strictInputs #&& validChange #&& validReward
     Refund -> let sigs = pfromData $ hrecField @"signatories" txInfo

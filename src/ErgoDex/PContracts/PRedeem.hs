@@ -140,8 +140,8 @@ calcMinReturn :: Term s (PInteger :--> PInteger :--> PValue :--> PAssetClass :--
 calcMinReturn =
   phoistAcyclic $
     plam $ \liquidity inLq poolValue ac ->
-      let reservesX = assetClassValueOf # poolValue # ac
-      in pdiv # (inLq * reservesX) # liquidity
+      let reserves = assetClassValueOf # poolValue # ac
+      in pdiv # (inLq * reserves) # liquidity
 
 calcOutput :: Term s (PValue :--> PAssetClass :--> PAssetClass :--> PInteger :--> PTuple3 PInteger PInteger PInteger)
 calcOutput = plam $ \rewardValue poolX poolY collateralAda -> unTermCont $ do
