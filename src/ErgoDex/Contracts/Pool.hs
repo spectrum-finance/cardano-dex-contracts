@@ -88,6 +88,7 @@ instance ToData PoolAction where
     Deposit -> 0
     Redeem  -> 1
     Swap    -> 2
+    Destroy -> 3
 
 data PoolRedeemer = PoolRedeemer
   { action :: PoolAction
