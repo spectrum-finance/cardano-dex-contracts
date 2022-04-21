@@ -226,10 +226,6 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
       Swap    -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
       _       -> validDepositRedeem # s0 # dx # dy # dlq
 
-  selfIn' <- tlet $ pelemAt # selfIx # inputs
-  selfIn  <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
-  self    <- tletUnwrap $ hrecField @"resolved" selfIn
-
   pure $ pmatch action $ \case
     Destroy -> lq0 #<= burnLqInitial -- all tokens except for permanetly locked ones are removed
     _       -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
