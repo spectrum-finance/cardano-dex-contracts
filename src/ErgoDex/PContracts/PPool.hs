@@ -223,57 +223,16 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   action <- tletUnwrap $ hrecField @"action" redeemer
   let
     validAction = pmatch action $ \case
-      Swap -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
-      _    -> validDepositRedeem # s0 # dx # dy # dlq
+      Swap    -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
+      _       -> validDepositRedeem # s0 # dx # dy # dlq
 
   selfIn' <- tlet $ pelemAt # selfIx # inputs
   selfIn  <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
   self    <- tletUnwrap $ hrecField @"resolved" selfIn
 
-  s0  <- tlet $ readPoolState # conf # self
-  lq0 <- tletField @"liquidity" s0
-
   pure $ pmatch action $ \case
     Destroy -> lq0 #<= burnLqInitial -- all tokens except for permanetly locked ones are removed
-    _       -> unTermCont $ do
-      nft       <- tletField @"poolNft" conf
-      successor <- tlet $ pfromData $ findPoolOutput # nft # outputs -- nft is preserved
-
-      PSpending selfRef' <- tmatch (pfromData $ hrecField @"purpose" ctx)
-      selfRef            <- tletField @"_0" selfRef'
-      selfInRef          <- tletUnwrap $ hrecField @"outRef" selfIn
-      let selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
-
-      maybeSelfDh    <- tletField @"datumHash" self
-      maybeSuccDh    <- tletField @"datumHash" successor
-      PDJust selfDh' <- tmatch maybeSelfDh
-      PDJust succDh' <- tmatch maybeSuccDh
-      selfDh         <- tletField @"_0" selfDh'
-      succDh         <- tletField @"_0" succDh'
-      let confPreserved = succDh #== selfDh -- config preserved
-
-      s1   <- tlet $ readPoolState # conf # successor
-      rx0  <- tletField @"reservesX" s0
-      rx1  <- tletField @"reservesX" s1
-      ry0  <- tletField @"reservesY" s0
-      ry1  <- tletField @"reservesY" s1
-      lq1  <- tletField @"liquidity" s1
-      let
-        dx  = rx1 - rx0
-        dy  = ry1 - ry0
-        dlq = lq1 - lq0 -- pool keeps only the negative part of LQ tokens
-
-      selfAddr <- tletField @"address" self
-      succAddr <- tletField @"address" successor
-      let scriptPreserved = succAddr #== selfAddr -- validator preserved
-
-      let
-        validAction = pmatch action $ \case
-          Deposit -> validDeposit # s0 # dx # dy # dlq
-          Redeem  -> validRedeem # s0 # dx # dy # dlq
-          Swap    -> validSwap # conf # s0 # dx # dy
-
-      pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
+    _       -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
 
 mkDepositValidatorT :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
 mkDepositValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
