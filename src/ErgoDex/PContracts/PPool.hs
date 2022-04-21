@@ -193,8 +193,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
   action <- tletUnwrap $ hrecField @"action" redeemer
 
   pure $ pmatch action $ \case
-    Destroy -> unTermCont $ do
-      pure $ lq0 #<= burnLqInitial -- all tokens except for permanetly locked ones are removed
+    Destroy -> lq0 #<= burnLqInitial -- all tokens except for permanetly locked ones are removed
     _       -> unTermCont $ do
       outputs   <- tletUnwrap $ hrecField @"outputs" txInfo
       nft       <- tletField @"poolNft" conf
