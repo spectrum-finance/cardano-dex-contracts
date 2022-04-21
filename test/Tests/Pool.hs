@@ -20,6 +20,7 @@ import Gen.DepositGen
 import Gen.PoolGen
 import Gen.SwapGen
 import Gen.RedeemGen
+import Gen.DestroyGen
 
 checkPool = testGroup "CheckPoolContract"
   [ HH.testProperty "pool_deposit_is_correct" successPoolDeposit
@@ -28,6 +29,9 @@ checkPool = testGroup "CheckPoolContract"
   , HH.testProperty "pool_redeem_too_much_liquidity_removed" (poolRedeemLqCheck 9 9 9223372036854775797)
   , HH.testProperty "pool_redeem_liquidity_removed_lq_intact" (poolRedeemLqCheck 19 19 9223372036854775787)
   , HH.testProperty "pool_redeem_liquidity_intact_lq_removed" (poolRedeemLqCheck 20 20 9223372036854775786)
+  , HH.testProperty "pool_destroy_eq_max_burn_lq" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial) (Right ()))
+  , HH.testProperty "pool_destroy_less_max_burn_lq" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial - 1) (Right ()))
+  , HH.testProperty "pool_destroy_greater_max_burn_lq" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial + 1) (Left ()))
   ]
 
 checkPoolRedeemer = testGroup "CheckPoolRedeemer"
@@ -39,6 +43,26 @@ checkPoolRedeemer = testGroup "CheckPoolRedeemer"
   , HH.testProperty "fail_if_pool_ix_is_incorrect_redeem" poolRedeemRedeemerIncorrectIx
   , HH.testProperty "fail_if_pool_action_is_incorrect_redeem_to_swap" (poolRedeemRedeemerIncorrectAction Pool.Swap)
   ]
+
+poolDestroyCheck :: Integer -> Either () () -> Property
+poolDestroyCheck lqQty res = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genDTxIn poolTxRef pdh lq lqQty nft 1 5000000
+  
+  let
+    txInfo  = mkDTxInfo poolTxIn
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Destroy
+
+    result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === res
 
 successPoolRedeem :: Property
 successPoolRedeem = property $ do
