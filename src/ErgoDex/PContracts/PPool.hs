@@ -261,7 +261,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
       let
         dx  = rx1 - rx0
         dy  = ry1 - ry0
-        dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
+        dlq = lq1 - lq0 -- pool keeps only the negative part of LQ tokens
 
       selfAddr <- tletField @"address" self
       succAddr <- tletField @"address" successor
