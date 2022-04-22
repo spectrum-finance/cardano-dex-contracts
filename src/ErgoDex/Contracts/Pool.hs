@@ -34,6 +34,7 @@ module ErgoDex.Contracts.Pool
   , PoolState(..)
   , maxLqCap
   , maxLqCapAmount
+  , burnLqInitial
   , getPoolInput
   , findPoolConfig
   , readPoolState
@@ -62,7 +63,7 @@ data PoolConfig = PoolConfig
 PlutusTx.makeIsDataIndexed ''PoolConfig [('PoolConfig, 0)]
 PlutusTx.makeLift ''PoolConfig
 
-data PoolAction = Deposit | Redeem | Swap
+data PoolAction = Deposit | Redeem | Swap | Destroy
   deriving Haskell.Show
 PlutusTx.makeLift ''PoolAction
 
@@ -74,6 +75,7 @@ instance FromData PoolAction where
         | i == 0    = Just Deposit
         | i == 1    = Just Redeem
         | i == 2    = Just Swap
+        | i == 3    = Just Destroy
         | otherwise = Nothing
 
 instance UnsafeFromData PoolAction where
@@ -86,6 +88,7 @@ instance ToData PoolAction where
     Deposit -> 0
     Redeem  -> 1
     Swap    -> 2
+    Destroy -> 3
 
 data PoolRedeemer = PoolRedeemer
   { action :: PoolAction
@@ -104,6 +107,10 @@ data PoolState = PoolState
 {-# INLINABLE maxLqCap #-}
 maxLqCap :: Integer
 maxLqCap = 0x7fffffffffffffff
+
+{-# INLINABLE burnLqInitial #-}
+burnLqInitial :: Integer
+burnLqInitial = 1000
 
 maxLqCapAmount :: Amount Liquidity
 maxLqCapAmount = Amount maxLqCap
