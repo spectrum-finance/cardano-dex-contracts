@@ -35,6 +35,7 @@ newtype SwapConfig (s :: S) = SwapConfig
          , "exFeePerTokenNum" ':= PInteger
          , "exFeePerTokenDen" ':= PInteger
          , "rewardPkh"        ':= PPubKeyHash
+         , "stakePkh"         ':= PMaybeData PPubKeyHash
          , "baseAmount"       ':= PInteger
          , "minQuoteAmount"   ':= PInteger
         ]
@@ -52,7 +53,7 @@ deriving via (DerivePConstantViaData S.SwapConfig SwapConfig) instance (PConstan
 swapValidatorT :: ClosedTerm (SwapConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   ctx     <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-  conf    <- tcont $ pletFields @'["base", "quote", "poolNft", "feeNum", "exFeePerTokenNum", "exFeePerTokenDen", "rewardPkh", "baseAmount", "minQuoteAmount"] conf'
+  conf    <- tcont $ pletFields @'["base", "quote", "poolNft", "feeNum", "exFeePerTokenNum", "exFeePerTokenDen", "rewardPkh", "stakePkh", "baseAmount", "minQuoteAmount"] conf'
   txInfo' <- tletUnwrap $ hrecField @"txInfo" ctx
   txInfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
   inputs  <- tletUnwrap $ hrecField @"inputs" txInfo
@@ -65,7 +66,8 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 
   rewardOut   <- tlet $ pelemAt # rewardOutIx # outputs
   rewardPkh   <- tletUnwrap $ hrecField @"rewardPkh" conf
-  rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh
+  stakePkh    <- tletUnwrap $ hrecField @"stakePkh" conf
+  rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh # stakePkh
 
   poolIn'   <- tlet $ pelemAt # poolInIx # inputs
   poolIn    <- tcont $ pletFields @'["outRef", "resolved"] poolIn'

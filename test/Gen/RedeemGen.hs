@@ -12,7 +12,7 @@ import qualified ErgoDex.Contracts.Proxy.Redeem as R
 
 mkRedeemConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> R.RedeemConfig
 mkRedeemConfig x y lq nft fee pkh =
-  R.RedeemConfig nft x y lq fee pkh
+  R.RedeemConfig nft x y lq fee pkh Nothing
 
 genRConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> (Data, DatumHash)
 genRConfig x y lq nft fee pkh =

@@ -14,6 +14,7 @@ data DepositConfig = DepositConfig
    , tokenLp       :: Coin Liquidity
    , exFee         :: Amount Lovelace
    , rewardPkh     :: PubKeyHash
+   , stakePkh      :: Haskell.Maybe PubKeyHash
    , collateralAda :: Amount Lovelace
    } deriving stock (Haskell.Show)
 

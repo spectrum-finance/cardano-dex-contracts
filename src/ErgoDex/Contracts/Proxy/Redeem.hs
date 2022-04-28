@@ -48,6 +48,7 @@ data RedeemConfig = RedeemConfig
    , poolLp    :: AssetClass
    , exFee     :: Integer
    , rewardPkh :: PubKeyHash
+   , stakePkh  :: Maybe PubKeyHash
    } deriving stock (Haskell.Show, GHC.Generic)
      deriving (FromJSON, ToJSON)
 PlutusTx.makeIsDataIndexed ''RedeemConfig [('RedeemConfig, 0)]

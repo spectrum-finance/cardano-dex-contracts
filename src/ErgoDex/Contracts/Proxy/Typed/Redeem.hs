@@ -14,6 +14,7 @@ data RedeemConfig = RedeemConfig
    , poolLp    :: Coin Liquidity
    , exFee     :: Amount Lovelace
    , rewardPkh :: PubKeyHash
+   , stakePkh  :: Haskell.Maybe PubKeyHash
    } deriving stock (Haskell.Show)
 
 instance UnliftErased RedeemConfig R.RedeemConfig where

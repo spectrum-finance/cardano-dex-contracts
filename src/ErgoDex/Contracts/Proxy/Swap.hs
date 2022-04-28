@@ -50,6 +50,7 @@ data SwapConfig = SwapConfig
    , exFeePerTokenNum :: Integer
    , exFeePerTokenDen :: Integer
    , rewardPkh        :: PubKeyHash
+   , stakePkh         :: Maybe PubKeyHash
    , baseAmount       :: Integer
    , minQuoteAmount   :: Integer
    } deriving stock (Haskell.Show, GHC.Generic)

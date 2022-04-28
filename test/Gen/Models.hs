@@ -107,7 +107,7 @@ mkPoolConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer 
 mkPoolConfig nft x y lq fee = P.PoolConfig nft x y lq fee
 
 mkDepositConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> Integer -> D.DepositConfig
-mkDepositConfig nft x y lq fee pkh cFee = D.DepositConfig nft x y lq fee pkh cFee
+mkDepositConfig nft x y lq fee pkh cFee = D.DepositConfig nft x y lq fee pkh Nothing cFee
 
 mkPoolRedeemer :: Integer -> P.PoolAction -> P.PoolRedeemer
 mkPoolRedeemer ix action = P.PoolRedeemer action ix

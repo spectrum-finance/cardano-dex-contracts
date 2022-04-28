@@ -41,6 +41,7 @@ newtype RedeemConfig (s :: S) = RedeemConfig
          , "lq"        ':= PAssetClass
          , "exFee"     ':= PInteger
          , "rewardPkh" ':= PPubKeyHash
+         , "stakePkh"  ':= PMaybeData PPubKeyHash
         ]
     )
   )  
@@ -56,7 +57,7 @@ deriving via (DerivePConstantViaData R.RedeemConfig RedeemConfig) instance (PCon
 redeemValidatorT :: ClosedTerm (RedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   ctx     <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-  conf    <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh"] conf'
+  conf    <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "stakePkh"] conf'
   txInfo' <- tletUnwrap $ hrecField @"txInfo" ctx
   txInfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
   inputs  <- tletUnwrap $ hrecField @"inputs" txInfo
@@ -69,7 +70,8 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 
   rewardOut   <- tlet $ pelemAt # rewardOutIx # outputs
   rewardPkh   <- tletUnwrap $ hrecField @"rewardPkh" conf
-  rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh
+  stakePkh    <- tletUnwrap $ hrecField @"stakePkh" conf
+  rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh # stakePkh
 
   poolIn'   <- tlet $ pelemAt # poolInIx # inputs
   poolIn    <- tcont $ pletFields @'["outRef", "resolved"] poolIn'
