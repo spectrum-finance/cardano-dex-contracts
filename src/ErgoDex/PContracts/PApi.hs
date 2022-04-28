@@ -17,6 +17,7 @@ module ErgoDex.PContracts.PApi
 
 import Plutarch
 import Plutarch.Api.V1
+import Plutarch.Api.V1.Address
 import Plutarch.Prelude
 
 import PExtra.List
@@ -49,18 +50,35 @@ pmin = phoistAcyclic $ plam $ \a b -> pif (a #<= b) a b
 containsSignature :: Term s (PBuiltinList (PAsData PPubKeyHash) :--> PPubKeyHash :--> PBool)
 containsSignature = phoistAcyclic $ plam $ \signatories userPubKeyHash -> pelem # pdata userPubKeyHash # signatories
 
--- Guarantees reward prposition correctness
-getRewardValue' :: Term s (PAsData PTxOut :--> PPubKeyHash :--> PValue)
-getRewardValue' = phoistAcyclic $ plam $ \out pubkeyHash -> unTermCont $ do
-  let addr = pfield @"address" # out
-  cred <- tletField @"credential" addr
-  pure $ pmatch cred $ \case
+-- Guarantees reward proposition correctness
+getRewardValue' :: Term s (PAsData PTxOut :--> PPubKeyHash :--> PMaybeData PPubKeyHash :--> PValue)
+getRewardValue' = phoistAcyclic $ plam $ \out pubkeyHash stakePkhM -> unTermCont $ do
+  let addr  = pfield @"address" # out
+  cred      <- tletField @"credential" addr
+  outValue  <- tletUnwrap $ pmatch cred $ \case
     PPubKeyCredential pcred ->
       let
         pkh   = pfield @"_0" # pcred
         value = pfield @"value" # out
       in pif (pkh #== pubkeyHash) value (ptraceError "Invalid reward proposition")
     _ -> ptraceError "Invalid reward proposition"
+  sPkh     <- tlet $ getStakeHash # addr
+  pure $ pif (sPkh #== stakePkhM) outValue (ptraceError "Invalid reward proposition")
+
+getStakeHash :: forall (s :: S). Term s (PAddress :--> PMaybeData PPubKeyHash)
+getStakeHash = phoistAcyclic $ plam $ \address -> unTermCont $ do
+  sCredM   <- tletField @"stakingCredential" address
+  pure $ pmatch sCredM $ \case
+    PDJust sCredData ->
+      plet (pfield @"_0" # sCredData) $ \sCred ->
+        pmatch sCred $ \case
+          PStakingHash c ->
+            plet (pfield @"_0" # c) $ \sHash ->
+	            pmatch sHash $ \case
+	              PPubKeyCredential pscred -> pcon (PDJust pscred)
+	              _ -> ptraceError "Invalid stake proposition"
+          _ -> ptraceError "Invalid stake proposition"
+    _ -> pcon (PDNothing pdnil)
 
 getInputValue :: Term s (PBuiltinList (PAsData PTxInInfo) :--> PInteger :--> PValue)
 getInputValue = phoistAcyclic $ plam $ \inputs index -> unTermCont $ do

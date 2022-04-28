@@ -17,7 +17,7 @@ import Plutarch.Lift
 
 import PExtra.API
 import PExtra.Ada
-import Plutarch.Api.V1 (PPubKeyHash, PValue)
+import Plutarch.Api.V1 (PPubKeyHash, PValue, PMaybeData)
 import PExtra.Monadic  (tlet, tmatch, tletField)
 import PExtra.List     (pelemAt)
 
@@ -36,6 +36,7 @@ newtype DepositConfig (s :: S) = DepositConfig
        , "lq"            ':= PAssetClass
        , "exFee"         ':= PInteger
        , "rewardPkh"     ':= PPubKeyHash
+       , "stakePkh"      ':= PMaybeData PPubKeyHash
        , "collateralAda" ':= PInteger
        ]
     )
@@ -52,7 +53,7 @@ deriving via (DerivePConstantViaData D.DepositConfig DepositConfig) instance (PC
 depositValidatorT :: ClosedTerm (DepositConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   ctx     <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-  conf    <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "collateralAda"] conf'
+  conf    <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "stakePkh", "collateralAda"] conf'
   txInfo' <- tletUnwrap $ hrecField @"txInfo" ctx
   txInfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
   inputs  <- tletUnwrap $ hrecField @"inputs" txInfo
@@ -65,7 +66,8 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 
   rewardOut   <- tlet $ pelemAt # rewardOutIx # outputs
   rewardPkh   <- tletUnwrap $ hrecField @"rewardPkh" conf
-  rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh
+  stakePkh    <- tletUnwrap $ hrecField @"stakePkh" conf
+  rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh # stakePkh
 
   poolIn'   <- tlet $ pelemAt # poolInIx # inputs
   poolIn    <- tcont $ pletFields @'["outRef", "resolved"] poolIn'
@@ -111,7 +113,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 
   reservesX <- tlet $ assetClassValueOf # poolValue # x
   reservesY <- tlet $ assetClassValueOf # poolValue # y
-   
+
   minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
   minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
   let

@@ -12,7 +12,7 @@ import qualified ErgoDex.Contracts.Proxy.Swap as S
 
 mkSwapConfig :: AssetClass -> AssetClass -> AssetClass -> Integer -> Integer -> Integer -> PubKeyHash -> Integer -> Integer -> S.SwapConfig
 mkSwapConfig x y nft fee1 fee2 fee3 pkh xQty yQty =
-  S.SwapConfig x y nft fee1 fee2 fee3 pkh xQty yQty
+  S.SwapConfig x y nft fee1 fee2 fee3 pkh Nothing xQty yQty
 
 genSConfig :: AssetClass -> AssetClass -> AssetClass -> Integer -> Integer -> Integer -> PubKeyHash -> Integer -> Integer -> (Data, DatumHash)
 genSConfig x y nft fee1 fee2 fee3 pkh xQty yQty =

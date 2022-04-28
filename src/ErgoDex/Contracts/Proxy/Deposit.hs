@@ -48,6 +48,7 @@ data DepositConfig = DepositConfig
    , tokenLp       :: AssetClass
    , exFee         :: Integer
    , rewardPkh     :: PubKeyHash
+   , stakePkh      :: Maybe PubKeyHash
    , collateralAda :: Integer
    } deriving stock (Haskell.Show, GHC.Generic)
      deriving (FromJSON, ToJSON)

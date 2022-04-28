@@ -42,6 +42,7 @@ import Plutarch.Api.V1 (
   PTxOut (..),
   PTxOutRef (..),
   PValue (..),
+  PMaybeData (..)
  )
 import Plutarch.Builtin (ppairDataBuiltin)
 import Plutarch.DataRepr (
@@ -99,6 +100,21 @@ instance PEq PAddress where
       )
       # a'
       # b'
+
+instance PEq a => PEq (PMaybeData a) where
+  (#==) a' b' =
+    phoistAcyclic
+     ( plam $ \a b ->
+         pmatch a $ \case
+           PDJust a''  -> pmatch b $ \case
+             PDJust b'' -> (pfield @"_0" # a'') #== (pfield @"_0" # b'')
+             _          -> pcon PFalse
+           PDNothing _ -> pmatch b $ \case
+             PDNothing _ -> pcon PTrue
+             _           -> pcon PFalse
+     )
+     # a'
+     # b'
 
 instance PEq PTxOutRef where
    a' #== b' =
