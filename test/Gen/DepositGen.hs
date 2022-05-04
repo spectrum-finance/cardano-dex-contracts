@@ -15,6 +15,10 @@ import qualified Data.ByteString.Base16  as Hex
 import qualified Data.Text.Encoding      as E
 import qualified Data.Text as T
 
+genNftTest :: TokenName
+genNftTest = TokenName $ BuiltinByteString $ mkByteString $ T.pack "4333745F4D454C44745F6E6674"
+
+
 genNft :: TokenName
 genNft = TokenName $ BuiltinByteString $ mkByteString $ T.pack "4e46545f546f6b656e5f6e65775f706f6f6c0a"
 
