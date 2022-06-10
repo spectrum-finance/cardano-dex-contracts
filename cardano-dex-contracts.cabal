@@ -185,3 +185,11 @@ test-suite cardano-dex-contracts-test
     , tasty-hunit==0.10.0.3
     , tasty==1.4.2
     , tasty-hedgehog==1.1.0.0
+    , plutus-ledger-api
+    , aeson
+    , cardano-api
+    , serialise
+    , scientific
+    , cardano-binary
+    , hex-text
+    , cardano-ledger-alonzo
