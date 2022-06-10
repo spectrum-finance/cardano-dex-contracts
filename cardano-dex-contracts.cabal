@@ -117,6 +117,7 @@ library
       ErgoDex.PContracts.PRedeem
       ErgoDex.PContracts.PAssets
       ErgoDex.PValidators
+      ErgoDex.PMintingValidators
       PExtra.Ada
       PExtra.Num
       PExtra.Integer
