@@ -5,10 +5,6 @@ module ErgoDex.PContracts.PPool
   , PoolAction(..)
   , PoolRedeemer(..)
   , poolValidatorT
-  , mkSwapValidatorT
-  , mkDepositValidatorT
-  , mkRedeemValidatorT
-  , merklizedPoolValidatorT
   ) where
 
 import qualified GHC.Generics as GHC
@@ -16,23 +12,21 @@ import Generics.SOP (Generic, I (I))
 
 import Plutarch
 import Plutarch.Prelude
-import Plutarch.DataRepr
-import Plutarch.Lift
-import Plutarch.Api.V1.Contexts
-import Plutarch.Api.V1 (PTxOut, PMaybeData(PDJust))
+import Plutarch.DataRepr        (PDataFields, DerivePConstantViaData(..), PIsDataReprInstances(..))
+import Plutarch.Lift            (PUnsafeLiftDecl(..))
+import Plutarch.Api.V1.Contexts (PScriptContext, PScriptPurpose(PSpending))
+import Plutarch.Api.V1          (PTxOut, PMaybeData(PDJust))
 
 import PExtra.Monadic (tcon, tlet, tletField, tmatch)
-import PExtra.List (pelemAt, pfind)
-import PExtra.API
+import PExtra.List    (pelemAt)
+import PExtra.API     (assetClassValueOf, PAssetClass)
 
-import ErgoDex.PContracts.PData (pget)
 import qualified ErgoDex.Contracts.Pool as P
 
 import Plutarch.Builtin (pforgetData, pasInt)
-import Plutarch.Unsafe (punsafeCoerce)
-import Plutarch.Api.V1.Value (PCurrencySymbol, PValue(..))
+import Plutarch.Unsafe  (punsafeCoerce)
 
-import ErgoDex.PContracts.PApi
+import ErgoDex.PContracts.PApi (burnLqInitial, feeDen, maxLqCap, tletUnwrap, zero)
 
 newtype PoolConfig (s :: S) = PoolConfig
   (
@@ -177,18 +171,18 @@ findPoolOutput =
 
 poolValidatorT :: ClosedTerm (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
 poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
-  redeemer  <- tcont $ pletFields @'["action", "selfIx"] redeemer'
-  selfIx    <- tletUnwrap $ hrecField @"selfIx" redeemer
-  ctx       <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-  txinfo'   <- tletUnwrap $ hrecField @"txInfo" ctx
-  txInfo    <- tcont $ pletFields @'["inputs", "outputs"] txinfo'
-  inputs    <- tletUnwrap $ hrecField @"inputs" txInfo
-  selfIn'   <- tlet $ pelemAt # selfIx # inputs
-  selfIn    <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
-  self      <- tletUnwrap $ hrecField @"resolved" selfIn
+  redeemer <- tcont $ pletFields @'["action", "selfIx"] redeemer'
+  selfIx   <- tletUnwrap $ hrecField @"selfIx" redeemer
+  ctx      <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
+  txinfo'  <- tletUnwrap $ hrecField @"txInfo" ctx
+  txInfo   <- tcont $ pletFields @'["inputs", "outputs"] txinfo'
+  inputs   <- tletUnwrap $ hrecField @"inputs" txInfo
+  selfIn'  <- tlet $ pelemAt # selfIx # inputs
+  selfIn   <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
+  self     <- tletUnwrap $ hrecField @"resolved" selfIn
 
-  s0   <- tlet $ readPoolState # conf # self
-  lq0  <- tletField @"liquidity" s0
+  s0  <- tlet $ readPoolState # conf # self
+  lq0 <- tletField @"liquidity" s0
 
   action <- tletUnwrap $ hrecField @"action" redeemer
 
@@ -199,12 +193,12 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
       nft       <- tletField @"poolNft" conf
       successor <- tlet $ pfromData $ findPoolOutput # nft # outputs -- nft is preserved
 
-      s1   <- tlet $ readPoolState # conf # successor
-      rx0  <- tletField @"reservesX" s0
-      rx1  <- tletField @"reservesX" s1
-      ry0  <- tletField @"reservesY" s0
-      ry1  <- tletField @"reservesY" s1
-      lq1  <- tletField @"liquidity" s1
+      s1  <- tlet $ readPoolState # conf # successor
+      rx0 <- tletField @"reservesX" s0
+      rx1 <- tletField @"reservesX" s1
+      ry0 <- tletField @"reservesY" s0
+      ry1 <- tletField @"reservesY" s1
+      lq1 <- tletField @"liquidity" s1
       let
         dx  = rx1 - rx0
         dy  = ry1 - ry0
@@ -224,151 +218,11 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
 
       selfAddr <- tletField @"address" self
       succAddr <- tletField @"address" successor
-      let scriptPreserved = succAddr #== selfAddr -- validator preserved
+      let scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
 
       let
         validAction = pmatch action $ \case
-          Swap    -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
-          _       -> validDepositRedeem # s0 # dx # dy # dlq
+          Swap -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
+          _    -> validDepositRedeem # s0 # dx # dy # dlq
 
       pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
-
-mkDepositValidatorT :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
-mkDepositValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
-  txinfo'   <- tletField @"txInfo" ctx
-  txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
-  inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
-  outputs   <- tletUnwrap $ hrecField @"outputs" txinfo
-  selfIn    <- tlet $ pelemAt # poolIx # inputs
-  self      <- tletField @"resolved" selfIn
-  nft       <- tletField @"poolNft" conf
-  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
-
-  selfValue <- tletField @"value" self
-  let selfIdentity = assetClassValueOf # selfValue # nft #== 1
-
-  maybeSelfDh    <- tletField @"datumHash" self
-  maybeSuccDh    <- tletField @"datumHash" successor
-  PDJust selfDh' <- tmatch maybeSelfDh
-  PDJust succDh' <- tmatch maybeSuccDh
-  selfDh         <- tletField @"_0" selfDh'
-  succDh         <- tletField @"_0" succDh'
-  let confPreserved = succDh #== selfDh
-
-  s0   <- tlet $ readPoolState # conf # self
-  s1   <- tlet $ readPoolState # conf # successor
-  rx0  <- tletField @"reservesX" s0
-  rx1  <- tletField @"reservesX" s1
-  ry0  <- tletField @"reservesY" s0
-  ry1  <- tletField @"reservesY" s1
-  lq0  <- tletField @"liquidity" s0
-  lq1  <- tletField @"liquidity" s1
-  let
-    dx  = rx1 - rx0
-    dy  = ry1 - ry0
-    dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
-
-  selfAddr <- tletField @"address" self
-  succAddr <- tletField @"address" successor
-  let scriptPreserved = succAddr #== selfAddr
-
-  let validAction = validDepositRedeem # s0 # dx # dy # dlq
-
-  pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
-
-mkRedeemValidatorT :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
-mkRedeemValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
-  txinfo'   <- tletField @"txInfo" ctx
-  txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
-  inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
-  outputs   <- tletUnwrap $ hrecField @"outputs" txinfo
-  selfIn    <- tlet $ pelemAt # poolIx # inputs
-  self      <- tletField @"resolved" selfIn
-  nft       <- tletField @"poolNft" conf
-  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
-
-  selfValue <- tletField @"value" self
-  let selfIdentity = assetClassValueOf # selfValue # nft #== 1
-
-  maybeSelfDh    <- tletField @"datumHash" self
-  maybeSuccDh    <- tletField @"datumHash" successor
-  PDJust selfDh' <- tmatch maybeSelfDh
-  PDJust succDh' <- tmatch maybeSuccDh
-  selfDh         <- tletField @"_0" selfDh'
-  succDh         <- tletField @"_0" succDh'
-  let confPreserved = succDh #== selfDh
-
-  s0   <- tlet $ readPoolState # conf # self
-  s1   <- tlet $ readPoolState # conf # successor
-  rx0  <- tletField @"reservesX" s0
-  rx1  <- tletField @"reservesX" s1
-  ry0  <- tletField @"reservesY" s0
-  ry1  <- tletField @"reservesY" s1
-  lq0  <- tletField @"liquidity" s0
-  lq1  <- tletField @"liquidity" s1
-  let
-    dx  = rx1 - rx0
-    dy  = ry1 - ry0
-    dlq = lq0 - lq1 -- pool keeps only the negative part of LQ tokens
-
-  selfAddr <- tletField @"address" self
-  succAddr <- tletField @"address" successor
-  let scriptPreserved = succAddr #== selfAddr
-
-  let validAction = validDepositRedeem # s0 # dx # dy # dlq
-
-  pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
-
-mkSwapValidatorT :: Term s PoolConfig -> Term s (PInteger :--> PScriptContext :--> PBool)
-mkSwapValidatorT conf = plam $ \poolIx ctx -> unTermCont $ do
-  txinfo'   <- tletField @"txInfo" ctx
-  txinfo    <- tcont $ pletFields @'["inputs", "outputs", "mint"] txinfo'
-  inputs    <- tletUnwrap $ hrecField @"inputs" txinfo
-  outputs   <- tletUnwrap $ hrecField @"outputs" txinfo
-  selfIn    <- tlet $ pelemAt # poolIx # inputs
-  self      <- tletField @"resolved" selfIn
-  nft       <- tletField @"poolNft" conf
-  successor <- tlet $ pfromData $ findPoolOutput # nft # outputs
-
-  selfValue <- tletField @"value" self
-  let selfIdentity = assetClassValueOf # selfValue # nft #== 1
-
-  maybeSelfDh    <- tletField @"datumHash" self
-  maybeSuccDh    <- tletField @"datumHash" successor
-  PDJust selfDh' <- tmatch maybeSelfDh
-  PDJust succDh' <- tmatch maybeSuccDh
-  selfDh         <- tletField @"_0" selfDh'
-  succDh         <- tletField @"_0" succDh'
-  let confPreserved = succDh #== selfDh
-
-  s0   <- tlet $ readPoolState # conf # self
-  s1   <- tlet $ readPoolState # conf # successor
-  rx0  <- tletField @"reservesX" s0
-  rx1  <- tletField @"reservesX" s1
-  ry0  <- tletField @"reservesY" s0
-  ry1  <- tletField @"reservesY" s1
-  let
-    dx = rx1 - rx0
-    dy = ry1 - ry0
-
-  selfAddr <- tletField @"address" self
-  succAddr <- tletField @"address" successor
-  let scriptPreserved = succAddr #== selfAddr
-
-  let validAction = validSwap # conf # s0 # dx # dy
-
-  pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
-
-merklizedPoolValidatorT :: ClosedTerm (PBuiltinList PCurrencySymbol :--> PCurrencySymbol :--> PScriptContext :--> PBool)
-merklizedPoolValidatorT = plam $ \allowedActions actionNft ctx -> unTermCont $ do
-  txinfo'    <- tletField @"txInfo" ctx
-  valueMint' <- tletField @"mint" txinfo'
-
-  PValue valueMint <- tmatch valueMint'
-
-  PJust _ <- tmatch $ pfind # plam (#== actionNft) # allowedActions -- make sure a known minting policy is used
-
-  tlet $ pmatch (pget # actionNft # valueMint) $ \case -- todo: possible vector of attack: Put Map(actionNft -> Map.empty) into value mint?
-    PNothing -> pconstant False
-    _        -> pconstant True
-    
