@@ -1,26 +1,38 @@
 {
     "haskell-nix": {
-      "branch": "master",
-      "description": "Alternative Haskell Infrastructure for Nixpkgs",
-      "homepage": "https://input-output-hk.github.io/haskell.nix",
-      "owner": "input-output-hk",
-      "repo": "haskell.nix",
-      "rev": "a57f4f77d811490ac1faf309295ed98d8e1ee6b9",
-      "sha256": "1p641igwjwbgxi20g2xp3fhmasm21m2vd9fpha64dqsxymi7c1ac",
-      "type": "tarball",
-      "url": "https://github.com/input-output-hk/haskell.nix/archive/a57f4f77d811490ac1faf309295ed98d8e1ee6b9.tar.gz",
-      "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "branch": "master",
+        "description": "Alternative Haskell Infrastructure for Nixpkgs",
+        "homepage": "https://input-output-hk.github.io/haskell.nix",
+        "owner": "input-output-hk",
+        "repo": "haskell.nix",
+        "rev": "6fd5f3ce0bebe84c4a9506aea3c9130cd20c471a",
+        "sha256": "1p1l95gv8g7l5njk2j2qa1qwk1kb6j90xrnw7qv8h83n8lm995fi",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/6fd5f3ce0bebe84c4a9506aea3c9130cd20c471a.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "plutus-apps": {
-        "branch": "main",
+        "branch": "v2022-04-06",
         "description": "The Plutus application platform",
         "homepage": "",
         "owner": "input-output-hk",
         "repo": "plutus-apps",
-        "rev": "c330fc60d0cd174743c95de71e5c404b5008f186",
-        "sha256": "1dz16kzqwwf4nr8rfymzpnr8mvpprwqqh2mhyhknjczljfc0lwgh",
+        "rev": "e4062bca213f233cdf9822833b07aa69dff6d22a",
+        "sha256": "13yg3vb6a6gmjawlfa3wam5c6krqm7lip4w1p0j30hflca23x2h2",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/plutus-apps/archive/c330fc60d0cd174743c95de71e5c404b5008f186.tar.gz",
+        "url": "https://github.com/input-output-hk/plutus-apps/archive/e4062bca213f233cdf9822833b07aa69dff6d22a.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "secp256k1": {
+        "branch": "master",
+        "description": "Optimized C library for EC operations on curve secp256k1",
+        "homepage": null,
+        "owner": "bitcoin-core",
+        "repo": "secp256k1",
+        "rev": "3efeb9da21368c02cad58435b2ccdf6eb4b359c3",
+        "sha256": "0kr3kgp3fv0pns2y3xzzfq01abjfg9dvrnib9cvi9wri5bk9yylf",
+        "type": "tarball",
+        "url": "https://github.com/bitcoin-core/secp256k1/archive/3efeb9da21368c02cad58435b2ccdf6eb4b359c3.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

@@ -65,9 +65,9 @@ mkSwapValidator SwapConfig{..} _ ctx =
       traceIfFalse "Invalid pool" validPool &&
       traceIfFalse "Invalid number of inputs" validNumInputs &&
       traceIfFalse "Invalid reward proposition" validRewardProp &&
-      traceIfFalse "Unfair execution fee" fairExFee &&
-      traceIfFalse "Min output not met" (quoteAmount >= minQuoteAmount) &&
-      traceIfFalse "Unfair execution price" fairPrice
+      traceIfFalse "Unfair execution fee" fairExFee && -- true
+      traceIfFalse "Min output not met" (quoteAmount >= minQuoteAmount) && -- true
+      traceIfFalse "Unfair execution price" fairPrice -- true
     )
   where
     txInfo = scriptContextTxInfo ctx
@@ -77,11 +77,11 @@ mkSwapValidator SwapConfig{..} _ ctx =
 
     poolValue = txOutValue pool
 
-    validPool = assetClassValueOf poolValue poolNft == 1
+    validPool = assetClassValueOf poolValue poolNft == 1 -- true
 
-    validNumInputs = length (txInfoInputs txInfo) == 2
+    validNumInputs = length (txInfoInputs txInfo) == 2 -- true
 
-    validRewardProp = maybe False (== rewardPkh) (pubKeyOutput reward)
+    validRewardProp = maybe False (== rewardPkh) (pubKeyOutput reward) -- true
 
     selfValue   = txOutValue self
     rewardValue = txOutValue reward
@@ -89,27 +89,31 @@ mkSwapValidator SwapConfig{..} _ ctx =
     quoteAmount =
         if isAda quote
           then divide (quoteDelta * exFeePerTokenDen) (exFeePerTokenDen - exFeePerTokenNum)
-          else quoteDelta
+          else quoteDelta -- 4739223624  -- 4607548043
+
       where
-        quoteOut   = assetClassValueOf rewardValue quote
-        quoteIn    = assetClassValueOf selfValue quote
-        quoteDelta = quoteOut - quoteIn
+        quoteOut   = assetClassValueOf rewardValue quote -- 4739223624
+        quoteIn    = assetClassValueOf selfValue quote -- 0
+        quoteDelta = quoteOut - quoteIn -- 4739223624
 
     fairExFee =
-        outAda - quoteAda >= inAda - baseAda - exFee
+        outAda - quoteAda >= inAda - baseAda - exFee -- (1687642 - 0) >= 1687642 -- true 
       where
         (baseAda, quoteAda)
-          | isAda base  = (baseAmount, 0)
+          | isAda base  = (baseAmount, 0) -- 50000000, 0
           | isAda quote = (0, quoteAmount)
           | otherwise   = (0, 0)
-        outAda = Ada.getLovelace $ Ada.fromValue rewardValue
-        inAda  = Ada.getLovelace $ Ada.fromValue selfValue
-        exFee  = divide (quoteAmount * exFeePerTokenNum) exFeePerTokenDen
+        outAda = Ada.getLovelace $ Ada.fromValue rewardValue -- 1687642
+        inAda  = Ada.getLovelace $ Ada.fromValue selfValue -- 53744798
+        exFee  = divide (quoteAmount * exFeePerTokenNum) exFeePerTokenDen -- (4739223624 * 434070351808592) / 1000000000000000000
 
     fairPrice =
         reservesQuote * baseAmount * feeNum <= relaxedOut * (reservesBase * feeDen + baseAmount * feeNum)
-      where
-        relaxedOut    = quoteAmount + 1
-        reservesBase  = assetClassValueOf poolValue base
-        reservesQuote = assetClassValueOf poolValue quote
+      -- 100000000000 * 50000000 * 434070351808592 <= 4739223625 * (1000000000 * 1000000000000000000 + 50000000 * 434070351808592)
+      -- 2170351759042960000000000000000000 <= 
+      -- 21703517590429600000000000000000000000000000000000
+      where -- 1000000000000000000000000000 -- 21703517590429600000000
+        relaxedOut    = quoteAmount + 1  -- 4739223625
+        reservesBase  = assetClassValueOf poolValue base -- 1000000000
+        reservesQuote = assetClassValueOf poolValue quote -- 100000000000
         feeDen        = 1000

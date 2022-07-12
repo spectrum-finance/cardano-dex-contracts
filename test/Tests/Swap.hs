@@ -72,15 +72,15 @@ successSwapWithXIsAda = property $ do
   orderTxRef      <- forAll genTxOutRef
   let
     x             = mkAdaAssetClass 
-    (cfgData, dh) = genSConfig x y nft 100 100 100 pkh 10 1
-    orderTxIn     = genSTxIn orderTxRef dh x 5010 0
-    orderTxOut    = genSTxOut dh y 10 5000 pkh
+    (cfgData, dh) = genSConfig x y nft 995 1400234506794448 1000000000000000000 pkh 15000000 1428332176
+    orderTxIn     = genSTxIn orderTxRef dh x 1000000000 0
+    orderTxOut    = genSTxOut dh y 4739223624 1687642 pkh
   
   poolTxRef <- forAll genTxOutRef
   let
     (pcfg, pdh) = genPConfig x y nft lq 1
-    poolTxIn    = genPTxIn poolTxRef pdh x 5000 y 5000 lq 9223372036854775797 nft 1 0
-    poolTxOut   = genPTxOut pdh x 5010 y 4990 lq 9223372036854775787 nft 1 0 
+    poolTxIn    = genPTxIn poolTxRef pdh x 1000000000 y 100000000000 lq 9223371936849775932 nft 1 0
+    poolTxOut   = genPTxOut pdh x 1050000000 y 95260776376 lq 9223372036854775787 nft 1 0 
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
