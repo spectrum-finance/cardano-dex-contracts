@@ -1,28 +1,25 @@
 { pkgs
 , sources
-, plutus
 , haskell-nix
 }:
 let
-  gitignore-nix = pkgs.callPackage plutus."gitignore.nix" { };
-
-  compiler-nix-name = plutus.plutus-apps.haskell.compiler-nix-name;
+  gitignore-nix = pkgs.callPackage pkgs."gitignore.nix" { };
 
   haskell = pkgs.callPackage ./haskell {
     inherit gitignore-nix sources haskell-nix;
-    inherit compiler-nix-name; # Use the same GHC version as plutus
     inherit (pkgs) libsodium-vrf;
+    inherit pkgs;
   };
 
-  hlint = plutus.plutus-apps.hlint;
+  hlint = pkgs.hlint;
 
-  cabal-install = plutus.plutus-apps.cabal-install;
+  cabal-install = pkgs.cabal-install;
 
-  stylish-haskell = plutus.plutus-apps.stylish-haskell;
+  stylish-haskell = pkgs.stylish-haskell;
 
-  haskell-language-server = plutus.plutus-apps.haskell-language-server;
+  haskell-language-server = pkgs.haskell.haskell-language-server;
 
-  cardano-repo-tool = plutus.plutus-apps.cardano-repo-tool;
+  cardano-repo-tool = pkgs.cardano-repo-tool;
 in
 {
   inherit haskell hlint cabal-install stylish-haskell haskell-language-server cardano-repo-tool;

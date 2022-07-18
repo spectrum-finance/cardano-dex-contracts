@@ -31,27 +31,27 @@ common lang
     default-language:   Haskell2010
     default-extensions:
       NoStarIsType
-    BangPatterns
-    BinaryLiterals
-    BlockArguments
-    ConstrainedClassMethods
-    ConstraintKinds
-    DataKinds
-    DefaultSignatures
-    DefaultSignatures
-    DeriveAnyClass
-    DeriveDataTypeable
-    DeriveFoldable
-    DeriveFunctor
-    DeriveGeneric
-    DeriveLift
-    DeriveTraversable
-    DerivingStrategies
-    DerivingVia
-    EmptyCase
-    EmptyDataDecls
-    EmptyDataDeriving
-    ExistentialQuantification
+      BangPatterns
+      BinaryLiterals
+      BlockArguments
+      ConstrainedClassMethods
+      ConstraintKinds
+      DataKinds
+      DefaultSignatures
+      DefaultSignatures
+      DeriveAnyClass
+      DeriveDataTypeable
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveLift
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      EmptyCase
+      EmptyDataDecls
+      EmptyDataDeriving
+      ExistentialQuantification
     ExplicitForAll
     FlexibleContexts
     ForeignFunctionInterface
@@ -88,6 +88,9 @@ common lang
     TypeOperators
     TypeSynonymInstances
     ViewPatterns
+    UndecidableSuperClasses
+    UndecidableInstances
+    FlexibleInstances
 
     ghc-options:
       -Weverything -Wno-unused-do-bind -Wno-missing-kind-signatures
@@ -143,9 +146,11 @@ library
       bytestring,
       containers,
       plutus-tx-plugin,
+      generics-sop,
+      sop-core,
       plutus-tx,
       plutarch,
-      generics-sop==0.5.1.0,
+      generics-sop,
       text,
       plutus-core,
       transformers
@@ -168,7 +173,7 @@ test-suite cardano-dex-contracts-test
     Tests.Redeem
     Eval
   build-depends:
-    , base  == 4.14.3.0
+    , base  >= 4.9 && < 5
     , HUnit == 1.6.2.0
     , text  == 1.2.4.1
     , base16-bytestring==1.0.1.0
