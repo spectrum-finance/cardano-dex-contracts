@@ -137,6 +137,7 @@
       hlsFor' = compiler-nix-name: pkgs:
         pkgs.haskell-nix.cabalProject' {
           modules = [{
+            packages.doExactConfig = true;
             inherit nonReinstallablePkgs;
             reinstallableLibGhc = false;
           }];
@@ -397,7 +398,7 @@
 
     in {
 
-      inherit hlsFor hlsFor';
+      inherit hlsFor hlsFor' builtins;
 
       projectMatrix = {
         ghc9 = perSystem projectFor;
@@ -408,15 +409,31 @@
       project = self.projectMatrix.ghc9;
 
       flake = perSystem (system: self.project.${system}.flake { });
-      
-      packages = perSystem (system: self.flake.${system}.packages // {});
 
+      haddockProject = self.project;
+
+      ghc810Flake = perSystem (system: self.projectMatrix.ghc810.${system}.flake { });
+
+      packages = perSystem (system: self.flake.${system}.packages );
+
+      overlay = (final: prev: {
+        haskell-hello = final.haskellPackages.callCabal2nix "cardano-dex-contracts" ./. {};
+      });
+
+      check = perSystem (system:
+        (pkgsFor system).runCommand "combined-test"
+          {
+            checksss = builtins.attrValues self.checks.${system};
+          } ''
+          echo $checksss
+          touch $out
+        ''
+      );
+      
       devShells = perSystem (system:
       {
         "ghc9" = self.flake.${system}.devShell;
       });
-
-      apps = perSystem (system: self.flake.${system}.apps // {});
 
       devShell = perSystem (system: self.devShells.${system}."ghc9");
     };
