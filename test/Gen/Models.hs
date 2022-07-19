@@ -52,9 +52,6 @@ import Plutus.V1.Ledger.Contexts
 import Plutarch.Api.V1 ( validatorHash )
 import qualified Plutus.V1.Ledger.Interval as Interval
 
-import qualified Cardano.Api          as Script
-import qualified Cardano.Api.Shelley  as Script
-
 import qualified ErgoDex.PValidators             as PScripts
 import qualified ErgoDex.Contracts.Pool          as P
 import qualified ErgoDex.Contracts.Proxy.Deposit as D
@@ -130,15 +127,8 @@ mkRedeemer = Redeemer . toBuiltinData
 mkDatum :: ToData a => a -> Datum
 mkDatum = Datum . toBuiltinData
 
-toCardanoAPIData :: Builtins.BuiltinData -> Script.ScriptData
-toCardanoAPIData = Script.fromPlutusData . builtinDataToData
-
 dataHash :: Builtins.BuiltinData -> Builtins.BuiltinByteString
-dataHash =
-    toBuiltin
-    . Script.serialiseToRawBytes
-    . Script.hashScriptData
-    . toCardanoAPIData
+dataHash = undefined 
 
 mkDatumHash :: Datum -> DatumHash
 mkDatumHash = DatumHash . dataHash . getDatum

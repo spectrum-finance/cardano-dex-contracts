@@ -164,7 +164,6 @@ test-suite cardano-dex-contracts-test
     , plutus-ledger-api==0.1.0.0
     , random==1.2.1
     , plutus-tx==0.1.0.0
-    , cardano-api
     , cardano-dex-contracts==0.1.0.0
     , containers==0.6.2.1
     , random-strings
