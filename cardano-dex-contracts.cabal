@@ -141,11 +141,11 @@ library
       PExtra.PTriple
 
     build-depends:
-      base >= 4.9 && < 5,
+      base,
       aeson,
       bytestring,
       containers,
-      plutus-tx-plugin,
+      plutus-core,
       generics-sop,
       sop-core,
       plutus-tx,
@@ -173,20 +173,20 @@ test-suite cardano-dex-contracts-test
     Tests.Redeem
     Eval
   build-depends:
-    , base  >= 4.9 && < 5
-    , HUnit == 1.6.2.0
-    , text  == 1.2.4.1
-    , base16-bytestring==1.0.1.0
-    , bytestring==0.10.12.0
-    , random==1.2.1
+    , base
+    , HUnit
+    , text
+    , base16-bytestring
+    , bytestring
+    , random
     , plutus-tx
-    , cardano-dex-contracts==0.1.0.0
-    , containers==0.6.5.1
+    , cardano-dex-contracts
+    , containers
     , random-strings
     , plutus-core
     , plutarch
-    , hedgehog==1.1.1
-    , rio==0.1.21.0
-    , tasty-hunit==0.10.0.3
-    , tasty==1.4.2
-    , tasty-hedgehog==1.1.0.0
+    , hedgehog
+    , rio
+    , tasty-hunit
+    , tasty
+    , tasty-hedgehog
