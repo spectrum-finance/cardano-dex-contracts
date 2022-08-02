@@ -23,4 +23,6 @@ cabal.project.local~
 .ghc.environment.*
 result*
 .envrc
+.direnv/
+.pre-commit-config.yaml
 .vim
