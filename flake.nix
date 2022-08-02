@@ -5,8 +5,9 @@
     # general inputs 
     nixpkgs.follows = "plutarch/nixpkgs";
     nixpkgs-upstream.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    haskell-nix-extra-hackage.follows = "plutarch/haskell-nix-extra-hackage";
-    haskell-nix.url = "github:input-output-hk/haskell.nix";
+
+    haskell-nix.follows = "plutarch/haskell-nix";
+    haskell-nix-extra-hackage.url = "github:mlabs-haskell/haskell-nix-extra-hackage";
 
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
@@ -132,7 +133,6 @@
     , haskell-nix
     , haskell-nix-extra-hackage
     , plutarch
-    , ply
     , pre-commit-hooks
     , ...
     }:
@@ -176,7 +176,7 @@
 
       # ONCHAIN
       # everything that is part of the onchain project; 
-      # we have to use ghc923 because all other ghc versions are unsupported by 
+      # we have to use ghc923+ because all other ghc versions are unsupported by 
       # plutarch
       onchain' = rec {
         nixpkgsFor = system: import nixpkgs {
@@ -192,8 +192,8 @@
             "${plutarch}"
             "${plutarch}/plutarch-extra"
             "${plutarch}/plutarch-test"
-            "${ply}/ply-core"
-            "${ply}/ply-plutarch"
+            "${inputs.ply}/ply-core"
+            "${inputs.ply}/ply-plutarch"
           ];
 
         projectFor = system:
@@ -201,13 +201,22 @@
             pkgs = nixpkgsFor system;
             pkgs' = plainNixpkgsFor system;
             hackages = myhackages system compiler-nix-name;
+            modules = [
+              ({ _, ... }: {
+                packages.protolude.flags.dev = true;
+              })
+            ] ++ hackages.modules;
+
           in
           pkgs.haskell-nix.cabalProject' (plutarch.applyPlutarchDep pkgs {
-            src = ./cardano-dex-contracts-onchain;
-            inherit compiler-nix-name;
-            inherit (hackages) extra-hackages extra-hackage-tarballs modules;
+            src = ./.;
+            inherit compiler-nix-name modules;
+            inherit (hackages) extra-hackages extra-hackage-tarballs;
+            cabalProjectFileName = "cabal.project.onchain";
             shell = {
-              inherit (preCommitCheckFor system) shellHook;
+              shellHook = ''
+                ln -fs cabal.project.onchain cabal.project
+              '' + (preCommitCheckFor system).shellHook;
               withHoogle = true;
               exactDeps = true;
               nativeBuildInputs = [
@@ -236,11 +245,8 @@
 
         ghcVersion = "8107";
         compiler-nix-name = "ghc" + ghcVersion;
-
         myhackages = system: compiler-nix-name: haskell-nix-extra-hackage.mkHackagesFor system compiler-nix-name
           [
-            "${ply}/ply-core"
-
             "${inputs.cardano-addresses}/command-line"
             "${inputs.cardano-addresses}/core"
             "${inputs.cardano-base}/base-deriving-via"
@@ -254,6 +260,25 @@
             "${inputs.cardano-base}/slotting"
             "${inputs.cardano-base}/strict-containers"
             "${inputs.cardano-crypto}"
+            "${inputs.cardano-ledger}/eras/alonzo/impl"
+            "${inputs.cardano-ledger}/eras/byron/chain/executable-spec"
+            "${inputs.cardano-ledger}/eras/byron/crypto"
+            "${inputs.cardano-ledger}/eras/byron/crypto/test"
+            "${inputs.cardano-ledger}/eras/byron/ledger/executable-spec"
+            "${inputs.cardano-ledger}/eras/byron/ledger/impl"
+            "${inputs.cardano-ledger}/eras/byron/ledger/impl/test"
+            "${inputs.cardano-ledger}/eras/shelley-ma/impl"
+            "${inputs.cardano-ledger}/eras/shelley/chain-and-ledger/executable-spec"
+            "${inputs.cardano-ledger}/eras/shelley/chain-and-ledger/shelley-spec-ledger-test"
+            "${inputs.cardano-ledger}/eras/shelley/impl"
+            "${inputs.cardano-ledger}/eras/shelley/test-suite"
+            "${inputs.cardano-ledger}/libs/cardano-ledger-core"
+            "${inputs.cardano-ledger}/libs/cardano-ledger-pretty"
+            "${inputs.cardano-ledger}/libs/cardano-protocol-tpraos"
+            "${inputs.cardano-ledger}/libs/non-integral"
+            "${inputs.cardano-ledger}/libs/small-steps"
+            "${inputs.cardano-ledger}/libs/small-steps-test"
+            "${inputs.cardano-node}/cardano-api"
             "${inputs.cardano-prelude}/cardano-prelude"
             "${inputs.cardano-prelude}/cardano-prelude-test"
             "${inputs.cardano-wallet}/lib/cli"
@@ -267,6 +292,15 @@
             "${inputs.cardano-wallet}/lib/test-utils"
             "${inputs.cardano-wallet}/lib/text-class"
             "${inputs.flat}"
+            "${inputs.goblins}"
+            "${inputs.iohk-monitoring-framework}/contra-tracer"
+            "${inputs.iohk-monitoring-framework}/iohk-monitoring"
+            "${inputs.iohk-monitoring-framework}/plugins/backend-aggregation"
+            "${inputs.iohk-monitoring-framework}/plugins/backend-ekg"
+            "${inputs.iohk-monitoring-framework}/plugins/backend-monitoring"
+            "${inputs.iohk-monitoring-framework}/plugins/backend-trace-forwarder"
+            "${inputs.iohk-monitoring-framework}/plugins/scribe-systemd"
+            "${inputs.iohk-monitoring-framework}/tracer-transformers"
             "${inputs.ouroboros-network}/io-classes"
             "${inputs.ouroboros-network}/io-sim"
             "${inputs.ouroboros-network}/monoidal-synchronisation"
@@ -292,44 +326,17 @@
             "${inputs.plutus-apps}/plutus-pab"
             "${inputs.plutus-apps}/plutus-use-cases"
             "${inputs.plutus-apps}/quickcheck-dynamic"
-            "${inputs.purescript-bridge}"
-            "${inputs.servant-purescript}"
-            "${inputs.iohk-monitoring-framework}/iohk-monitoring"
-            "${inputs.iohk-monitoring-framework}/tracer-transformers"
-            "${inputs.iohk-monitoring-framework}/contra-tracer"
-            "${inputs.iohk-monitoring-framework}/plugins/backend-aggregation"
-            "${inputs.iohk-monitoring-framework}/plugins/backend-ekg"
-            "${inputs.iohk-monitoring-framework}/plugins/backend-monitoring"
-            "${inputs.iohk-monitoring-framework}/plugins/backend-trace-forwarder"
-            "${inputs.iohk-monitoring-framework}/plugins/scribe-systemd"
-            "${inputs.cardano-ledger}/byron/ledger/impl"
-            "${inputs.cardano-ledger}/cardano-ledger-core"
-            "${inputs.cardano-ledger}/cardano-protocol-tpraos"
-            "${inputs.cardano-ledger}/eras/alonzo/impl"
-            "${inputs.cardano-ledger}/eras/byron/chain/executable-spec"
-            "${inputs.cardano-ledger}/eras/byron/crypto"
-            "${inputs.cardano-ledger}/eras/byron/crypto/test"
-            "${inputs.cardano-ledger}/eras/byron/ledger/executable-spec"
-            "${inputs.cardano-ledger}/eras/byron/ledger/impl/test"
-            "${inputs.cardano-ledger}/eras/shelley/impl"
-            "${inputs.cardano-ledger}/eras/shelley-ma/impl"
-            "${inputs.cardano-ledger}/eras/shelley/chain-and-ledger/executable-spec"
-            "${inputs.cardano-ledger}/eras/shelley/test-suite"
-            "${inputs.cardano-ledger}/shelley/chain-and-ledger/shelley-spec-ledger-test"
-            "${inputs.cardano-ledger}/libs/non-integral"
-            "${inputs.cardano-ledger}/libs/small-steps"
-            "${inputs.cardano-ledger}/libs/cardano-ledger-pretty"
-            "${inputs.cardano-ledger}/semantics/small-steps-test"
-            "${inputs.cardano-node}/cardano-api"
-            "${inputs.win32-network}"
-            "${inputs.goblins}"
+            "${inputs.plutus}/plutus-core"
+            "${inputs.plutus}/plutus-ledger-api"
             "${inputs.plutus}/plutus-tx"
             "${inputs.plutus}/plutus-tx-plugin"
-            "${inputs.plutus}/plutus-ledger-api"
-            "${inputs.plutus}/plutus-core"
-            "${inputs.plutus}/word-array"
             "${inputs.plutus}/prettyprinter-configurable"
             "${inputs.plutus}/stubs/plutus-ghc-stub"
+            "${inputs.plutus}/word-array"
+            "${inputs.ply}/ply-core"
+            "${inputs.purescript-bridge}"
+            "${inputs.servant-purescript}"
+            "${inputs.win32-network}"
           ];
 
         projectFor = system:
@@ -345,12 +352,13 @@
             hackages = myhackages system compiler-nix-name;
 
             project = pkgs.haskell-nix.cabalProject' {
-              src = ./cardano-dex-contracts-offchain;
+              src = ./.;
               inherit compiler-nix-name;
               inherit (hackages) extra-hackages extra-hackage-tarballs;
 
               index-state = "2021-10-20T00:00:00Z";
 
+              cabalProjectFileName = "cabal.project.offchain";
               cabalProjectLocal = ''
                 package ply-core
                   flags: -new-ledger-namespace
@@ -384,15 +392,15 @@
                       project.hsPkgs.cardano-node.components.exes.cardano-node
                       ];
                     */
-
                   };
                 })
               ] ++ hackages.modules;
 
               shell = {
-                inherit (preCommitCheckFor system) shellHook;
-                withHoogle = true;
-
+                shellHook = '' 
+                  ln -fs cabal.project.offchain cabal.project
+                '' + (preCommitCheckFor system).shellHook;
+                withHoogle = false;
                 exactDeps = true;
 
                 # We use the ones from Nixpkgs, since they are cached reliably.
@@ -414,6 +422,7 @@
 
                 additional = ps: [
                   ps.ply-core
+                  ps.plutus-ledger
                   ps.plutus-ledger-api
                   ps.plutus-tx
                   ps.plutus-tx-plugin

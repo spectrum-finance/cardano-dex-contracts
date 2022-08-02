@@ -113,7 +113,7 @@ library
     , base
     , bytestring
     , containers
-    , generics-sop       ==0.5.1.0
+    , generics-sop
     , plutarch
     , plutus-ledger-api
     , text
