@@ -455,8 +455,8 @@
       };
 
       packages = perSystem (system:
-        onchain.flake.${system}.packages
-        // offchain.flake.${system}.packages
+        offchain.flake.${system}.packages
+        // onchain.flake.${system}.packages
       );
 
       devShells = perSystem (system: {
