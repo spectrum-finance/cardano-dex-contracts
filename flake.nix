@@ -362,7 +362,7 @@
             project = pkgs.haskell-nix.cabalProject' {
               src = ./.;
               inherit compiler-nix-name;
-              inherit (hackages) extra-hackages extra-hackage-tarballs;
+              inherit (hackages) extra-hackages extra-hackage-tarballs modules;
 
               index-state = "2021-10-20T00:00:00Z";
 
@@ -391,19 +391,6 @@
                   , hashable < 1.3.4.0
               '';
 
-              modules = [
-                ({ _, ... }: {
-                  packages = {
-                    /* FIXME: do we need this in ergolabs? 
-                      template-project-offchain.components.tests.template-project-offchain-test.build-tools = [
-                      project.hsPkgs.cardano-cli.components.exes.cardano-cli
-                      project.hsPkgs.cardano-node.components.exes.cardano-node
-                      ];
-                    */
-                  };
-                })
-              ] ++ hackages.modules;
-
               shell = {
                 shellHook = '' 
                   ln -fs cabal.project.offchain cabal.project
@@ -417,18 +404,7 @@
                   pkgs'.fd
                   pkgs'.nixpkgs-fmt
 
-                  #project.hsPkgs.cardano-cli.components.exes.cardano-cli
-                  #project.hsPkgs.cardano-node.components.exes.cardano-node
-
                   hls
-                ];
-
-                additional = ps: [
-                  ps.ply-core
-                  ps.plutus-ledger
-                  ps.plutus-ledger-api
-                  ps.plutus-tx
-                  ps.plutus-tx-plugin
                 ];
               };
             };

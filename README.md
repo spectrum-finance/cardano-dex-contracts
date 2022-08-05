@@ -45,3 +45,4 @@ See [here](https://github.com/haskell/haskell-language-server#configuring-your-e
 
 To build the project with nix, run: 
 - `nix build .#"cardano-dex-contracts-onchain:lib:cardano-dex-contracts-onchain"` for the onchain part
+- `nix build .#"cardano-dex-contracts-offchain:lib:cardano-dex-contracts-offchain"` for the offchain part
