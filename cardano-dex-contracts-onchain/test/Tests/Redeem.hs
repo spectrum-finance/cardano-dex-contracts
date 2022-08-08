@@ -7,7 +7,7 @@ import ErgoDex.PValidators
 import Eval
 import Gen.Utils
 
-import Plutus.V1.Ledger.Api
+import PlutusLedgerApi.V2
 
 import Hedgehog
 

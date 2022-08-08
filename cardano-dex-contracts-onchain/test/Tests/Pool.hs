@@ -1,13 +1,16 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Tests.Pool where
 
 import qualified ErgoDex.PContracts.PPool as PPool
 import qualified ErgoDex.Contracts.Pool   as Pool
 import ErgoDex.PValidators
+import Data.Either
 
 import Eval
 import Gen.Utils
 
-import Plutus.V1.Ledger.Api
+import PlutusLedgerApi.V2
 
 import Hedgehog
 
@@ -23,25 +26,25 @@ import Gen.RedeemGen
 import Gen.DestroyGen
 
 checkPool = testGroup "CheckPoolContract"
-  [ HH.testProperty "pool_deposit_is_correct" successPoolDeposit
-  , HH.testProperty "pool_swap_is_correct" successPoolSwap
-  , HH.testProperty "pool_redeem_is_correct" successPoolRedeem
-  , HH.testProperty "pool_redeem_too_much_liquidity_removed" (poolRedeemLqCheck 9 9 9223372036854775797)
-  , HH.testProperty "pool_redeem_liquidity_removed_lq_intact" (poolRedeemLqCheck 19 19 9223372036854775787)
-  , HH.testProperty "pool_redeem_liquidity_intact_lq_removed" (poolRedeemLqCheck 20 20 9223372036854775786)
-  , HH.testProperty "pool_destroy_lq_burnLqInitial" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial) (Right ()))
-  , HH.testProperty "pool_destroy_lq_burnLqInitial-1" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial + 1) (Right ()))
-  , HH.testProperty "pool_destroy_lq_burnLqInitial+1" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial - 1) (Left ()))
+  [ HH.testPropertyNamed "pool_deposit_is_correct" "a" successPoolDeposit
+  , HH.testPropertyNamed "pool_swap_is_correct" "b" successPoolSwap
+  , HH.testPropertyNamed "pool_redeem_is_correct" "c" successPoolRedeem
+  , HH.testPropertyNamed "pool_redeem_too_much_liquidity_removed" "d" (poolRedeemLqCheck 9 9 9223372036854775797)
+  , HH.testPropertyNamed "pool_redeem_liquidity_removed_lq_intact" "e" (poolRedeemLqCheck 19 19 9223372036854775787)
+  , HH.testPropertyNamed "pool_redeem_liquidity_intact_lq_removed" "f" (poolRedeemLqCheck 20 20 9223372036854775786)
+  , HH.testPropertyNamed "pool_destroy_lq_burnLqInitial" "a1" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial) (Right ()))
+  , HH.testPropertyNamed "pool_destroy_lq_burnLqInitial-1" "a2" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial + 1) (Right ()))
+  , HH.testPropertyNamed "pool_destroy_lq_burnLqInitial+1" "a3" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial - 1) (Left ()))
   ]
 
 checkPoolRedeemer = testGroup "CheckPoolRedeemer"
-  [ HH.testProperty "fail_if_pool_ix_is_incorrect_deposit" poolDepositRedeemerIncorrectIx
-  , HH.testProperty "fail_if_pool_action_is_incorrect_deposit_to_swap" (poolDepositRedeemerIncorrectAction Pool.Swap)
-  , HH.testProperty "fail_if_pool_ix_is_incorrect_swap" poolSwapRedeemerIncorrectIx
-  , HH.testProperty "fail_if_pool_action_is_incorrect_swap_to_deposit" (poolSwapRedeemerIncorrectAction Pool.Deposit)
-  , HH.testProperty "fail_if_pool_action_is_incorrect_swap_to_redeem" (poolSwapRedeemerIncorrectAction Pool.Redeem)
-  , HH.testProperty "fail_if_pool_ix_is_incorrect_redeem" poolRedeemRedeemerIncorrectIx
-  , HH.testProperty "fail_if_pool_action_is_incorrect_redeem_to_swap" (poolRedeemRedeemerIncorrectAction Pool.Swap)
+  [ HH.testPropertyNamed "fail_if_pool_ix_is_incorrect_deposit" "a4" poolDepositRedeemerIncorrectIx
+  , HH.testPropertyNamed "fail_if_pool_action_is_incorrect_deposit_to_swap" "a6" (poolDepositRedeemerIncorrectAction Pool.Swap)
+  , HH.testPropertyNamed "fail_if_pool_ix_is_incorrect_swap" "a7" poolSwapRedeemerIncorrectIx
+  , HH.testPropertyNamed "fail_if_pool_action_is_incorrect_swap_to_deposit" "a8" (poolSwapRedeemerIncorrectAction Pool.Deposit)
+  , HH.testPropertyNamed "fail_if_pool_action_is_incorrect_swap_to_redeem" "a9" (poolSwapRedeemerIncorrectAction Pool.Redeem)
+  , HH.testPropertyNamed "fail_if_pool_ix_is_incorrect_redeem" "a10" poolRedeemRedeemerIncorrectIx
+  , HH.testPropertyNamed "fail_if_pool_action_is_incorrect_redeem_to_swap" "a11" (poolRedeemRedeemerIncorrectAction Pool.Swap)
   ]
 
 poolDestroyCheck :: Integer -> Either () () -> Property

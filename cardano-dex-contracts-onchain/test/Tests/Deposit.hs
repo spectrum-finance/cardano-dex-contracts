@@ -6,9 +6,6 @@ import ErgoDex.PValidators
 import Eval
 import Gen.Utils
 
-import Plutus.V1.Ledger.Api
-import Plutus.V1.Ledger.Value
-
 import Hedgehog
 
 import Test.Tasty
@@ -19,10 +16,13 @@ import Gen.Models
 import Gen.DepositGen
 import Gen.PoolGen
 
+import PlutusLedgerApi.V2
+import PlutusLedgerApi.V1.Value
+
 import Plutarch
 import Plutarch.Prelude
 import Plutarch.DataRepr
-import Plutarch.Api.V1.Contexts
+import Plutarch.Api.V2.Contexts
 import Plutarch.Lift
 import PExtra.Ada
 import qualified PExtra.API as API

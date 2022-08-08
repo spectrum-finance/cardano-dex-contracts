@@ -9,122 +9,55 @@
 module PExtra.API (
     PAssetClass (..),
     PMonoid,
-    valueLTE,
+    --valueLTE,
     assetClass,
     assetClassValue,
     assetClassValueOf,
-    valSub,
     getContinuingOutputs,
-    findDatum,
+    tletUnwrap,
     findOwnInput,
-    convertValue,
-    convertBackValue,
+    --convertBackValue,
     mustPayToPubKey,
 ) where
 
+import qualified GHC.Generics as GHC
+
 import Plutarch.Prelude
 
-import Plutarch.Api.V1 (
+import Plutarch.Api.V2 (
     PAddress (PAddress),
-    PCredential (PPubKeyCredential),
-    PCurrencySymbol,
-    PDatum,
-    PDatumHash,
-    PMap (..),
-    PMaybeData (..),
     PPubKeyHash,
     PScriptContext (..),
     PScriptPurpose (PSpending),
-    PTokenName,
-    PTuple,
     PTxId (..),
     PTxInInfo (..),
     PTxInfo (..),
     PTxOut (..),
     PTxOutRef (..),
-    PValue (..),
  )
-import Plutarch.Builtin (ppairDataBuiltin)
-import Plutarch.DataRepr (
-    PDataFields,
-    PIsDataReprInstances (..),
+
+import Plutarch.Api.V1 (
+    PCredential (PPubKeyCredential),
+    PCurrencySymbol,
+    PTokenName,
+    PValue (..)
  )
+
+import qualified Plutarch.Api.V1.Value as PlutarchValue
+import Plutarch.DataRepr (PDataFields)
 import Plutarch.List (pconvertLists)
+import Plutarch.Extra.TermCont
 
-import PExtra.List (pfind, psort)
-import PExtra.Map (
-    Map (Map),
-    findWithDefault,
-    mapFromBuiltin,
-    mapJoin,
-    mapLTE,
-    mapSplit,
-    mapSub,
-    mapToBuiltin,
-    mmap,
-    numEq,
-    unionWith,
- )
-import PExtra.Monadic (tcon, tlet, tletField, tmatch, tmatchField)
+import PExtra.Monadic (tcon, tlet, tletField, tmatchField)
 
-import qualified GHC.Generics as GHC
-import Generics.SOP (Generic, I (I))
+tletUnwrap :: (PIsData a) => Term s (PAsData a) -> TermCont @r s (Term s a)
+tletUnwrap = tlet . pfromData
 
 getByteString :: Term s (PTxId :--> PByteString)
 getByteString = phoistAcyclic $
     plam $ \txid ->
         pmatch txid $ \(PTxId txid') ->
             pfromData $ pfield @"_0" # txid'
-
-instance PEq PTxOut where
-    a #== b = pdata a #== pdata b
-
-instance PEq PTxInInfo where
-    a #== b = pdata a #== pdata b
-
-instance PEq PTxId where
-    a' #== b' =
-        phoistAcyclic
-            ( plam $ \a b ->
-                (getByteString # a) #== (getByteString # b)
-            )
-            # a'
-            # b'
-
-instance PEq PAddress where
-    a' #== b' =
-        phoistAcyclic
-            ( plam $ \a b ->
-                (pfield @"credential" # a) #== (pfield @"credential" # b)
-                    #&& (pfield @"stakingCredential" # a) #== (pfield @"stakingCredential" # b)
-            )
-            # a'
-            # b'
-
-instance PEq a => PEq (PMaybeData a) where
-    (#==) a' b' =
-        phoistAcyclic
-            ( plam $ \a b ->
-                pmatch a $ \case
-                    PDJust a'' -> pmatch b $ \case
-                        PDJust b'' -> (pfield @"_0" # a'') #== (pfield @"_0" # b'')
-                        _ -> pcon PFalse
-                    PDNothing _ -> pmatch b $ \case
-                        PDNothing _ -> pcon PTrue
-                        _ -> pcon PFalse
-            )
-            # a'
-            # b'
-
-instance PEq PTxOutRef where
-    a' #== b' =
-        phoistAcyclic
-            ( plam $ \a b ->
-                (pfield @"id" # a) #== (pfield @"id" # b)
-                    #&& (pfield @"idx" # a) #== (pfield @"idx" # b)
-            )
-            # a'
-            # b'
 
 newtype PAssetClass (s :: S)
     = PAssetClass
@@ -137,89 +70,23 @@ newtype PAssetClass (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (Generic, PIsDataRepr)
-    deriving
-        (PMatch, PIsData, PDataFields, PlutusType)
-        via PIsDataReprInstances PAssetClass
+    deriving anyclass (PIsData, PDataFields, PlutusType)
+
+instance DerivePlutusType PAssetClass where type DPTStrat _ = PlutusTypeData
 
 instance PEq PAssetClass where
     a #== b =
         pletFields @'["currencySymbol", "tokenName"] a $ \a' ->
             pletFields @'["currencySymbol", "tokenName"] b $ \b' ->
-                let a1 = pfromData $ hrecField @"tokenName" a'
-                    a2 = pfromData $ hrecField @"tokenName" b'
+                let a1 = pfromData $ getField @"tokenName" a'
+                    a2 = pfromData $ getField @"tokenName" b'
 
-                    b1 = pfromData $ hrecField @"currencySymbol" a'
-                    b2 = pfromData $ hrecField @"currencySymbol" b'
+                    b1 = pfromData $ getField @"currencySymbol" a'
+                    b2 = pfromData $ getField @"currencySymbol" b'
                  in (a1 #== a2) #&& (b1 #== b2)
 
 type PAssetClass' = PPair PCurrencySymbol PTokenName
 type PMonoid (a :: PType) = forall s. Monoid (Term s a)
-
-instance PEq PValue where
-    a' #== b' =
-        phoistAcyclic
-            ( plam $ \a b -> unTermCont $ do
-                ma <- tlet $ convertValue # a
-                mb <- tlet $ convertValue # b
-                pure $ numEq # ma # mb
-            )
-            # a'
-            # b'
-
-instance Semigroup (Term s PValue) where
-    a' <> b' =
-        phoistAcyclic
-            ( plam $ \a b ->
-                convertBackValue #$ unionWith # plam (+) # (convertValue # a) # (convertValue # b)
-            )
-            # a'
-            # b'
-
-instance Monoid (Term s PValue) where
-    mempty = pcon $ PValue $ pcon $ PMap $ pcon PNil
-
-valueLTE :: Term s (PValue :--> PValue :--> PBool)
-valueLTE = phoistAcyclic $
-    plam $ \l r ->
-        mapLTE # (convertValue # l) # (convertValue # r)
-
-convertValue :: Term s (PValue :--> Map PAssetClass' PInteger)
-convertValue = phoistAcyclic $
-    plam $ \m -> unTermCont $ do
-        PValue m1 <- tmatch m
-        m2 <- tlet $ convertPMap # m1
-        m3 <- tlet $ mmap # convertPMap # m2
-        Map m4 <- tmatch $ mapJoin # m3
-        pure $
-            pcon $ Map $ psort # m4
-
--- TODO if we can verify that Values
--- from on chain are sorted
--- or can at least be required to be sorted
--- we can safely remove this sort
--- once we have a test net we should
--- look into this
-
-convertBackValue :: Term s (Map PAssetClass' PInteger :--> PValue)
-convertBackValue = phoistAcyclic $
-    plam $ \m -> unTermCont $ do
-        m1 <- tlet $ mapSplit # m
-        m2 <- tlet $ mmap # convertBackPMap # m1
-        m3 <- tlet $ convertBackPMap # m2
-        tcon $ PValue m3
-
-convertPMap :: (PIsData a, PIsData b) => Term s (PMap a b :--> Map a b)
-convertPMap = phoistAcyclic $
-    plam $ \pm -> unTermCont $ do
-        PMap bmap <- tmatch pm
-        pure $ mapFromBuiltin # bmap
-
-convertBackPMap :: (PIsData a, PIsData b) => Term s (Map a b :--> PMap a b)
-convertBackPMap = phoistAcyclic $
-    plam $ \m -> unTermCont $ do
-        m' <- tlet $ mapToBuiltin # m
-        tcon $ PMap m'
 
 assetClass :: Term s (PCurrencySymbol :--> PTokenName :--> PAssetClass)
 assetClass = phoistAcyclic $
@@ -230,110 +97,92 @@ assetClass = phoistAcyclic $
                     # pdata cs #$ pdcons
                     # pdata t #$ pdnil
 
-assetClassValue :: Term s (PAssetClass :--> PInteger :--> PValue)
+assetClassValue :: Term s (PAssetClass :--> PInteger :--> PValue _ _)
 assetClassValue = phoistAcyclic $
-    plam $ \ac n -> unTermCont $ do
-        cs <- tletField @"currencySymbol" ac
-        tn <- tletField @"tokenName" ac
-        tcon $
-            PValue $
-                pcon $
-                    PMap $
-                        psingleton
-                            #$ ppairDataBuiltin
-                                # pdata cs
-                            #$ pdata
-                            $ pcon $
-                                PMap $
-                                    psingleton
-                                        #$ ppairDataBuiltin
-                                            # pdata tn
-                                            # pdata n
+    plam $ \ac' n -> unTermCont $ do
+        ac <- pletFieldsC @'["currencySymbol", "tokenName"] ac'
+        let
+            cs = getField @"currencySymbol" ac
+            tn = getField @"tokenName" ac
+        pure $ PlutarchValue.psingleton # cs # tn # n
 
-assetClassValueOf :: Term s (PValue :--> PAssetClass :--> PInteger)
+assetClassValueOf :: Term s (PValue _ _ :--> PAssetClass :--> PInteger)
 assetClassValueOf = phoistAcyclic $
-    plam $ \v ac -> findWithDefault # 0 # (convertAC' # ac) # (convertValue # v)
-
-valSub :: Term s (PValue :--> PValue :--> PValue)
-valSub = phoistAcyclic $
-    plam $ \l r -> do
-        convertBackValue #$ mapSub # (convertValue # l) # (convertValue # r)
+    plam $ \v ac' -> unTermCont $ do
+        ac <- pletFieldsC @'["currencySymbol", "tokenName"] ac'
+        let
+            cs = getField @"currencySymbol" ac
+            tn = getField @"tokenName" ac
+        pure $ PlutarchValue.pvalueOf # v # cs # tn
 
 getContinuingOutputs :: Term s (PScriptContext :--> PBuiltinList PTxOut)
 getContinuingOutputs = phoistAcyclic $
     plam $ \sc -> unTermCont $ do
         txinfo <- tletField @"txInfo" sc
-        outs <- tletField @"outputs" txinfo
+        let outs = pfield @"outputs" # txinfo
         pure $
             pmatch (findOwnInput # sc) $ \case
                 PJust te -> unTermCont $ do
-                    resolved <- tletField @"resolved" te
-                    outAdr <- tletField @"address" resolved
-                    pure $ pfilter # (matches # outAdr) #$ pmap # plam pfromData # outs
+                    let 
+                      resolved = pfield @"resolved" # te
+                      outAdr   = pfield @"address"  # resolved
+                    pure $ pfilter # (matches # outAdr) # outs
                 PNothing -> ptraceError "can't get any continuing outputs"
   where
     matches :: Term s (PAddress :--> PTxOut :--> PBool)
     matches = phoistAcyclic $
         plam $ \adr txOut -> unTermCont $ do
-            outAdr <- tletField @"address" txOut
+            let outAdr = pfield @"address" # txOut
             pure $ adr #== outAdr
 
-findDatum :: Term s (PDatumHash :--> PTxInfo :--> PMaybe PDatum)
-findDatum = phoistAcyclic $
-    plam $ \dh txinfo -> unTermCont $ do
-        txInfoData <- tletField @"data" txinfo
-        maybeEnt <- tlet $ pfind # (matches # dh) # txInfoData
-        pure $
-            pmatch maybeEnt $ \case
-                PNothing -> pcon PNothing
-                PJust x -> pcon $ PJust $ pfromData $ pfield @"_1" # x
+-- works with plutarch v2
+pfindOwnInput :: Term s (PBuiltinList PTxInInfo :--> PTxOutRef :--> PMaybe PTxInInfo)
+pfindOwnInput = phoistAcyclic $
+  plam $ \inputs outRef ->
+    pfind # (matches # outRef) # inputs
   where
-    matches :: Term s (PDatumHash :--> PAsData (PTuple PDatumHash PDatum) :--> PBool)
+    matches :: Term s (PTxOutRef :--> PTxInInfo :--> PBool)
     matches = phoistAcyclic $
-        plam $ \dh dataTupe -> unTermCont $ do
-            tupe <- tlet $ pfromData dataTupe
-            pure $
-                dh #== pfromData (pfield @"_0" # tupe)
+      plam $ \outref txininfo ->
+        outref #== pfield @"outRef" # txininfo
 
 findOwnInput :: Term s (PScriptContext :--> PMaybe PTxInInfo)
 findOwnInput = phoistAcyclic $
     plam $ \sc -> unTermCont $ do
-        PScriptContext te <- tmatch sc
-        pure $
-            pmatch (pfromData $ pfield @"purpose" # te) $ \case
-                PSpending outRef' -> unTermCont $ do
-                    outRef <- tletField @"_0" outRef'
-                    PTxInfo txinfo <- tmatchField @"txInfo" te
-                    is <- tlet $ pmap # plam pfromData #$ pfromData $ pfield @"inputs" # txinfo
-                    pure $
-                        pfind # (matches # outRef) # is
-                _ -> pcon PNothing
+        ctx <- pletFieldsC @["txInfo", "purpose"] sc
+        pmatchC (getField @"purpose" ctx) >>= \case
+            PSpending outRef' -> do
+                let outRef = pfield @"_0" # outRef'
+                    inputs = pfield @"inputs" # (getField @"txInfo" ctx)
+                pure $ pfindOwnInput # inputs # outRef
+            _ ->
+                pure $ (pcon PNothing)
   where
     matches :: Term s (PTxOutRef :--> PTxInInfo :--> PBool)
     matches = phoistAcyclic $
         plam $ \outref txininfo -> unTermCont $ do
-            PTxOutRef outref' <- tmatch outref
+            PTxOutRef outref' <- pmatchC outref
             outRefId <- tletField @"id" outref'
-            PTxInInfo txininfo' <- tmatch txininfo
+            PTxInInfo txininfo' <- pmatchC txininfo
             PTxOutRef inOutRef <- tmatchField @"outRef" txininfo'
             inOutRefId <- tletField @"id" inOutRef
             pure $
                 outRefId #== inOutRefId
 
-mustPayToPubKey :: Term s (PPubKeyHash :--> PValue :--> PScriptContext :--> PBool)
+mustPayToPubKey :: Term s (PPubKeyHash :--> PValue _ _ :--> PScriptContext :--> PBool)
 mustPayToPubKey = plam $ \pk vl ctx ->
     ptraceIfFalse "mustPayToPubKey" $
         unTermCont $ do
-            PScriptContext te <- tmatch ctx
+            PScriptContext te <- pmatchC ctx
             PTxInfo txinfo <- tmatchField @"txInfo" te
             outputs <- tletField @"outputs" txinfo
-            (outputs' :: Term s (PList PTxOut)) <- tlet $ pmap # plam pfromData #$ pconvertLists # outputs
+            (outputs' :: Term s (PList PTxOut)) <- tlet $ pconvertLists # outputs
             pure $
                 pany # (outputPaysTo # vl # pk) # outputs'
 
-outputPaysTo :: Term s (PValue :--> PPubKeyHash :--> PTxOut :--> PBool)
+outputPaysTo :: Term s (PValue _ _ :--> PPubKeyHash :--> PTxOut :--> PBool)
 outputPaysTo = plam $ \vl pkh txout -> unTermCont $ do
-    PTxOut txout' <- tmatch txout
+    PTxOut txout' <- pmatchC txout
     PAddress adr <- tmatchField @"address" txout'
     pure $
         pmatch (pfromData $ pfield @"credential" # adr) $ \case
@@ -341,7 +190,7 @@ outputPaysTo = plam $ \vl pkh txout -> unTermCont $ do
                 pkhOut <- tletField @"_0" cred
                 vl' <- tletField @"value" txout'
                 pure $
-                    (valueLTE # vl' # vl) #&& (pkhOut #== pkh)
+                    (vl' #<= vl) #&& (pkhOut #== pkh)
             _ -> pcon PFalse
 
 convertAC' :: Term s (PAssetClass :--> PAssetClass')

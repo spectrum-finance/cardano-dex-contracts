@@ -5,14 +5,19 @@ module ErgoDex.PMintingValidators (
 ) where
 
 import Plutarch
-import Plutarch.Api.V1 (mkMintingPolicy)
-import Plutarch.Api.V1.Contexts (PScriptContext)
+import Plutarch.Api.V2 (mkMintingPolicy)
+import Plutarch.Api.V2.Contexts (PScriptContext)
 import Plutarch.Prelude
+import Plutarch.Internal (Config(..), TracingMode(..))
 import Plutarch.Unsafe (punsafeCoerce)
 
 import qualified ErgoDex.PContracts.PAssets as A
-import Plutus.V1.Ledger.Api (MintingPolicy, TokenName)
-import Plutus.V1.Ledger.Contexts
+import PlutusLedgerApi.V1.Scripts (MintingPolicy)
+import PlutusLedgerApi.V1.Value (TokenName)
+import PlutusLedgerApi.V1.Contexts
+
+cfgForMintingValidator :: Config
+cfgForMintingValidator = Config NoTracing
 
 wrapMintingValidator ::
     PIsData rdmr =>
@@ -25,12 +30,12 @@ wrapMintingValidator validator = plam $ \rdmr' ctx ->
 
 poolNftMiningValidator :: TxOutRef -> TokenName -> MintingPolicy
 poolNftMiningValidator oref tn =
-    mkMintingPolicy $
+    mkMintingPolicy cfgForMintingValidator $
         wrapMintingValidator $
             A.poolNftMintValidatorT (pconstant oref) (pconstant tn)
 
 poolLqMiningValidator :: TxOutRef -> TokenName -> Integer -> MintingPolicy
 poolLqMiningValidator oref tn emission =
-    mkMintingPolicy $
+    mkMintingPolicy cfgForMintingValidator $
         wrapMintingValidator $
             A.poolLqMintValidatorT (pconstant oref) (pconstant tn) (pconstant emission)

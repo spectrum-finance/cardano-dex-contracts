@@ -6,17 +6,19 @@ module ErgoDex.PContracts.PSwap (
 ) where
 
 import qualified GHC.Generics as GHC
+
 import Plutarch
-import Plutarch.Api.V1
-import Plutarch.Api.V1.Contexts
+import Plutarch.Api.V2
+import Plutarch.Api.V1.Tuple
+import Plutarch.Api.V1.Value
+import Plutarch.Api.V2.Contexts
 import Plutarch.DataRepr
 import Plutarch.Lift
 import Plutarch.Prelude
+import Plutarch.Extra.TermCont
 
-import Generics.SOP (Generic, I (I))
 import PExtra.API
-import PExtra.Ada (pGetLovelace, pIsAda)
-import PExtra.List (pelemAt)
+import PExtra.Ada (pIsAda)
 import PExtra.Monadic (tlet, tletField, tmatch)
 
 import ErgoDex.PContracts.PApi
@@ -43,62 +45,72 @@ newtype SwapConfig (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (Generic, PIsDataRepr)
     deriving
-        (PMatch, PIsData, PDataFields, PlutusType)
-        via (PIsDataReprInstances SwapConfig)
+        (PIsData, PDataFields, PlutusType)
+
+instance DerivePlutusType SwapConfig where type DPTStrat _ = PlutusTypeData
 
 instance PUnsafeLiftDecl SwapConfig where type PLifted SwapConfig = S.SwapConfig
-deriving via (DerivePConstantViaData S.SwapConfig SwapConfig) instance (PConstant S.SwapConfig)
+deriving via (DerivePConstantViaData S.SwapConfig SwapConfig) instance (PConstantDecl S.SwapConfig)
 
 swapValidatorT :: ClosedTerm (SwapConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
-    ctx <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-    conf <- tcont $ pletFields @'["base", "quote", "poolNft", "feeNum", "exFeePerTokenNum", "exFeePerTokenDen", "rewardPkh", "stakePkh", "baseAmount", "minQuoteAmount"] conf'
-    txInfo' <- tletUnwrap $ hrecField @"txInfo" ctx
-    txInfo <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
-    inputs <- tletUnwrap $ hrecField @"inputs" txInfo
-    outputs <- tletUnwrap $ hrecField @"outputs" txInfo
+    ctx    <- pletFieldsC @'["txInfo", "purpose"] ctx'
+    conf   <- pletFieldsC @'["base", "quote", "poolNft", "feeNum", "exFeePerTokenNum", "exFeePerTokenDen", "rewardPkh", "stakePkh", "baseAmount", "minQuoteAmount"] conf'
+    let
+        rewardPkh   = getField @"rewardPkh" conf
+        stakePkh    = getField @"stakePkh"  conf
+        requiredNft = getField @"poolNft"   conf
 
-    redeemer <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx", "action"] redeemer'
-    poolInIx <- tletUnwrap $ hrecField @"poolInIx" redeemer
-    orderInIx <- tletUnwrap $ hrecField @"orderInIx" redeemer
-    rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" redeemer
+        base   = getField @"base"   conf
+        quote  = getField @"quote"  conf
+        feeNum = getField @"feeNum" conf
 
-    rewardOut <- tlet $ pelemAt # rewardOutIx # outputs
-    rewardPkh <- tletUnwrap $ hrecField @"rewardPkh" conf
-    stakePkh <- tletUnwrap $ hrecField @"stakePkh" conf
+        exFeePerTokenNum = getField @"exFeePerTokenNum" conf
+        exFeePerTokenDen = getField @"exFeePerTokenDen" conf
+
+        baseAmount = getField @"baseAmount"     conf
+        minOutput  = getField @"minQuoteAmount" conf
+    
+    txInfo  <- pletFieldsC @'["inputs", "outputs", "signatories"] $ getField @"txInfo" ctx
+    inputs  <- tletUnwrap $ getField @"inputs"  txInfo
+    outputs <- tletUnwrap $ getField @"outputs" txInfo
+
+    redeemer <- pletFieldsC @'["poolInIx", "orderInIx", "rewardOutIx", "action"] redeemer'
+    let
+        poolInIx    = getField @"poolInIx"    redeemer
+        orderInIx   = getField @"orderInIx"   redeemer
+        rewardOutIx = getField @"rewardOutIx" redeemer
+        action      = getField @"action"      redeemer
+
+    rewardOut   <- tlet $ pelemAt # rewardOutIx # outputs
     rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh # stakePkh
 
-    poolIn' <- tlet $ pelemAt # poolInIx # inputs
-    poolIn <- tcont $ pletFields @'["outRef", "resolved"] poolIn'
-    poolValue <-
-        let pool = pfromData $ hrecField @"resolved" poolIn
+    poolIn'   <- tlet $ pelemAt # poolInIx # inputs
+    poolIn    <- pletFieldsC @'["outRef", "resolved"] poolIn'
+    poolValue <- 
+        let pool = getField @"resolved" poolIn
          in tletField @"value" pool
     let poolIdentity =
-            let requiredNft = pfromData $ hrecField @"poolNft" conf
-                nftAmount = assetClassValueOf # poolValue # requiredNft
+            let nftAmount = assetClassValueOf # poolValue # requiredNft
              in nftAmount #== 1
 
-    selfIn' <- tlet $ pelemAt # orderInIx # inputs
-    selfIn <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
+    selfIn'   <- tlet $ pelemAt # orderInIx # inputs
+    selfIn    <- pletFieldsC @'["outRef", "resolved"] selfIn'
     selfValue <-
-        let self = pfromData $ hrecField @"resolved" selfIn
+        let self = getField @"resolved" selfIn
          in tletField @"value" self
 
-    PSpending selfRef' <- tmatch (pfromData $ hrecField @"purpose" ctx)
-    let selfIdentity =
-            let selfRef = pfromData $ pfield @"_0" # selfRef'
-                selfInRef = pfromData $ hrecField @"outRef" selfIn
+    PSpending selfRef' <- tmatch (pfromData $ getField @"purpose" ctx)
+    let 
+        selfIdentity =
+            let selfRef   = pfromData $ pfield @"_0" # selfRef'
+                selfInRef = pfromData $ getField @"outRef" selfIn
              in selfRef #== selfInRef
 
-    base <- tletUnwrap $ hrecField @"base" conf
-    quote <- tletUnwrap $ hrecField @"quote" conf
-    exFeePerTokenNum <- tletUnwrap $ hrecField @"exFeePerTokenNum" conf
-    exFeePerTokenDen <- tletUnwrap $ hrecField @"exFeePerTokenDen" conf
-    baseAmount <- tletUnwrap $ hrecField @"baseAmount" conf
-    let quoteIn = assetClassValueOf # selfValue # quote
+        quoteIn  = assetClassValueOf # selfValue   # quote
         quoteOut = assetClassValueOf # rewardValue # quote
+
     quoteDelta <- tlet $ quoteOut - quoteIn
     quoteAmount <-
         tlet $
@@ -107,30 +119,26 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
                 (pdiv # (quoteDelta * exFeePerTokenDen) # (exFeePerTokenDen - exFeePerTokenNum))
                 quoteDelta
 
-    let strictInputs =
+    let 
+        strictInputs =
             let inputsLength = plength # inputs
              in inputsLength #== 2 -- address double satisfaction attack
-        minSatisfaction =
-            let minOutput = pfromData $ hrecField @"minQuoteAmount" conf
-             in minOutput #<= quoteAmount
+        minSatisfaction = minOutput #<= quoteAmount
         fairExFee = validExFee # rewardValue # selfValue # base # baseAmount # quote # quoteAmount # exFeePerTokenNum # exFeePerTokenDen
-        fairPrice =
-            let feeNum = pfromData $ hrecField @"feeNum" conf
-             in validPrice # quoteAmount # poolValue # base # quote # baseAmount # feeNum
+        fairPrice = validPrice # quoteAmount # poolValue # base # quote # baseAmount # feeNum
 
-    action <- tletUnwrap $ hrecField @"action" redeemer
     pure $
         pmatch action $ \case
             Apply -> poolIdentity #&& selfIdentity #&& strictInputs #&& minSatisfaction #&& fairExFee #&& fairPrice
             Refund ->
-                let sigs = pfromData $ hrecField @"signatories" txInfo
+                let sigs = pfromData $ getField @"signatories" txInfo
                  in containsSignature # sigs # rewardPkh
 
 validExFee ::
     Term
         s
-        ( PValue
-            :--> PValue
+        ( PValue _ _ 
+            :--> PValue _ _
             :--> PAssetClass
             :--> PInteger
             :--> PAssetClass
@@ -149,18 +157,18 @@ validExFee =
                         (pIsAda # base)
                         (ptuple # pdata baseAmount # zeroAsData')
                         (pif (pIsAda # quote) (ptuple # zeroAsData' # pdata quoteAmount) (ptuple # zeroAsData' # zeroAsData'))
-            let baseAda = pfromData $ pfield @"_0" # bqAda
+            let baseAda  = pfromData $ pfield @"_0" # bqAda
                 quoteAda = pfromData $ pfield @"_1" # bqAda
-                outAda = pGetLovelace # rewardValue
-                inAda = pGetLovelace # selfValue
-                exFee = pdiv # (quoteAmount * exFeePerTokenNum) # exFeePerTokenDen
+                outAda   = plovelaceValueOf # rewardValue
+                inAda    = plovelaceValueOf # selfValue
+                exFee    = pdiv # (quoteAmount * exFeePerTokenNum) # exFeePerTokenDen
             pure $ (inAda - baseAda - exFee) #<= (outAda - quoteAda)
 
 validPrice ::
     Term
         s
         ( PInteger
-            :--> PValue
+            :--> PValue _ _
             :--> PAssetClass
             :--> PAssetClass
             :--> PInteger
@@ -169,7 +177,7 @@ validPrice ::
         )
 validPrice =
     plam $ \quoteAmount poolValue base quote baseAmount feeNum ->
-        let relaxedOut = quoteAmount + 1
-            reservesBase = assetClassValueOf # poolValue # base
+        let relaxedOut    = quoteAmount + 1
+            reservesBase  = assetClassValueOf # poolValue # base
             reservesQuote = assetClassValueOf # poolValue # quote
          in reservesQuote * baseAmount * feeNum #<= relaxedOut * (reservesBase * feeDen + baseAmount * feeNum)

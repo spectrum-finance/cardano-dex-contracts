@@ -3,7 +3,6 @@ module PExtra.List (
     mergeSort,
     timSort,
     preverse,
-    pfind,
     pexists,
     pelemAt,
 ) where
@@ -18,35 +17,6 @@ psort = timSort
 preverse :: (PIsListLike l a) => Term s (l a :--> l a)
 preverse = phoistAcyclic $
     plam $ \xs -> pfoldl # plam (\ys y -> pcons # y # ys) # pnil # xs
-
-pelemAt :: (PIsListLike l a) => Term s (PInteger :--> l a :--> a)
-pelemAt = phoistAcyclic $
-    plam $ \n xs ->
-        pif
-            (n #< 0)
-            perror
-            (pelemAt' # n # xs)
-
-pelemAt' :: (PIsListLike l a) => Term s (PInteger :--> l a :--> a)
-pelemAt' = phoistAcyclic $
-    pfix #$ plam $ \self n xs ->
-        pif
-            (n #== 0)
-            (phead # xs)
-            (self # (n - 1) #$ ptail # xs)
-
-pfind :: (PIsListLike l a) => Term s ((a :--> PBool) :--> l a :--> PMaybe a)
-pfind = phoistAcyclic $
-    pfix #$ plam $ \self f xs ->
-        pelimList
-            ( \y ys ->
-                pif
-                    (f # y)
-                    (pcon $ PJust y)
-                    (self # f # ys)
-            )
-            (pcon PNothing)
-            xs
 
 pexists :: (PIsListLike l a) => Term s ((a :--> PBool) :--> l a :--> PBool)
 pexists = phoistAcyclic $
