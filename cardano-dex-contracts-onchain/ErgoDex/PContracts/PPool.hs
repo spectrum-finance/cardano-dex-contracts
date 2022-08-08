@@ -8,25 +8,25 @@ module ErgoDex.PContracts.PPool (
 ) where
 
 import qualified GHC.Generics as GHC
-import Generics.SOP (Generic, I (I))
+import           Generics.SOP (Generic, I (I))
 
 import Plutarch
-import Plutarch.Api.V1 (PMaybeData (PDJust), PTxOut)
-import Plutarch.Api.V1.Contexts (PScriptContext, PScriptPurpose (PSpending))
-import Plutarch.DataRepr (DerivePConstantViaData (..), PDataFields, PIsDataReprInstances (..))
-import Plutarch.Lift (PUnsafeLiftDecl (..))
+import Plutarch.Api.V2              (PMaybeData (PDJust), PTxOut, POutputDatum(POutputDatumHash))
+import Plutarch.Api.V2.Contexts     (PScriptContext, PScriptPurpose (PSpending))
+import Plutarch.DataRepr
+import Plutarch.Lift
 import Plutarch.Prelude
+import Plutarch.Extra.TermCont
+import Plutarch.Builtin             (pasInt, pforgetData, pfromData, pdata, PIsData(..))
+import Plutarch.Unsafe              (punsafeCoerce)
+import Plutarch.Internal.PlutusType (PInner, PlutusType, pcon', pmatch')
 
-import PExtra.API (PAssetClass, assetClassValueOf)
-import PExtra.List (pelemAt)
-import PExtra.Monadic (tcon, tlet, tletField, tmatch)
+import PExtra.API                   (PAssetClass, assetClassValueOf)
+import PExtra.List                  (pelemAt)
+import PExtra.Monadic               (tcon, tlet, tletField, tmatch)
 
-import qualified ErgoDex.Contracts.Pool as P
-
-import Plutarch.Builtin (pasInt, pforgetData)
-import Plutarch.Unsafe (punsafeCoerce)
-
-import ErgoDex.PContracts.PApi (burnLqInitial, feeDen, maxLqCap, tletUnwrap, zero)
+import qualified ErgoDex.Contracts.Pool  as P
+import           ErgoDex.PContracts.PApi (burnLqInitial, feeDen, maxLqCap, tletUnwrap, zero)
 
 newtype PoolConfig (s :: S)
     = PoolConfig
@@ -34,32 +34,32 @@ newtype PoolConfig (s :: S)
             s
             ( PDataRecord
                 '[ "poolNft" ':= PAssetClass
-                 , "poolX" ':= PAssetClass
-                 , "poolY" ':= PAssetClass
-                 , "poolLq" ':= PAssetClass
-                 , "feeNum" ':= PInteger
+                 , "poolX"   ':= PAssetClass
+                 , "poolY"   ':= PAssetClass
+                 , "poolLq"  ':= PAssetClass
+                 , "feeNum"  ':= PInteger
                  ]
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (Generic, PIsDataRepr)
     deriving
-        (PlutusType, PMatch, PIsData, PDataFields)
-        via PIsDataReprInstances PoolConfig
+        (PIsData, PDataFields, PlutusType)
+
+instance DerivePlutusType PoolConfig where type DPTStrat _ = PlutusTypeData
 
 instance PUnsafeLiftDecl PoolConfig where type PLifted PoolConfig = P.PoolConfig
-deriving via (DerivePConstantViaData P.PoolConfig PoolConfig) instance (PConstant P.PoolConfig)
+deriving via (DerivePConstantViaData P.PoolConfig PoolConfig) instance (PConstantDecl P.PoolConfig)
 
 data PoolAction (s :: S) = Deposit | Redeem | Swap | Destroy
 
 instance PIsData PoolAction where
-    pfromData tx =
+    pfromDataImpl tx =
         let x = pasInt # pforgetData tx
          in pmatch' x pcon
-    pdata x = pmatch x (punsafeCoerce . pdata . pcon')
+    pdataImpl x = pmatch x (punsafeCoerce . pdata . pcon')
 
 instance PlutusType PoolAction where
-    type PInner PoolAction _ = PInteger
+    type PInner PoolAction = PInteger
 
     pcon' Deposit = 0
     pcon' Redeem = 1
@@ -87,10 +87,10 @@ newtype PoolRedeemer (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (Generic, PIsDataRepr)
     deriving
-        (PlutusType, PIsData, PDataFields)
-        via PIsDataReprInstances PoolRedeemer
+        (PIsData, PDataFields, PlutusType)
+
+instance DerivePlutusType PoolRedeemer where type DPTStrat _ = PlutusTypeData
 
 newtype PoolState (s :: S)
     = PoolState
@@ -104,10 +104,10 @@ newtype PoolState (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (Generic, PIsDataRepr)
     deriving
-        (PlutusType, PIsData, PDataFields)
-        via PIsDataReprInstances PoolState
+        (PIsData, PDataFields, PlutusType)
+
+instance DerivePlutusType PoolState where type DPTStrat _ = PlutusTypeData
 
 newtype PoolDiff (s :: S)
     = PoolDiff
@@ -121,19 +121,24 @@ newtype PoolDiff (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (Generic, PIsDataRepr)
     deriving
-        (PlutusType, PIsData, PDataFields)
-        via PIsDataReprInstances PoolDiff
+        (PIsData, PDataFields, PlutusType)
+
+instance DerivePlutusType PoolDiff where type DPTStrat _ = PlutusTypeData
 
 readPoolState :: Term s (PoolConfig :--> PTxOut :--> PoolState)
 readPoolState = phoistAcyclic $
     plam $ \conf' out -> unTermCont $ do
+        conf  <- pletFieldsC @'["poolX", "poolY", "poolLq"] conf'
+        let
+            poolX  = getField @"poolX"  conf
+            poolY  = getField @"poolY"  conf
+            poolLq = getField @"poolLq" conf
+
         value <- tletField @"value" out
-        poolX <- tletField @"poolX" conf'
-        poolY <- tletField @"poolY" conf'
-        poolLq <- tletField @"poolLq" conf'
-        let x = pdata $ assetClassValueOf # value # poolX
+        
+        let 
+            x = pdata $ assetClassValueOf # value # poolX
             y = pdata $ assetClassValueOf # value # poolY
             negLq = assetClassValueOf # value # poolLq
             lq = pdata $ maxLqCap - negLq
@@ -147,23 +152,28 @@ readPoolState = phoistAcyclic $
 validDepositRedeem :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
 validDepositRedeem = phoistAcyclic $
     plam $ \state' dx dy dlq -> unTermCont $ do
-        state <- tcont $ pletFields @'["reservesX", "reservesY", "liquidity"] state'
-        rx <- tletUnwrap $ hrecField @"reservesX" state
-        ry <- tletUnwrap $ hrecField @"reservesY" state
-        lq <- tletUnwrap $ hrecField @"liquidity" state
+        state <- pletFieldsC @'["reservesX", "reservesY", "liquidity"] state'
+        let
+            rx = getField @"reservesX" state
+            ry = getField @"reservesY" state
+            lq = getField @"liquidity" state
+
         pure $ dlq * rx #<= dx * lq #&& dlq * ry #<= dy * lq
 
 validSwap :: Term s (PoolConfig :--> PoolState :--> PInteger :--> PInteger :--> PBool)
 validSwap = phoistAcyclic $
     plam $ \conf state' dx dy -> unTermCont $ do
-        state <- tcont $ pletFields @'["reservesX", "reservesY"] state'
-        rx <- tletUnwrap $ hrecField @"reservesX" state
-        ry <- tletUnwrap $ hrecField @"reservesY" state
-        feeNum <- tletField @"feeNum" conf
+        state <- pletFieldsC @'["reservesX", "reservesY"] state'
+        let 
+            rx = getField @"reservesX" state
+            ry = getField @"reservesY" state
+
+        feeNum  <- tletField @"feeNum" conf
         feeDen' <- tlet feeDen
 
-        dxf <- tlet $ dx * feeNum
-        dyf <- tlet $ dy * feeNum
+        let
+           dxf = dx * feeNum
+           dyf = dy * feeNum
         pure $
             pif
                 (zero #< dx)
@@ -171,66 +181,78 @@ validSwap = phoistAcyclic $
                 (-dx * (ry * feeDen' + dyf) #<= rx * dyf)
 
 -- Guarantees preservation of pool NFT
-findPoolOutput :: Term s (PAssetClass :--> PBuiltinList (PAsData PTxOut) :--> PAsData PTxOut)
+findPoolOutput :: Term s (PAssetClass :--> PBuiltinList PTxOut :--> PTxOut)
 findPoolOutput =
     phoistAcyclic $
         plam $ \nft ->
             precList
                 ( \self x xs ->
                     let value = pfield @"value" # x
-                        amt = assetClassValueOf # value # nft
+                        amt   = assetClassValueOf # value # nft
                      in pif (amt #== 1) x (self # xs)
                 )
                 (const $ ptraceError "Pool output not found")
 
 poolValidatorT :: ClosedTerm (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
 poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
-    redeemer <- tcont $ pletFields @'["action", "selfIx"] redeemer'
-    selfIx <- tletUnwrap $ hrecField @"selfIx" redeemer
-    ctx <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-    txinfo' <- tletUnwrap $ hrecField @"txInfo" ctx
-    txInfo <- tcont $ pletFields @'["inputs", "outputs"] txinfo'
-    inputs <- tletUnwrap $ hrecField @"inputs" txInfo
+    redeemer <- pletFieldsC @'["action", "selfIx"] redeemer'
+    let
+        selfIx = getField @"selfIx" redeemer
+        action = getField @"action" redeemer
+
+    ctx <- pletFieldsC @'["txInfo", "purpose"] ctx'
+    let txinfo' = getField @"txInfo" ctx
+
+    txInfo  <- pletFieldsC @'["inputs", "outputs"] txinfo'
+    inputs  <- tletUnwrap $ getField @"inputs" txInfo
     selfIn' <- tlet $ pelemAt # selfIx # inputs
-    selfIn <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
-    self <- tletUnwrap $ hrecField @"resolved" selfIn
+    selfIn  <- pletFieldsC @'["outRef", "resolved"] selfIn'
+    let self = getField @"resolved" selfIn
 
-    s0 <- tlet $ readPoolState # conf # self
+    s0  <- tlet $ readPoolState # conf # self
     lq0 <- tletField @"liquidity" s0
-
-    action <- tletUnwrap $ hrecField @"action" redeemer
 
     pure $
         pmatch action $ \case
             Destroy -> lq0 #<= burnLqInitial -- all tokens except for permanetly locked ones are removed
             _ -> unTermCont $ do
-                outputs <- tletUnwrap $ hrecField @"outputs" txInfo
-                nft <- tletField @"poolNft" conf
-                successor <- tlet $ pfromData $ findPoolOutput # nft # outputs -- nft is preserved
-                s1 <- tlet $ readPoolState # conf # successor
+                outputs <- tletUnwrap $ getField @"outputs" txInfo
+                nft     <- tletField @"poolNft" conf
+
+                successor <- tlet $ findPoolOutput # nft # outputs -- nft is preserved
+
+                s1  <- tlet $ readPoolState # conf # successor
                 rx0 <- tletField @"reservesX" s0
                 rx1 <- tletField @"reservesX" s1
                 ry0 <- tletField @"reservesY" s0
                 ry1 <- tletField @"reservesY" s1
                 lq1 <- tletField @"liquidity" s1
-                let dx = rx1 - rx0
-                    dy = ry1 - ry0
+                let dx  = rx1 - rx0
+                    dy  = ry1 - ry0
                     dlq = lq1 - lq0 -- pool keeps only the negative part of LQ tokens
-                PSpending selfRef' <- tmatch (pfromData $ hrecField @"purpose" ctx)
+
+                PSpending selfRef' <- pmatchC $ getField @"purpose" ctx
+
                 selfRef <- tletField @"_0" selfRef'
-                selfInRef <- tletUnwrap $ hrecField @"outRef" selfIn
-                let selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
-                maybeSelfDh <- tletField @"datumHash" self
-                maybeSuccDh <- tletField @"datumHash" successor
-                PDJust selfDh' <- tmatch maybeSelfDh
-                PDJust succDh' <- tmatch maybeSuccDh
-                selfDh <- tletField @"_0" selfDh'
-                succDh <- tletField @"_0" succDh'
+                let 
+                    selfInRef    = getField @"outRef" selfIn
+                    selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
+
+                maybeSelfDh <- tletField @"datum" self
+                maybeSuccDh <- tletField @"datum" successor
+
+                POutputDatumHash selfDh' <- pmatchC maybeSelfDh
+                POutputDatumHash succDh' <- pmatchC maybeSuccDh
+
+                selfDh <- tletField @"datumHash" selfDh'
+                succDh <- tletField @"datumHash" succDh'
                 let confPreserved = succDh #== selfDh -- config preserved
+
                 selfAddr <- tletField @"address" self
                 succAddr <- tletField @"address" successor
-                let scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
-                let validAction = pmatch action $ \case
+                let 
+                    scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
+                    validAction     = pmatch action $ \case
                         Swap -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
                         _ -> validDepositRedeem # s0 # dx # dy # dlq
 

@@ -43,20 +43,18 @@ import Hedgehog.Range as Range
 
 import qualified Data.ByteString as BS
 
-import Plutus.V1.Ledger.Api
-import Plutus.V1.Ledger.Value    as Value
 import PlutusTx.Builtins.Internal
-import qualified Plutus.V1.Ledger.Ada      as Ada
-import qualified Plutus.V1.Ledger.Api as Ledger
-import Plutus.V1.Ledger.Contexts
-import Plutarch.Api.V1 ( validatorHash )
-import qualified Plutus.V1.Ledger.Interval as Interval
+import PlutusLedgerApi.V1.Value 
+import qualified PlutusLedgerApi.V1.Value as Value
+import PlutusLedgerApi.V2.Tx
+import PlutusLedgerApi.V2
+import qualified PlutusLedgerApi.V1.Interval as Interval
+import Plutarch.Api.V2 ( validatorHash, datumHash)
 
 import qualified ErgoDex.PValidators             as PScripts
 import qualified ErgoDex.Contracts.Pool          as P
 import qualified ErgoDex.Contracts.Proxy.Deposit as D
 import qualified ErgoDex.Contracts.Proxy.Order   as O
-import Plutus.V1.Ledger.Tx (TxInType (ConsumeScriptAddress))
 import PlutusTx.Builtins as Builtins
 
 genBuiltinByteString :: MonadGen f => Int -> f BuiltinByteString
@@ -94,7 +92,7 @@ genAssetClass = do
   return $ AssetClass (cs, tn)
 
 mkAdaAssetClass :: AssetClass
-mkAdaAssetClass = mkAssetClass Ada.adaSymbol Ada.adaToken
+mkAdaAssetClass = mkAssetClass adaSymbol adaToken
 
 mkValue :: AssetClass -> Integer -> Value
 mkValue (AssetClass (cs, tn)) qty = Value.singleton cs tn qty
@@ -127,11 +125,8 @@ mkRedeemer = Redeemer . toBuiltinData
 mkDatum :: ToData a => a -> Datum
 mkDatum = Datum . toBuiltinData
 
-dataHash :: Builtins.BuiltinData -> Builtins.BuiltinByteString
-dataHash = undefined 
-
 mkDatumHash :: Datum -> DatumHash
-mkDatumHash = DatumHash . dataHash . getDatum
+mkDatumHash = datumHash
 
 mkMaxLq :: Integer
 mkMaxLq = 0x7fffffffffffffff
@@ -157,17 +152,19 @@ mkSwapValidator = validatorHash PScripts.swapValidator
 mkTxOut :: DatumHash -> Value -> ValidatorHash -> TxOut
 mkTxOut dh v vh =
   TxOut
-    { txOutAddress   = Address (ScriptCredential vh) Nothing
-    , txOutValue     = v
-    , txOutDatumHash = Just dh
+    { txOutAddress = Address (ScriptCredential vh) Nothing
+    , txOutValue   = v
+    , txOutDatum   = OutputDatumHash dh
+    , txOutReferenceScript = Nothing
     }
 
 mkTxOut' :: DatumHash -> Value -> PubKeyHash -> TxOut
 mkTxOut' dh v pkh =
   TxOut
-    { txOutAddress   = Address (PubKeyCredential pkh) Nothing
-    , txOutValue     = v
-    , txOutDatumHash = Just dh
+    { txOutAddress  = Address (PubKeyCredential pkh) Nothing
+    , txOutValue    = v
+    , txOutDatum    = OutputDatumHash dh
+    , txOutReferenceScript = Nothing
     }
 
 mkTxIn :: TxOutRef -> TxOut -> TxInInfo
@@ -185,10 +182,10 @@ mkPoolTxInfo pIn pOut =
     , txInfoFee = mempty
     , txInfoMint = mempty
     , txInfoDCert = []
-    , txInfoWdrl = []
+    , txInfoWdrl = fromList []
     , txInfoValidRange = Interval.always
     , txInfoSignatories = mempty
-    , txInfoData = []
+    , txInfoData = fromList []
     , txInfoId = "b0"
     }
 
@@ -201,10 +198,10 @@ mkTxInfo pIn oIn pOut oOut =
     , txInfoFee = mempty
     , txInfoMint = mempty
     , txInfoDCert = []
-    , txInfoWdrl = []
+    , txInfoWdrl = fromList []
     , txInfoValidRange = Interval.always
     , txInfoSignatories = mempty
-    , txInfoData = []
+    , txInfoData = fromList []
     , txInfoId = "b0"
     }
 

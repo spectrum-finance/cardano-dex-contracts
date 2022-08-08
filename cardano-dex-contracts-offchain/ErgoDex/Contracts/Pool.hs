@@ -157,11 +157,7 @@ getPoolInput ScriptContext{scriptContextTxInfo = TxInfo{txInfoInputs}} poolNft =
 
 {-# INLINEABLE findPoolConfig #-}
 findPoolConfig :: TxInfo -> DatumHash -> PoolConfig
-findPoolConfig info h = case findDatum h info of
-    Just (Datum d) -> case fromBuiltinData d of
-        (Just ps) -> ps
-        _ -> traceError "error decoding pool data"
-    _ -> traceError "pool input datum not found"
+findPoolConfig info datumHash = pparseDatum @PoolConfig # datumHash #$ pfield @"datums" # info
 
 {-# INLINEABLE validDeposit #-}
 validDeposit :: PoolState -> PoolDiff -> Bool

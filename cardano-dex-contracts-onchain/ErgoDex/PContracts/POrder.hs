@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module ErgoDex.PContracts.POrder (
@@ -6,30 +6,32 @@ module ErgoDex.PContracts.POrder (
     OrderAction (..),
 ) where
 
-import qualified GHC.Generics as GHC
-import Generics.SOP (Generic, I (I))
+import qualified GHC.Generics       as GHC
+import           Generics.SOP       (Generic, I (I))
 
-import Plutarch
-import Plutarch.Builtin (pasInt, pforgetData)
-import Plutarch.DataRepr (DerivePConstantViaData (..), PDataFields, PIsDataReprInstances (..))
-import Plutarch.Lift
-import Plutarch.Prelude
-import Plutarch.Unsafe (punsafeCoerce)
+import qualified Plutarch.Prelude             as P
+import           Plutarch
+import           Plutarch.Internal.PlutusType (PInner, PlutusType, pcon',pmatch')
+import           Plutarch.Builtin             (PIsData (..), pasInt, pforgetData)
+import           Plutarch.DataRepr            (DerivePConstantViaData (..), PDataFields)
+import           Plutarch.Lift
+import           Plutarch.Prelude
+import           Plutarch.Unsafe              (punsafeCoerce)
 
 import qualified ErgoDex.Contracts.Proxy.Order as O
 
 data OrderAction (s :: S) = Apply | Refund
 
 instance PIsData OrderAction where
-    pfromData tx =
+    pfromDataImpl tx =
         let x = pasInt # pforgetData tx
          in pmatch' x pcon
-    pdata x = pmatch x (punsafeCoerce . pdata . pcon')
+    pdataImpl x = pmatch x (punsafeCoerce . pdata . pcon')
 
 instance PlutusType OrderAction where
-    type PInner OrderAction _ = PInteger
+    type PInner OrderAction = PInteger
 
-    pcon' Apply = 0
+    pcon' Apply  = 0
     pcon' Refund = 1
 
     pmatch' x f =
@@ -48,10 +50,10 @@ newtype OrderRedeemer (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (Generic, PIsDataRepr)
     deriving
-        (PMatch, PIsData, PDataFields, PlutusType)
-        via PIsDataReprInstances OrderRedeemer
+        (PIsData, PDataFields, PlutusType)
+
+instance DerivePlutusType OrderRedeemer where type DPTStrat _ = PlutusTypeData
 
 instance PUnsafeLiftDecl OrderRedeemer where type PLifted OrderRedeemer = O.OrderRedeemer
-deriving via (DerivePConstantViaData O.OrderRedeemer OrderRedeemer) instance (PConstant O.OrderRedeemer)
+deriving via (DerivePConstantViaData O.OrderRedeemer OrderRedeemer) instance (PConstantDecl O.OrderRedeemer)

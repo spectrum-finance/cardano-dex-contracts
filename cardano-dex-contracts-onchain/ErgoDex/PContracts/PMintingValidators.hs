@@ -6,13 +6,13 @@ module ErgoDex.PMintingValidators (
 
 import Plutarch
 import Plutarch.Api.V1 (mkMintingPolicy)
-import Plutarch.Api.V1.Contexts (PScriptContext)
+import Plutarch.Api.V2.Contexts (PScriptContext)
 import Plutarch.Prelude
 import Plutarch.Unsafe (punsafeCoerce)
 
 import qualified ErgoDex.PContracts.PAssets as A
-import Plutus.V1.Ledger.Api (MintingPolicy, TokenName)
-import Plutus.V1.Ledger.Contexts
+import PlutusLedgerApi.V1.Api (MintingPolicy, TokenName)
+import PlutusLedgerApi.V1.Contexts
 
 wrapMintingValidator ::
     PIsData rdmr =>

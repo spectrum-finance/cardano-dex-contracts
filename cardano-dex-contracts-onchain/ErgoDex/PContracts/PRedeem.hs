@@ -5,30 +5,23 @@ module ErgoDex.PContracts.PRedeem (
     redeemValidatorT,
 ) where
 
-import qualified GHC.Generics as GHC
-import Generics.SOP (Generic, I (I))
+import qualified GHC.Generics  as GHC
 
 import Plutarch
-import Plutarch.Api.V1
-import Plutarch.Api.V1.Contexts
+import Plutarch.Api.V2
+import Plutarch.Api.V1.Value
 import Plutarch.DataRepr
 import Plutarch.Lift
 import Plutarch.Prelude
+import Plutarch.Extra.TermCont
 
 import PExtra.API
-import PExtra.Ada (pGetLovelace, pIsAda)
-import PExtra.Monadic (tlet, tletField, tmatch)
-
-import ErgoDex.PContracts.PApi (
-    containsSignature,
-    getRewardValue',
-    maxLqCap,
-    tletUnwrap,
-    zeroAsData,
- )
-import ErgoDex.PContracts.POrder (OrderAction (Apply, Refund), OrderRedeemer)
-import PExtra.List (pelemAt)
+import PExtra.Ada     (pIsAda)
+import PExtra.Monadic (tlet, tmatch)
 import PExtra.PTriple (PTuple3, ptuple3)
+
+import ErgoDex.PContracts.PApi   (containsSignature, getRewardValue', maxLqCap, zeroAsData)
+import ErgoDex.PContracts.POrder (OrderAction (Apply, Refund), OrderRedeemer)
 
 import qualified ErgoDex.Contracts.Proxy.Redeem as R
 
@@ -48,62 +41,65 @@ newtype RedeemConfig (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (Generic, PIsDataRepr)
     deriving
-        (PMatch, PIsData, PDataFields, PlutusType)
-        via (PIsDataReprInstances RedeemConfig)
+        (PIsData, PDataFields, PlutusType)
+
+instance DerivePlutusType RedeemConfig where type DPTStrat _ = PlutusTypeData
 
 instance PUnsafeLiftDecl RedeemConfig where type PLifted RedeemConfig = R.RedeemConfig
-deriving via (DerivePConstantViaData R.RedeemConfig RedeemConfig) instance (PConstant R.RedeemConfig)
+deriving via (DerivePConstantViaData R.RedeemConfig RedeemConfig) instance (PConstantDecl R.RedeemConfig)
 
 redeemValidatorT :: ClosedTerm (RedeemConfig :--> OrderRedeemer :--> PScriptContext :--> PBool)
 redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
-    ctx <- tcont $ pletFields @'["txInfo", "purpose"] ctx'
-    conf <- tcont $ pletFields @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "stakePkh"] conf'
-    txInfo' <- tletUnwrap $ hrecField @"txInfo" ctx
-    txInfo <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txInfo'
-    inputs <- tletUnwrap $ hrecField @"inputs" txInfo
-    outputs <- tletUnwrap $ hrecField @"outputs" txInfo
+    ctx     <- pletFieldsC @'["txInfo", "purpose"] ctx'
+    conf    <- pletFieldsC @'["x", "y", "lq", "poolNft", "exFee", "rewardPkh", "stakePkh"] conf'
+    let
+        rewardPkh = getField @"rewardPkh" conf
+        stakePkh  = getField @"stakePkh"  conf
 
-    redeemer <- tcont $ pletFields @'["poolInIx", "orderInIx", "rewardOutIx", "action"] redeemer'
-    poolInIx <- tletUnwrap $ hrecField @"poolInIx" redeemer
-    orderInIx <- tletUnwrap $ hrecField @"orderInIx" redeemer
-    rewardOutIx <- tletUnwrap $ hrecField @"rewardOutIx" redeemer
+        x  = getField @"x"  conf
+        y  = getField @"y"  conf
+        lq = getField @"lq" conf
 
-    rewardOut <- tlet $ pelemAt # rewardOutIx # outputs
-    rewardPkh <- tletUnwrap $ hrecField @"rewardPkh" conf
-    stakePkh <- tletUnwrap $ hrecField @"stakePkh" conf
+        exFee   = getField @"exFee"  conf
+        txInfo' = getField @"txInfo" ctx
+
+    txInfo  <- pletFieldsC @'["inputs", "outputs", "signatories"] txInfo'
+    inputs  <- tletUnwrap $ getField @"inputs"  txInfo
+    outputs <- tletUnwrap $ getField @"outputs" txInfo
+
+    redeemer <- pletFieldsC @'["poolInIx", "orderInIx", "rewardOutIx", "action"] redeemer'
+    let
+        poolInIx    = getField @"poolInIx" redeemer
+        orderInIx   = getField @"orderInIx" redeemer
+        rewardOutIx = getField @"rewardOutIx" redeemer
+
+    rewardOut   <- tlet $ pelemAt # rewardOutIx # outputs
     rewardValue <- tlet $ getRewardValue' # rewardOut # rewardPkh # stakePkh
 
-    poolIn' <- tlet $ pelemAt # poolInIx # inputs
-    poolIn <- tcont $ pletFields @'["outRef", "resolved"] poolIn'
-    poolValue <-
-        let pool = pfromData $ hrecField @"resolved" poolIn
-         in tletField @"value" pool
-    let poolIdentity =
-            let requiredNft = pfromData $ hrecField @"poolNft" conf
-                nftAmount = assetClassValueOf # poolValue # requiredNft
+    poolIn'   <- tlet $ pelemAt # poolInIx # inputs
+    poolIn    <- pletFieldsC @'["outRef", "resolved"] poolIn'
+    let 
+        poolValue    = pfield @"value" # (getField @"resolved" poolIn)
+        poolIdentity =
+            let 
+                requiredNft = pfromData $ getField @"poolNft" conf
+                nftAmount   = assetClassValueOf # poolValue # requiredNft
              in nftAmount #== 1
 
     selfIn' <- tlet $ pelemAt # orderInIx # inputs
-    selfIn <- tcont $ pletFields @'["outRef", "resolved"] selfIn'
-    selfValue <-
-        let self = pfromData $ hrecField @"resolved" selfIn
-         in tletField @"value" self
+    selfIn  <- pletFieldsC @'["outRef", "resolved"] selfIn'
+    let selfValue = pfield @"value" # (getField @"resolved" selfIn)
 
-    PSpending selfRef' <- tmatch (pfromData $ hrecField @"purpose" ctx)
+    PSpending selfRef' <- tmatch (pfromData $ getField @"purpose" ctx)
     let selfIdentity =
-            let selfRef = pfromData $ pfield @"_0" # selfRef'
-                selfInRef = pfromData $ hrecField @"outRef" selfIn
+            let 
+                selfRef = pfromData $ pfield @"_0" # selfRef'
+                selfInRef = pfromData $ getField @"outRef" selfIn
              in selfRef #== selfInRef
 
-    x <- tletUnwrap $ hrecField @"x" conf
-    y <- tletUnwrap $ hrecField @"y" conf
-    lq <- tletUnwrap $ hrecField @"lq" conf
-
-    exFee <- tletUnwrap $ hrecField @"exFee" conf
     collateralAda <-
-        let inAda = pGetLovelace # selfValue
+        let inAda = plovelaceValueOf # selfValue
          in tlet $ inAda - exFee
 
     let strictInputs =
@@ -117,33 +113,35 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     outs <- tlet $ calcOutput # rewardValue # x # y # collateralAda
     inLq <- tlet $ assetClassValueOf # selfValue # lq
 
-    let outAda = pGetLovelace # rewardValue
+    let 
+        outAda = plovelaceValueOf # rewardValue
+        
         minReturnX = calcMinReturn # liquidity # inLq # poolValue # x
         minReturnY = calcMinReturn # liquidity # inLq # poolValue # y
 
-        outX = pfromData $ pfield @"_0" # outs
-        outY = pfromData $ pfield @"_1" # outs
+        outX  = pfromData $ pfield @"_0" # outs
+        outY  = pfromData $ pfield @"_1" # outs
         opAda = pfromData $ pfield @"_2" # outs
 
         fairShare = minReturnX #<= outX #&& minReturnY #<= outY
         fairFee = opAda + collateralAda #<= outAda
 
-    action <- tletUnwrap $ hrecField @"action" redeemer
+    action <- tletUnwrap $ getField @"action" redeemer
     pure $
         pmatch action $ \case
             Apply -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairShare #&& fairFee
             Refund ->
-                let sigs = pfromData $ hrecField @"signatories" txInfo
+                let sigs = pfromData $ getField @"signatories" txInfo
                  in containsSignature # sigs # rewardPkh
 
-calcMinReturn :: Term s (PInteger :--> PInteger :--> PValue :--> PAssetClass :--> PInteger)
+calcMinReturn :: Term s (PInteger :--> PInteger :--> PValue _ _:--> PAssetClass :--> PInteger)
 calcMinReturn =
     phoistAcyclic $
         plam $ \liquidity inLq poolValue ac ->
             let reserves = assetClassValueOf # poolValue # ac
              in pdiv # (inLq * reserves) # liquidity
 
-calcOutput :: Term s (PValue :--> PAssetClass :--> PAssetClass :--> PInteger :--> PTuple3 PInteger PInteger PInteger)
+calcOutput :: Term s (PValue _ _:--> PAssetClass :--> PAssetClass :--> PInteger :--> PTuple3 PInteger PInteger PInteger)
 calcOutput = plam $ \rewardValue poolX poolY collateralAda -> unTermCont $ do
     rx <- tlet $ assetClassValueOf # rewardValue # poolX
     ry <- tlet $ assetClassValueOf # rewardValue # poolY

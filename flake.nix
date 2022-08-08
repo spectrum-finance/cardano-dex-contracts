@@ -160,9 +160,9 @@
           {
             src = ./.;
             hooks = {
-              cabal-fmt.enable = true;
-              stylish-haskell.enable = true;
-              nixpkgs-fmt.enable = true;
+              cabal-fmt.enable = false;
+              stylish-haskell.enable = false;
+              nixpkgs-fmt.enable = false;
               # FIXME: this is currently not part of the pre-commit-hooks
               #        as the hlint currently is not happy.
               #        Apart from that the below tools are useful but not in the 
@@ -228,7 +228,11 @@
             shell = {
               shellHook = ''
                 ln -fs cabal.project.onchain cabal.project
-              '' + (preCommitCheckFor system).shellHook;
+              '' + (preCommitCheckFor system).shellHook + "
+              export LC_CTYPE=C.UTF-8
+              export LC_ALL=C.UTF-8
+              export LANG=C.UTF-8
+              ";
               withHoogle = true;
               exactDeps = true;
               nativeBuildInputs = (haskellToolsForPkgs pkgs') ++ [
@@ -394,7 +398,7 @@
               shell = {
                 shellHook = '' 
                   ln -fs cabal.project.offchain cabal.project
-                '' + (preCommitCheckFor system).shellHook;
+                '' + (preCommitCheckFor system).shellHook ;
                 withHoogle = false;
                 exactDeps = true;
 
