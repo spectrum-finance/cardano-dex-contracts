@@ -1,0 +1,122 @@
+cabal-version: 3.0
+name:          cardano-dex-contracts-onchain
+version:       0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+license:       CC0-1.0
+license-files: LICENSE
+author:        ErgoLabs
+maintainer:    ilya.arcadich@gmail.com
+
+-- A copyright notice.
+-- copyright:
+-- category:
+-- extra-source-files: CHANGELOG.md
+
+common lang
+  default-language:   Haskell2010
+  default-extensions:
+    NoStarIsType
+    BangPatterns
+    BinaryLiterals
+    ConstrainedClassMethods
+    ConstraintKinds
+    DataKinds
+    DeriveAnyClass
+    DeriveDataTypeable
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveLift
+    DeriveTraversable
+    DerivingStrategies
+    DerivingVia
+    DoAndIfThenElse
+    EmptyCase
+    EmptyDataDecls
+    EmptyDataDeriving
+    ExistentialQuantification
+    ExplicitForAll
+    FlexibleContexts
+    FlexibleInstances
+    ForeignFunctionInterface
+    GADTSyntax
+    GeneralisedNewtypeDeriving
+    HexFloatLiterals
+    ImplicitPrelude
+    InstanceSigs
+    KindSignatures
+    LambdaCase
+    MonomorphismRestriction
+    MultiParamTypeClasses
+    NamedFieldPuns
+    NamedWildCards
+    NumericUnderscores
+    OverloadedStrings
+    PartialTypeSignatures
+    PatternGuards
+    PolyKinds
+    PostfixOperators
+    RankNTypes
+    RecordWildCards
+    RelaxedPolyRec
+    ScopedTypeVariables
+    StandaloneDeriving
+    StandaloneKindSignatures
+    TraditionalRecordSyntax
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+    TypeSynonymInstances
+    ViewPatterns
+
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-uni-patterns -Wno-unused-do-bind
+    -Wno-partial-type-signatures -Wunused-foralls
+    -fprint-explicit-foralls -fprint-explicit-kinds
+
+library
+  import:          lang
+  exposed-modules:
+    ErgoDex.PContracts.PApi
+    ErgoDex.PContracts.PAssets
+    ErgoDex.PContracts.PData
+    ErgoDex.PContracts.PDeposit
+    ErgoDex.PContracts.POrder
+    ErgoDex.PContracts.PPool
+    ErgoDex.PContracts.PRedeem
+    ErgoDex.PContracts.PSwap
+    ErgoDex.PMintingValidators
+    ErgoDex.PValidators
+    PExtra.Ada
+    PExtra.API
+    PExtra.Integer
+    PExtra.List
+    PExtra.Map
+    PExtra.Maybe
+    PExtra.Monadic
+    PExtra.Num
+    PExtra.Pair
+    PExtra.PTriple
+
+  build-depends:
+    , aeson
+    , base
+    , bytestring
+    , containers
+    , generics-sop
+    , plutarch
+    , plutus-ledger-api
+    , text
+    , transformers
+
+-- FIXME: convert to onchain only testsuite

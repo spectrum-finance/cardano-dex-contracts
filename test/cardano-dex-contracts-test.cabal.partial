@@ -1,0 +1,35 @@
+test-suite cardano-dex-contracts-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs: test
+  other-modules:
+    Gen.Models
+    Gen.DepositGen
+    Gen.PoolGen
+    Gen.SwapGen
+    Gen.RedeemGen
+    Gen.Utils
+    Tests.Deposit
+    Tests.Pool
+    Tests.Swap
+    Tests.Redeem
+    Eval
+  build-depends:
+    , base  == 4.14.1.0
+    , HUnit == 1.6.2.0
+    , text  == 1.2.4.1
+    , base16-bytestring==1.0.1.0
+    , bytestring==0.10.12.0
+    , plutus-ledger-api==0.1.0.0
+    , random==1.2.1
+    , plutus-tx==0.1.0.0
+    , cardano-dex-contracts==0.1.0.0
+    , containers==0.6.2.1
+    , random-strings
+    , plutus-core
+    , plutarch
+    , hedgehog==1.0.5
+    , rio==0.1.21.0
+    , tasty-hunit==0.10.0.3
+    , tasty==1.4.2
+    , tasty-hedgehog==1.1.0.0
