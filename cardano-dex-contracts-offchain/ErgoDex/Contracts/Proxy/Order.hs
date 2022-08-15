@@ -73,6 +73,5 @@ data OrderRedeemer = OrderRedeemer
 PlutusTx.makeIsDataIndexed ''OrderRedeemer [('OrderRedeemer, 0)]
 PlutusTx.makeLift ''OrderRedeemer
 
-{-# INLINEABLE isAda #-}
 isAda :: AssetClass -> Bool
 isAda cls = cls == adaAssetClass

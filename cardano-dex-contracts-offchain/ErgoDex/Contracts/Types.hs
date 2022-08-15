@@ -53,7 +53,7 @@ data Base = Base deriving (Haskell.Show, Haskell.Eq, Generic)
 -- Type to distinguish tokens within a pool
 newtype Coin a = Coin {unCoin :: AssetClass}
     deriving stock (Haskell.Show, Generic)
-    deriving newtype (ToJSON, FromJSON, Eq, Haskell.Eq, Haskell.Ord)
+    deriving newtype (Haskell.Eq, Haskell.Ord)
     deriving newtype (PlutusTx.ToData, PlutusTx.FromData, PlutusTx.UnsafeFromData)
 
 {-# INLINEABLE retagCoin #-}

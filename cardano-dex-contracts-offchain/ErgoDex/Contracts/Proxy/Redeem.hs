@@ -28,7 +28,6 @@ module ErgoDex.Contracts.Proxy.Redeem where
 
 import qualified Prelude as Haskell
 
-import Data.Aeson (FromJSON, ToJSON)
 import qualified GHC.Generics as GHC
 import Plutus.V1.Ledger.Api (PubKeyHash)
 import Plutus.V1.Ledger.Value (AssetClass)
@@ -45,6 +44,5 @@ data RedeemConfig = RedeemConfig
     , stakePkh :: Maybe PubKeyHash
     }
     deriving stock (Haskell.Show, GHC.Generic)
-    deriving (FromJSON, ToJSON)
 PlutusTx.makeIsDataIndexed ''RedeemConfig [('RedeemConfig, 0)]
 PlutusTx.makeLift ''RedeemConfig
