@@ -332,20 +332,21 @@
               inherit compiler-nix-name;
               inherit (hackages) extra-hackages extra-hackage-tarballs modules;
 
-              index-state = "2021-10-20T00:00:00Z";
+              index-state = "2022-04-06T00:00:00Z";
 
               cabalProjectFileName = "cabal.project.offchain";
               cabalProjectLocal = ''
                 package ply-core
                   flags: -new-ledger-namespace
 
+                constraints:
+                    aeson >= 2
+                  , hedgehog >= 1.1
+
                 allow-newer:
-                  size-based:template-haskell
-                  , ouroboros-consensus-byron:formatting
-                  , beam-core:aeson
-                  , beam-sqlite:aeson
-                  , beam-sqlite:dlist
-                  , beam-migrate:aeson
+                    *:aeson
+                  , *:hashable
+                  , size-based:template-haskell
 
                 constraints:
                   -- big breaking change here, inline-r doens't have an upper bound

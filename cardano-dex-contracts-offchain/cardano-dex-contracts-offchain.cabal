@@ -18,14 +18,6 @@ maintainer:    ilya.arcadich@gmail.com
 data-files:    deposit.uplc swap.uplc redeem.uplc pool.uplc
 data-dir:      Contracts
 
-constraints:
-    aeson >= 2
-  , hedgehog >= 1.1
-
-allow-newer:
-    *:aeson
-  , size-based:template-haskell
-
 -- A copyright notice.
 -- copyright:
 -- category:
@@ -37,6 +29,9 @@ flag defer-plugin-errors
 
   default:     False
   manual:      True
+
+common base
+  build-depends: base >= 4.9 && < 5
 
 common lang
   default-language:   Haskell2010
@@ -102,7 +97,7 @@ common lang
     -fprint-explicit-foralls -fprint-explicit-kinds
 
 library
-  import:          lang
+  import:          base, lang
   other-modules:   Paths_cardano_dex_contracts_offchain
   autogen-modules: Paths_cardano_dex_contracts_offchain
   exposed-modules:
@@ -118,9 +113,10 @@ library
     ErgoDex.Plutus
   build-depends:
     , aeson
-    , base >=4.9 && <5
+    , base
     , bytestring
     , containers
+    , base16-bytestring
     , generics-sop
     , plutus-ledger-api
     , plutus-tx
