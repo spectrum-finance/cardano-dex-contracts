@@ -57,70 +57,10 @@ data Quote = Quote deriving (Haskell.Show, Haskell.Eq, Generic)
 -- Second asset of a pool
 data Base = Base deriving (Haskell.Show, Haskell.Eq, Generic)
 
-encodeByteString :: BSS.ByteString -> Text.Text
-encodeByteString = TE.decodeUtf8 . Base16.encode
-
-tokenName :: BSS.ByteString -> TokenName
-tokenName = TokenName . toBuiltin
-
-fromTokenName :: (BSS.ByteString -> r) -> (Text.Text -> r) -> TokenName -> r
-fromTokenName handleBytestring handleText (TokenName bs) = either (\_ -> handleBytestring $ fromBuiltin bs) handleText $ TE.decodeUtf8' (fromBuiltin bs)
-
---todo: move to aeson utils
-decodeByteString :: JSON.Value -> JSON.Parser BSS.ByteString
-decodeByteString = JSON.withText "bytestring" (either Haskell.fail Haskell.pure . tryDecode)
-
-asBase16 :: BSS.ByteString -> Text.Text
-asBase16 bs = Text.concat ["0x", encodeByteString bs]
-
-fromText :: Text.Text -> TokenName
-fromText = tokenName . TE.encodeUtf8
-
-tryDecode :: Text.Text -> Either Haskell.String BSS.ByteString
-tryDecode = Base16.decode . TE.encodeUtf8
-
-instance ToJSON CurrencySymbol where
-  toJSON currencySymbol =
-    JSON.object
-      [ ( "unCurrencySymbol"
-        , JSON.String .
-          encodeByteString .
-          fromBuiltin .
-          unCurrencySymbol $
-          currencySymbol)
-      ]
-
-instance FromJSON CurrencySymbol where
-  parseJSON =
-    JSON.withObject "CurrencySymbol" $ \object -> do
-      raw   <- object JSON..: "unCurrencySymbol"
-      bytes <- decodeByteString raw
-      Haskell.pure $ CurrencySymbol $ toBuiltin bytes
-
-instance ToJSON TokenName where
-    toJSON = JSON.object . Haskell.pure . (,) "unTokenName" . JSON.toJSON .
-        fromTokenName
-            (\bs -> Text.cons '\NUL' (asBase16 bs))
-            (\t -> case Text.take 1 t of "\NUL" -> Text.concat ["\NUL\NUL", t]; _ -> t)
-
-instance FromJSON TokenName where
-    parseJSON =
-        JSON.withObject "TokenName" $ \object -> do
-        raw <- object JSON..: "unTokenName"
-        fromJSONText raw
-        where
-            fromJSONText t = case Text.take 3 t of
-                "\NUL0x"       -> either Haskell.fail (Haskell.pure . tokenName) . tryDecode . Text.drop 3 $ t
-                "\NUL\NUL\NUL" -> Haskell.pure . fromText . Text.drop 2 $ t
-                _              -> Haskell.pure . fromText $ t
-
-deriving instance ToJSON AssetClass
-deriving instance FromJSON AssetClass
-
 -- Type to distinguish tokens within a pool
 newtype Coin a = Coin {unCoin :: AssetClass}
     deriving stock (Haskell.Show, Generic)
-    deriving newtype (ToJSON, FromJSON, Haskell.Eq, Haskell.Ord)
+    deriving newtype (Haskell.Eq, Haskell.Ord)
     deriving newtype (PlutusTx.ToData, PlutusTx.FromData, PlutusTx.UnsafeFromData)
 
 {-# INLINEABLE retagCoin #-}
