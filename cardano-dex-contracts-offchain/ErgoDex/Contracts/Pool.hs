@@ -53,8 +53,12 @@ data PoolConfig = PoolConfig
     }
     deriving (Haskell.Show, Eq)
 
+PlutusTx.makeIsDataIndexed ''PoolConfig [('PoolConfig, 0)]
+PlutusTx.makeLift ''PoolConfig
+
 data PoolAction = Deposit | Redeem | Swap | Destroy
     deriving (Haskell.Show)
+PlutusTx.makeLift ''PoolAction
 
 data PoolRedeemer = PoolRedeemer
     { action :: PoolAction
