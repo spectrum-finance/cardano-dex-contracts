@@ -60,11 +60,36 @@ data PoolAction = Deposit | Redeem | Swap | Destroy
     deriving (Haskell.Show)
 PlutusTx.makeLift ''PoolAction
 
+instance PlutusTx.FromData PoolAction where
+    {-# INLINE fromBuiltinData #-}
+    fromBuiltinData d = matchData' d (\_ _ -> Nothing) (const Nothing) (const Nothing) chooseAction (const Nothing)
+      where
+        chooseAction i
+            | i == 0 = Just Deposit
+            | i == 1 = Just Redeem
+            | i == 2 = Just Swap
+            | i == 3 = Just Destroy
+            | otherwise = Nothing
+
+instance PlutusTx.UnsafeFromData PoolAction where
+    {-# INLINE unsafeFromBuiltinData #-}
+    unsafeFromBuiltinData = maybe (PlutusTx.Builtins.error ()) id . PlutusTx.fromBuiltinData
+
+instance PlutusTx.ToData PoolAction where
+    {-# INLINE toBuiltinData #-}
+    toBuiltinData a = mkI $ case a of
+        Deposit -> 0
+        Redeem -> 1
+        Swap -> 2
+        Destroy -> 3
+
 data PoolRedeemer = PoolRedeemer
     { action :: PoolAction
     , selfIx :: Integer
     }
     deriving (Haskell.Show, Eq, Haskell.Generic)
+
+PlutusTx.makeIsDataIndexed ''PoolRedeemer [('PoolRedeemer, 0)]
 
 data PoolState = PoolState
     { reservesX :: Integer
