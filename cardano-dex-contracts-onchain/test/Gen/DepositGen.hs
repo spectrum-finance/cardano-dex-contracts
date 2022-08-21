@@ -4,8 +4,8 @@ import Hedgehog
 
 import Gen.Models
 
-import Plutus.V1.Ledger.Value
-import Plutus.V1.Ledger.Api
+import PlutusLedgerApi.V2
+import PlutusLedgerApi.V1.Value
 import PlutusTx.Builtins.Internal
 
 import qualified ErgoDex.Contracts.Proxy.Deposit as D

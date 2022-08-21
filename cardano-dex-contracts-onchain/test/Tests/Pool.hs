@@ -1,13 +1,16 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Tests.Pool where
 
 import qualified ErgoDex.PContracts.PPool as PPool
 import qualified ErgoDex.Contracts.Pool   as Pool
 import ErgoDex.PValidators
+import Data.Either
 
 import Eval
 import Gen.Utils
 
-import Plutus.V1.Ledger.Api
+import PlutusLedgerApi.V2
 
 import Hedgehog
 

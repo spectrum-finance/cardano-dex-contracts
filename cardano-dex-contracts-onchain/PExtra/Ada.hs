@@ -3,7 +3,6 @@ module PExtra.Ada (
     pAdaTokenName,
     pAdaAssetClass,
     pIsAda,
-    pGetLovelace,
 ) where
 
 import PExtra.API
@@ -28,7 +27,3 @@ pAdaAssetClass =
 
 pIsAda :: Term s (PAssetClass :--> PBool)
 pIsAda = plam $ \ac -> ac #== pAdaAssetClass
-
-pGetLovelace :: Term s (PValue :--> PInteger)
-pGetLovelace = plam $ \value ->
-    assetClassValueOf # value # pAdaAssetClass

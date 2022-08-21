@@ -87,9 +87,13 @@ common lang
 library
   import:          lang
   exposed-modules:
+    ErgoDex.Contracts.Proxy.Deposit
+    ErgoDex.Contracts.Proxy.Swap
+    ErgoDex.Contracts.Proxy.Order
+    ErgoDex.Contracts.Proxy.Redeem
+    ErgoDex.Contracts.Pool
     ErgoDex.PContracts.PApi
     ErgoDex.PContracts.PAssets
-    ErgoDex.PContracts.PData
     ErgoDex.PContracts.PDeposit
     ErgoDex.PContracts.POrder
     ErgoDex.PContracts.PPool
@@ -101,7 +105,6 @@ library
     PExtra.API
     PExtra.Integer
     PExtra.List
-    PExtra.Map
     PExtra.Maybe
     PExtra.Monadic
     PExtra.Num
@@ -116,7 +119,43 @@ library
     , generics-sop
     , plutarch
     , plutus-ledger-api
+    , plutarch-extra
+    , plutus-tx
     , text
     , transformers
 
--- FIXME: convert to onchain only testsuite
+test-suite cardano-dex-contracts-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs: test
+  other-modules:
+    Gen.Models
+    Gen.DepositGen
+    Gen.PoolGen
+    Gen.SwapGen
+    Gen.RedeemGen
+    Gen.DestroyGen
+    Gen.Utils
+    Tests.Deposit
+    Tests.Pool
+    Tests.Swap
+    Tests.Redeem
+    Eval
+  build-depends:
+    , base
+    , HUnit
+    , text
+    , base16-bytestring
+    , bytestring
+    , plutus-ledger-api
+    , random
+    , plutus-tx
+    , cardano-dex-contracts-onchain
+    , containers
+    , random-strings
+    , plutarch
+    , hedgehog
+    , rio
+    , tasty-hunit
+    , tasty
+    , tasty-hedgehog

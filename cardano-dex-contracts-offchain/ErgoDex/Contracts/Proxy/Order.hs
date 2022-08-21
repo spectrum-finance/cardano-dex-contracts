@@ -55,7 +55,7 @@ instance FromData OrderAction where
 
 instance UnsafeFromData OrderAction where
     {-# INLINE unsafeFromBuiltinData #-}
-    unsafeFromBuiltinData = maybe (error ()) id . fromBuiltinData
+    unsafeFromBuiltinData = maybe (Prelude.error "Couldn't convert OrderAction from builtin data") id . fromBuiltinData
 
 instance ToData OrderAction where
     {-# INLINE toBuiltinData #-}
@@ -73,6 +73,5 @@ data OrderRedeemer = OrderRedeemer
 PlutusTx.makeIsDataIndexed ''OrderRedeemer [('OrderRedeemer, 0)]
 PlutusTx.makeLift ''OrderRedeemer
 
-{-# INLINEABLE isAda #-}
 isAda :: AssetClass -> Bool
 isAda cls = cls == adaAssetClass

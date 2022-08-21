@@ -40,15 +40,6 @@ class PNum p => PExpable (p :: PType) where
     psquare :: Term s (p :--> p)
     psquare = phoistAcyclic $ plam $ \x' -> plet x' $ \x -> x * x
 
-instance PExpable PInteger
-
-instance PExpable PRational where
-    pexp' :: Term s (PRational :--> PInteger :--> PRational)
-    pexp' = phoistAcyclic $
-        plam $ \x n -> unTermCont $ do
-            PRational a b <- tmatch x
-            tcon $ PRational (pexp' # a # n) (pexp' # b # n)
-
 pproduct :: (PListLike l, PElemConstraint l a, PNum a) => Term s (l a :--> a)
 pproduct = phoistAcyclic $ pfoldr # plam (*) # 1
 

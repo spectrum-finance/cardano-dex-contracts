@@ -8,20 +8,22 @@ import PExtra.API (assetClass, assetClassValueOf)
 import PExtra.List (pexists)
 import PExtra.Monadic
 import Plutarch
-import Plutarch.Api.V1
+import Plutarch.Api.V2
+import Plutarch.Api.V1 (PTokenName)
 import Plutarch.Prelude
 
 poolNftMintValidatorT :: Term s PTxOutRef -> Term s PTokenName -> Term s (PData :--> PScriptContext :--> PBool)
 poolNftMintValidatorT oref tn = plam $ \_ ctx -> unTermCont $ do
     txinfo' <- tletField @"txInfo" ctx
     txinfo <- tcont $ pletFields @'["inputs", "mint"] txinfo'
+    inputs <- tletUnwrap $ getField @"inputs" txinfo
     let targetUtxoConsumed =
             let isTarget i = unTermCont $ do
-                    oref' <- tletField @"outRef" i
+                    let oref' = pfield @"outRef" # i
                     pure $ oref' #== oref
-             in pexists # plam (isTarget . pfromData) # pfromData (hrecField @"inputs" txinfo)
+             in pexists # plam (isTarget) # inputs
         tokenMintExact = unTermCont $ do
-            valueMint <- tletUnwrap $ hrecField @"mint" txinfo
+            valueMint <- tlet $ getField @"mint" txinfo
             let ownAc = assetClass # (ownCurrencySymbol # ctx) # tn
             pure $ assetClassValueOf # valueMint # ownAc #== 1
     pure $ targetUtxoConsumed #&& tokenMintExact
@@ -30,13 +32,14 @@ poolLqMintValidatorT :: Term s PTxOutRef -> Term s PTokenName -> Term s PInteger
 poolLqMintValidatorT oref tn emission = plam $ \_ ctx -> unTermCont $ do
     txinfo' <- tletField @"txInfo" ctx
     txinfo <- tcont $ pletFields @'["inputs", "mint"] txinfo'
+    inputs <- tletUnwrap $ getField @"inputs" txinfo
     let targetUtxoConsumed =
             let isTarget i = unTermCont $ do
                     oref' <- tletField @"outRef" i
                     pure $ oref' #== oref
-             in pexists # plam (isTarget . pfromData) # pfromData (hrecField @"inputs" txinfo)
+             in pexists # plam (isTarget) # inputs
         tokenMintExact = unTermCont $ do
-            valueMint <- tletUnwrap $ hrecField @"mint" txinfo
+            valueMint <- tlet $ getField @"mint" txinfo
             let ownAc = assetClass # (ownCurrencySymbol # ctx) # tn
             pure $ assetClassValueOf # valueMint # ownAc #== emission
     pure $ targetUtxoConsumed #&& tokenMintExact

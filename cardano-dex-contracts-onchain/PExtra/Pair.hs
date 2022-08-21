@@ -12,18 +12,7 @@ import Plutarch.Prelude
 import PExtra.Monadic (tmatch)
 import Plutarch.Builtin (ppairDataBuiltin)
 
-instance (PEq a, PEq b) => PEq (PPair a b) where
-    a' #== b' =
-        phoistAcyclic
-            ( plam $ \a b ->
-                pmatch a $ \(PPair al ar) ->
-                    pmatch b $ \(PPair bl br) ->
-                        al #== bl #&& ar #== br
-            )
-            # a'
-            # b'
-
-instance (PEq a, POrd a, POrd b) => POrd (PPair a b) where
+instance (PEq a, PPartialOrd a, PPartialOrd b) => PPartialOrd (PPair a b) where
     a' #< b' =
         phoistAcyclic
             ( plam $ \a b ->

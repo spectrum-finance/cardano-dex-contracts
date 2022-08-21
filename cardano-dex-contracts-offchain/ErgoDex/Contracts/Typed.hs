@@ -21,7 +21,7 @@ data PoolConfig = PoolConfig
     , poolLq :: Coin Liquidity
     , poolFeeNum :: Integer
     }
-    deriving (Haskell.Show, Haskell.Eq, Generic, ToJSON, FromJSON)
+    deriving (Haskell.Show, Haskell.Eq, Generic)
 
 instance UnliftErased PoolConfig P.PoolConfig where
     lift PoolConfig{..} =

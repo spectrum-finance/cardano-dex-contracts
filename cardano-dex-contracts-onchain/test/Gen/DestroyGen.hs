@@ -7,9 +7,9 @@ import Hedgehog
 import Gen.Models
 import Gen.DepositGen
 
-import qualified Plutus.V1.Ledger.Interval as Interval
-import Plutus.V1.Ledger.Value
-import Plutus.V1.Ledger.Api
+import qualified PlutusLedgerApi.V1.Interval as Interval
+import PlutusLedgerApi.V1.Value
+import PlutusLedgerApi.V2
 
 import qualified ErgoDex.Contracts.Pool as P
 
@@ -28,9 +28,9 @@ mkDTxInfo pIn =
     , txInfoFee = mempty
     , txInfoMint = mempty
     , txInfoDCert = []
-    , txInfoWdrl = []
+    , txInfoWdrl = fromList []
     , txInfoValidRange = Interval.always
     , txInfoSignatories = mempty
-    , txInfoData = []
+    , txInfoData = fromList []
     , txInfoId = "b0"
     }

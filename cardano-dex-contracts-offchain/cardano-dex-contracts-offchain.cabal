@@ -15,6 +15,8 @@ license:       CC0-1.0
 license-files: LICENSE
 author:        ErgoLabs
 maintainer:    ilya.arcadich@gmail.com
+data-files:    deposit.uplc swap.uplc redeem.uplc pool.uplc
+data-dir:      Contracts
 
 -- A copyright notice.
 -- copyright:
@@ -27,6 +29,9 @@ flag defer-plugin-errors
 
   default:     False
   manual:      True
+
+common base
+  build-depends: base >= 4.9 && < 5
 
 common lang
   default-language:   Haskell2010
@@ -92,28 +97,45 @@ common lang
     -fprint-explicit-foralls -fprint-explicit-kinds
 
 library
-  import:          lang
+  import:          base, lang
+  other-modules:   Paths_cardano_dex_contracts_offchain
+  autogen-modules: Paths_cardano_dex_contracts_offchain
   exposed-modules:
     ErgoDex.Contracts.Class
     ErgoDex.Contracts.Pool
     ErgoDex.Contracts.Proxy.Deposit
     ErgoDex.Contracts.Proxy.Order
     ErgoDex.Contracts.Proxy.Redeem
+    ErgoDex.PValidators
     ErgoDex.Contracts.Proxy.Swap
     ErgoDex.Contracts.Typed
     ErgoDex.Contracts.Types
     ErgoDex.Plutus
-
   build-depends:
     , aeson
-    , base               >=4.9     && <5
+    , base
     , bytestring
     , containers
-    , generics-sop       ==0.5.1.0
-    , plutus-core
-    , plutus-ledger
+    , base16-bytestring
+    , generics-sop
     , plutus-ledger-api
     , plutus-tx
-    , plutus-tx-plugin
     , text
     , transformers
+    , serialise
+
+test-suite cardano-dex-contracts-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs: test
+  other-modules:
+    Tests.Contracts
+  build-depends:
+    , base
+    , HUnit
+    , cardano-dex-contracts-offchain
+    , hedgehog
+    , tasty-hunit
+    , tasty
+    , tasty-hedgehog
+

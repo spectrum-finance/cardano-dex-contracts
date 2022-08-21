@@ -5,8 +5,8 @@ import Hedgehog
 import Gen.Models
 import Gen.DepositGen
 
-import Plutus.V1.Ledger.Value
-import Plutus.V1.Ledger.Api
+import PlutusLedgerApi.V2
+import PlutusLedgerApi.V1.Value
 
 import qualified ErgoDex.Contracts.Proxy.Redeem as R
 

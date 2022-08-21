@@ -15,19 +15,16 @@
 
 module ErgoDex.Plutus where
 
-import qualified Plutus.V1.Ledger.Ada as Ada
+import qualified Plutus.V1.Ledger.Value as Value
 import Plutus.V1.Ledger.Contexts
 import Plutus.V1.Ledger.Value
 import PlutusTx.Prelude
 
-{-# INLINEABLE adaAssetClass #-}
 adaAssetClass :: AssetClass
-adaAssetClass = assetClass Ada.adaSymbol Ada.adaToken
+adaAssetClass = assetClass Value.adaSymbol Value.adaToken
 
-{-# INLINEABLE valueWithin #-}
 valueWithin :: TxInInfo -> Value
 valueWithin = txOutValue . txInInfoResolved
 
-{-# INLINEABLE inputsNum #-}
 inputsNum :: ScriptContext -> Integer
 inputsNum sCtx = length $ txInfoInputs $ scriptContextTxInfo sCtx

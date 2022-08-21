@@ -29,7 +29,6 @@ module ErgoDex.Contracts.Proxy.Swap where
 
 import qualified Prelude as Haskell
 
-import Data.Aeson (FromJSON, ToJSON)
 import qualified GHC.Generics as GHC
 import Plutus.V1.Ledger.Api (PubKeyHash)
 import Plutus.V1.Ledger.Value
@@ -49,6 +48,5 @@ data SwapConfig = SwapConfig
     , minQuoteAmount :: Integer
     }
     deriving stock (Haskell.Show, GHC.Generic)
-    deriving (FromJSON, ToJSON)
 PlutusTx.makeIsDataIndexed ''SwapConfig [('SwapConfig, 0)]
 PlutusTx.makeLift ''SwapConfig
