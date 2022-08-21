@@ -40,7 +40,7 @@ instance PlutusTx.FromData PoolAction where
 
 instance PlutusTx.UnsafeFromData PoolAction where
     {-# INLINE unsafeFromBuiltinData #-}
-    unsafeFromBuiltinData = maybe (PlutusTx.Builtins.error ()) id . PlutusTx.fromBuiltinData
+    unsafeFromBuiltinData = maybe (Prelude.error "Couln't convert PoolAction from builtin data") id . PlutusTx.fromBuiltinData
 
 instance PlutusTx.ToData PoolAction where
     {-# INLINE toBuiltinData #-}

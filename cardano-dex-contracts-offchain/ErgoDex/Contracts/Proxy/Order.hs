@@ -55,7 +55,7 @@ instance FromData OrderAction where
 
 instance UnsafeFromData OrderAction where
     {-# INLINE unsafeFromBuiltinData #-}
-    unsafeFromBuiltinData = maybe (error ()) id . fromBuiltinData
+    unsafeFromBuiltinData = maybe (Prelude.error "Couldn't convert OrderAction from builtin data") id . fromBuiltinData
 
 instance ToData OrderAction where
     {-# INLINE toBuiltinData #-}
