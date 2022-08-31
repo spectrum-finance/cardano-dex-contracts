@@ -1,0 +1,8 @@
+packages: 
+  ./cardano-dex-contracts-onchain
+
+-- You never, ever, want this.
+write-ghc-environment-files: never
+
+-- The only sensible test display option
+test-show-details: streaming
