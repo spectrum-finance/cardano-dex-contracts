@@ -1,4 +1,4 @@
-# ErgoDEX contracts implementation for Cardano
+# Spectrum.DEX contracts implementation for Cardano
 
 This repository contains implementations of the following scripts:
 * CFMM DEX scripts
