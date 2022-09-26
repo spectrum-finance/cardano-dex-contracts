@@ -14,22 +14,22 @@ mkSwapConfig :: AssetClass -> AssetClass -> AssetClass -> Integer -> Integer -> 
 mkSwapConfig x y nft fee1 fee2 fee3 pkh xQty yQty =
   S.SwapConfig x y nft fee1 fee2 fee3 pkh Nothing xQty yQty
 
-genSConfig :: AssetClass -> AssetClass -> AssetClass -> Integer -> Integer -> Integer -> PubKeyHash -> Integer -> Integer -> (Data, DatumHash)
+genSConfig :: AssetClass -> AssetClass -> AssetClass -> Integer -> Integer -> Integer -> PubKeyHash -> Integer -> Integer -> (Data, OutputDatum)
 genSConfig x y nft fee1 fee2 fee3 pkh xQty yQty =
   let 
     config = mkSwapConfig x y nft fee1 fee2 fee3 pkh xQty yQty
-    dh     = mkDatumHash $ mkDatum config
+    dh     = OutputDatum $ mkDatum config
   in (toData config, dh)
 
-genSTxIn :: TxOutRef -> DatumHash -> AssetClass -> Integer -> Integer -> TxInInfo
-genSTxIn ref dh x xQty adaQty =
+genSTxIn :: TxOutRef -> OutputDatum -> AssetClass -> Integer -> Integer -> TxInInfo
+genSTxIn ref od x xQty adaQty =
   let
     value = mkValues [mkValue x xQty, mkAdaValue adaQty] mempty
-    txOut = mkTxOut dh value mkSwapValidator
+    txOut = mkTxOut od value mkSwapValidator
   in mkTxIn ref txOut
 
-genSTxOut :: DatumHash -> AssetClass -> Integer -> Integer -> PubKeyHash -> TxOut
-genSTxOut dh y yQty adaQty pkh =
+genSTxOut :: OutputDatum -> AssetClass -> Integer -> Integer -> PubKeyHash -> TxOut
+genSTxOut od y yQty adaQty pkh =
   let
     value = mkValues [mkValue y yQty, mkAdaValue adaQty] mempty
-  in mkTxOut' dh value pkh
+  in mkTxOut' od value pkh

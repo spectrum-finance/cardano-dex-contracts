@@ -159,3 +159,5 @@ test-suite cardano-dex-contracts-test
     , tasty-hunit
     , tasty
     , tasty-hedgehog
+    , plutus-core
+    , serialise

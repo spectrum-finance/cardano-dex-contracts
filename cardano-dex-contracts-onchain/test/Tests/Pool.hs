@@ -181,15 +181,15 @@ successPoolSwap = property $ do
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
   let
-    (cfgData, dh) = genSConfig x y nft 100 100 100 pkh 10 1
-    orderTxIn     = genSTxIn orderTxRef dh x 10 5000000
-    orderTxOut    = genSTxOut dh y 10 5000000 pkh
+    (cfgData, dh) = genSConfig x y nft 995 500000 1 pkh 10 4
+    orderTxIn     = genSTxIn orderTxRef dh x 10 3813762
+    orderTxOut    = genSTxOut dh y 4 1813762 pkh
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1000
-    poolTxIn    = genPTxIn poolTxRef pdh x 100 y 10000 lq 9223372036854775797 nft 1 5000000
-    poolTxOut   = genPTxOut pdh x 11000 y 9000 lq 9223372036854775797 nft 1 3000000
+    (pcfg, pdh) = genPConfig x y nft lq 995
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000000
+    poolTxOut   = genPTxOut pdh x 20 y 6 lq 9223372036854775797 nft 1 3000000
   
   let
     txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut

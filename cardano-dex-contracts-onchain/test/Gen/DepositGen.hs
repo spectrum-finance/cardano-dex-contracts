@@ -22,7 +22,7 @@ genX :: TokenName
 genX = TokenName $ BuiltinByteString $ mkByteString $ T.pack "415f546f6b656e5f6e65775f706f6f6c0a"
 
 genY :: TokenName
-genY =TokenName $ BuiltinByteString $  mkByteString $ T.pack "425f546f6b656e5f6e65775f706f6f6c0a"
+genY = TokenName $ BuiltinByteString $ mkByteString $ T.pack "425f546f6b656e5f6e65775f706f6f6c0a"
 
 genLQ :: TokenName
 genLQ = TokenName $ BuiltinByteString $ mkByteString $ T.pack "6572676f6c6162736c70746f6b656e"
@@ -47,22 +47,22 @@ genAssetClasses =
     y   = genY
   in (mkAssetClass cs x, mkAssetClass cs y, mkAssetClass cs nft, mkAssetClass cs lq)
 
-genDConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> Integer -> (Data, DatumHash)
+genDConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> Integer -> (Data, OutputDatum)
 genDConfig x y nft lq fee pkh cFee =
   let 
     config = mkDepositConfig nft x y lq fee pkh cFee
-    dh     = mkDatumHash $ mkDatum config
-  in (toData config, dh)
+    od     = OutputDatum $ mkDatum config
+  in (toData config, od)
 
-genTxIn :: TxOutRef -> DatumHash -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxInInfo
-genTxIn ref dh x xQty y yQty adaQty =
+genTxIn :: TxOutRef -> OutputDatum -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxInInfo
+genTxIn ref od x xQty y yQty adaQty =
   let
     value = mkValues [mkValue x xQty, mkValue y yQty, mkAdaValue adaQty] mempty
-    txOut = mkTxOut dh value mkDepositValidator
+    txOut = mkTxOut od value mkDepositValidator
   in mkTxIn ref txOut
 
-genTxOut :: DatumHash -> AssetClass -> Integer -> Integer -> PubKeyHash -> TxOut
-genTxOut dh lq lqQty adaQty pkh =
+genTxOut :: OutputDatum -> AssetClass -> Integer -> Integer -> PubKeyHash -> TxOut
+genTxOut od lq lqQty adaQty pkh =
   let
     value = mkValues [mkValue lq lqQty, mkAdaValue adaQty] mempty
-  in mkTxOut' dh value pkh
+  in mkTxOut' od value pkh
