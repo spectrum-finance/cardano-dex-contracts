@@ -10,22 +10,22 @@ import PlutusLedgerApi.V1.Value
 
 import qualified ErgoDex.Contracts.Pool as P
 
-genPConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> (Data, DatumHash)
+genPConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> (Data, OutputDatum)
 genPConfig x y nft lq fee =
   let 
     config = mkPoolConfig nft x y lq fee
-    dh     = mkDatumHash $ mkDatum config
-  in (toData config, dh)
+    od     = OutputDatum $ mkDatum config
+  in (toData config, od)
 
-genPTxIn :: TxOutRef -> DatumHash -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxInInfo
-genPTxIn ref dh x xQty y yQty lq lqQty nft nftQty adaQty =
+genPTxIn :: TxOutRef -> OutputDatum -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxInInfo
+genPTxIn ref od x xQty y yQty lq lqQty nft nftQty adaQty =
   let
     value = mkValues [mkValue x xQty, mkValue y yQty, mkValue lq lqQty, mkValue nft nftQty, mkAdaValue adaQty] mempty
-    txOut = mkTxOut dh value mkPoolValidator
+    txOut = mkTxOut od value mkPoolValidator
   in mkTxIn ref txOut
 
-genPTxOut :: DatumHash -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxOut
-genPTxOut dh x xQty y yQty lq lqQty nft nftQty adaQty =
+genPTxOut :: OutputDatum -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxOut
+genPTxOut od x xQty y yQty lq lqQty nft nftQty adaQty =
   let
     value = mkValues [mkValue x xQty, mkValue y yQty, mkValue lq lqQty, mkValue nft nftQty, mkAdaValue adaQty] mempty
-  in mkTxOut dh value mkPoolValidator
+  in mkTxOut od value mkPoolValidator

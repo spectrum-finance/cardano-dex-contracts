@@ -47,11 +47,6 @@
       flake = false;
     };
 
-    cardano-node = {
-      url = "github:input-output-hk/cardano-node/950c4e222086fed5ca53564e642434ce9307b0b9";
-      flake = false;
-    };
-
     goblins = {
       url = "github:input-output-hk/goblins/cde90a2b27f79187ca8310b6549331e59595e7ba";
       flake = false;
@@ -282,7 +277,6 @@
             "${inputs.cardano-ledger}/libs/set-algebra"
             "${inputs.cardano-ledger}/libs/small-steps"
             "${inputs.cardano-ledger}/libs/small-steps-test"
-            "${inputs.cardano-node}/cardano-api"
             "${inputs.hw-aeson}"
             "${inputs.plutus}/plutus-core"
             "${inputs.plutus}/plutus-ledger-api"

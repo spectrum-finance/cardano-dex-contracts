@@ -13,11 +13,11 @@ import PlutusLedgerApi.V2
 
 import qualified ErgoDex.Contracts.Pool as P
 
-genDTxIn :: TxOutRef -> DatumHash -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxInInfo
-genDTxIn ref dh lq lqQty nft nftQty adaQty =
+genDTxIn :: TxOutRef -> OutputDatum -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxInInfo
+genDTxIn ref od lq lqQty nft nftQty adaQty =
   let
     value = mkValues [mkValue lq lqQty, mkValue nft nftQty, mkAdaValue adaQty] mempty
-    txOut = mkTxOut dh value mkPoolValidator
+    txOut = mkTxOut od value mkPoolValidator
   in mkTxIn ref txOut
 
 mkDTxInfo :: TxInInfo -> TxInfo

@@ -419,23 +419,6 @@
         "type": "github"
       }
     },
-    "cardano-node": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1659625017,
-        "narHash": "sha256-4IrheFeoWfvkZQndEk4fGUkOiOjcVhcyXZ6IqmvkDgg=",
-        "owner": "input-output-hk",
-        "repo": "cardano-node",
-        "rev": "950c4e222086fed5ca53564e642434ce9307b0b9",
-        "type": "github"
-      },
-      "original": {
-        "owner": "input-output-hk",
-        "repo": "cardano-node",
-        "rev": "950c4e222086fed5ca53564e642434ce9307b0b9",
-        "type": "github"
-      }
-    },
     "cardano-prelude": {
       "flake": false,
       "locked": {
@@ -2907,11 +2890,11 @@
         "secp256k1-haskell": "secp256k1-haskell"
       },
       "locked": {
-        "lastModified": 1659381657,
-        "narHash": "sha256-W0EWY0DV2idbIeqtJnShVHQ83exME8TK2GYQGbVpz8A=",
+        "lastModified": 1663948969,
+        "narHash": "sha256-ZLajgt0RA9qaNeoxZuybN8G5hsGEwI7pVQEkL71DV2E=",
         "owner": "Plutonomicon",
         "repo": "plutarch",
-        "rev": "45b7c77a9ee9bd6c7dc25ddebcc3d12c58c4c3a2",
+        "rev": "979471de3c02cca61b58b71e96dc880cd8061ab7",
         "type": "github"
       },
       "original": {
@@ -3190,7 +3173,6 @@
         "cardano-base": "cardano-base",
         "cardano-crypto": "cardano-crypto",
         "cardano-ledger": "cardano-ledger",
-        "cardano-node": "cardano-node",
         "cardano-prelude": "cardano-prelude",
         "ekg-json": "ekg-json",
         "flat": "flat",

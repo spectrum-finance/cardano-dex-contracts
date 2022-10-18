@@ -20,9 +20,10 @@ import Plutarch.Api.V2 (mkValidator, validatorHash)
 import Plutarch.Api.V2.Contexts (PScriptContext)
 import Plutarch.Prelude
 import Plutarch.Unsafe (punsafeCoerce)
+import Plutarch.Internal
 
 cfgForValidator :: Config
-cfgForValidator = Config NoTracing
+cfgForValidator = Config DoTracingAndBinds
 
 wrapValidator ::
     (PIsData dt, PIsData rdmr) =>

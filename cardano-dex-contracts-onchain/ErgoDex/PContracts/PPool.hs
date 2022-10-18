@@ -11,7 +11,7 @@ import qualified GHC.Generics as GHC
 import           Generics.SOP (Generic, I (I))
 
 import Plutarch
-import Plutarch.Api.V2              (PMaybeData (PDJust), PTxOut, POutputDatum(POutputDatumHash))
+import Plutarch.Api.V2              (PMaybeData (PDJust), PTxOut, POutputDatum(POutputDatum, PNoOutputDatum, POutputDatumHash))
 import Plutarch.Api.V2.Contexts     (PScriptContext, PScriptPurpose (PSpending))
 import Plutarch.DataRepr
 import Plutarch.Lift
@@ -238,15 +238,16 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                     selfInRef    = getField @"outRef" selfIn
                     selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
 
-                maybeSelfDh <- tletField @"datum" self
-                maybeSuccDh <- tletField @"datum" successor
+                selfDatum <- tletField @"datum" self
+                succDatum <- tletField @"datum" successor
 
-                POutputDatumHash selfDh' <- pmatchC maybeSelfDh
-                POutputDatumHash succDh' <- pmatchC maybeSuccDh
+                POutputDatum selfD' <- pmatchC selfDatum
+                POutputDatum succD' <- pmatchC succDatum
 
-                selfDh <- tletField @"datumHash" selfDh'
-                succDh <- tletField @"datumHash" succDh'
-                let confPreserved = succDh #== selfDh -- config preserved
+                selfD <- tletField @"outputDatum" selfD'
+                succD <- tletField @"outputDatum" succD'
+                let 
+                    confPreserved = selfD #== succD -- config preserved
 
                 selfAddr <- tletField @"address" self
                 succAddr <- tletField @"address" successor

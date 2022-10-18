@@ -149,21 +149,21 @@ mkPoolValidator = validatorHash PScripts.poolValidator
 mkSwapValidator :: ValidatorHash
 mkSwapValidator = validatorHash PScripts.swapValidator
 
-mkTxOut :: DatumHash -> Value -> ValidatorHash -> TxOut
-mkTxOut dh v vh =
+mkTxOut :: OutputDatum -> Value -> ValidatorHash -> TxOut
+mkTxOut od v vh =
   TxOut
     { txOutAddress = Address (ScriptCredential vh) Nothing
     , txOutValue   = v
-    , txOutDatum   = OutputDatumHash dh
+    , txOutDatum   = od
     , txOutReferenceScript = Nothing
     }
 
-mkTxOut' :: DatumHash -> Value -> PubKeyHash -> TxOut
-mkTxOut' dh v pkh =
+mkTxOut' :: OutputDatum -> Value -> PubKeyHash -> TxOut
+mkTxOut' od v pkh =
   TxOut
     { txOutAddress  = Address (PubKeyCredential pkh) Nothing
     , txOutValue    = v
-    , txOutDatum    = OutputDatumHash dh
+    , txOutDatum    = od
     , txOutReferenceScript = Nothing
     }
 

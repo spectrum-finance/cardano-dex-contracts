@@ -6,7 +6,7 @@ import PExtra.API
 import Data.Text (Text, pack)
 import Plutarch.Evaluate (evalScript, EvalError)
 import Plutarch (ClosedTerm, compile, Config(..), TracingMode (..))
-import PlutusCore.Evaluation.Machine.ExBudget (ExBudget(..))
+import PlutusLedgerApi.V1 (Data, ExBudget)
 import PlutusLedgerApi.V1.Scripts (Script (unScript), applyArguments)
 import Control.Arrow
 import UntypedPlutusCore (DeBruijn, DefaultFun, DefaultUni, Program)
