@@ -118,13 +118,14 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
                 (pIsAda # quote)
                 (pdiv # (quoteDelta * exFeePerTokenDen) # (exFeePerTokenDen - exFeePerTokenNum))
                 quoteDelta
-
+    fairExFee <-
+        tlet $ 
+            (pIsAda # quote) #|| (validExFee # rewardValue # selfValue # base # baseAmount # quoteAmount # exFeePerTokenNum # exFeePerTokenDen)
     let 
         strictInputs =
             let inputsLength = plength # inputs
              in inputsLength #== 2 -- address double satisfaction attack
         minSatisfaction = minOutput #<= quoteAmount
-        fairExFee = validExFee # rewardValue # selfValue # base # baseAmount # quote # quoteAmount # exFeePerTokenNum # exFeePerTokenDen
         fairPrice = validPrice # quoteAmount # poolValue # base # quote # baseAmount # feeNum
 
     pure $
@@ -141,28 +142,26 @@ validExFee ::
             :--> PValue _ _
             :--> PAssetClass
             :--> PInteger
-            :--> PAssetClass
             :--> PInteger
             :--> PInteger
             :--> PInteger
             :--> PBool
         )
 validExFee =
-    plam $ \rewardValue selfValue base baseAmount quote quoteAmount exFeePerTokenNum exFeePerTokenDen ->
+    plam $ \rewardValue selfValue base baseAmount quoteAmount exFeePerTokenNum exFeePerTokenDen ->
         unTermCont $ do
             zeroAsData' <- tlet zeroAsData
             bqAda <-
                 tlet $
                     pif
                         (pIsAda # base)
-                        (ptuple # pdata baseAmount # zeroAsData')
-                        (pif (pIsAda # quote) (ptuple # zeroAsData' # pdata quoteAmount) (ptuple # zeroAsData' # zeroAsData'))
-            let baseAda  = pfromData $ pfield @"_0" # bqAda
-                quoteAda = pfromData $ pfield @"_1" # bqAda
+                        (pdata baseAmount)
+                        (zeroAsData')
+            let baseAda  = pfromData $ bqAda
                 outAda   = plovelaceValueOf # rewardValue
                 inAda    = plovelaceValueOf # selfValue
                 exFee    = pdiv # (quoteAmount * exFeePerTokenNum) # exFeePerTokenDen
-            pure $ (inAda - baseAda - exFee) #<= (outAda - quoteAda)
+            pure $ (inAda - baseAda - exFee) #<= outAda
 
 validPrice ::
     Term
@@ -180,4 +179,5 @@ validPrice =
         let relaxedOut    = quoteAmount + 1
             reservesBase  = assetClassValueOf # poolValue # base
             reservesQuote = assetClassValueOf # poolValue # quote
-         in reservesQuote * baseAmount * feeNum #<= relaxedOut * (reservesBase * feeDen + baseAmount * feeNum)
+            correctOut    = pdiv # (reservesQuote * baseAmount * feeNum) # (reservesBase * feeDen + baseAmount * feeNum)
+         in correctOut #<= relaxedOut 
