@@ -3,17 +3,22 @@ module ErgoDex.PValidators (
     swapValidator,
     depositValidator,
     redeemValidator,
+    vestingValidator,
     validatorAddress,
+    vestingWithPeriodValidator,
     wrapValidator,
 ) where
 
 import PlutusLedgerApi.V1.Scripts (Validator (getValidator))
 import PlutusLedgerApi.V1.Address
 
-import qualified ErgoDex.PContracts.PDeposit as PD
-import qualified ErgoDex.PContracts.PPool    as PP
-import qualified ErgoDex.PContracts.PRedeem  as PR
-import qualified ErgoDex.PContracts.PSwap    as PS
+import qualified ErgoDex.PContracts.PDeposit   as PD
+import qualified ErgoDex.PContracts.PPool      as PP
+import qualified ErgoDex.PContracts.PRedeem    as PR
+import qualified ErgoDex.PContracts.PSwap      as PS
+import qualified ErgoDex.PContracts.PVesting   as PV
+
+import qualified ErgoDex.PContracts.PVestingWithPeriod as PVWP
 
 import Plutarch
 import Plutarch.Api.V2 (mkValidator, validatorHash)
@@ -23,7 +28,7 @@ import Plutarch.Unsafe (punsafeCoerce)
 import Plutarch.Internal
 
 cfgForValidator :: Config
-cfgForValidator = Config NoTracing
+cfgForValidator = Config DoTracingAndBinds
 
 wrapValidator ::
     (PIsData dt, PIsData rdmr) =>
@@ -46,6 +51,12 @@ depositValidator = mkValidator cfgForValidator $ wrapValidator PD.depositValidat
 
 redeemValidator :: Validator
 redeemValidator = mkValidator cfgForValidator $ wrapValidator PR.redeemValidatorT
+
+vestingValidator :: Validator
+vestingValidator = mkValidator cfgForValidator $ wrapValidator PV.vestingValidatorT
+
+vestingWithPeriodValidator :: Validator
+vestingWithPeriodValidator = mkValidator cfgForValidator $ wrapValidator PVWP.vestingWithPeriodValidatorT
 
 validatorAddress :: Validator -> Address
 validatorAddress = scriptHashAddress . validatorHash

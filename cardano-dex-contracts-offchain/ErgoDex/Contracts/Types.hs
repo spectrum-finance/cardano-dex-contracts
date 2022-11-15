@@ -24,14 +24,7 @@ import Data.Aeson (FromJSON, ToJSON)
 import GHC.Generics (Generic)
 
 import ErgoDex.Plutus (adaAssetClass)
-import qualified Data.Text as Text
-import qualified Data.Aeson as JSON
-import qualified Data.Aeson.Types as JSON
-import Plutus.V1.Ledger.Value (AssetClass (..), Value (..), assetClassValue, assetClassValueOf, TokenName(..), CurrencySymbol(..))
-import qualified Data.ByteString.Base16  as Base16
-import qualified Data.ByteString as BSS
-import qualified Data.Text.Encoding  as TE
-import Control.Monad ((>=>))
+import Plutus.V1.Ledger.Value (AssetClass (..), Value (..), assetClassValue, assetClassValueOf)
 import qualified PlutusTx
 import PlutusTx.Prelude
 import Text.Printf (PrintfArg)

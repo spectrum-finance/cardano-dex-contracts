@@ -1,7 +1,9 @@
 module ErgoDex.PContracts.PApi (
     containsSignature,
+    containsSignature',
     ownCurrencySymbol,
     getRewardValue',
+    getRewardValueByPKH',
     tletUnwrap,
     pmin,
     getInputValue,
@@ -53,6 +55,9 @@ pmin = phoistAcyclic $ plam $ \a b -> pif (a #<= b) a b
 containsSignature :: Term s (PBuiltinList (PAsData PPubKeyHash) :--> PPubKeyHash :--> PBool)
 containsSignature = phoistAcyclic $ plam $ \signatories userPubKeyHash -> pelem # pdata userPubKeyHash # signatories
 
+containsSignature' :: Term s (PBuiltinList (PAsData PPubKeyHash) :--> (PAsData PPubKeyHash) :--> PBool)
+containsSignature' = phoistAcyclic $ plam $ \signatories userPubKeyHash -> pelem # userPubKeyHash # signatories
+
 -- Guarantees reward proposition correctness
 getRewardValue' :: Term s (PTxOut :--> PPubKeyHash :--> PMaybeData PPubKeyHash :--> V1.PValue 'V1.Sorted 'V1.Positive)
 getRewardValue' = phoistAcyclic $
@@ -68,6 +73,19 @@ getRewardValue' = phoistAcyclic $
                 _ -> ptraceError "Invalid reward proposition"
         sPkh <- tlet $ getStakeHash # addr
         pure $ pif (sPkh #== stakePkhM) outValue (ptraceError "Invalid reward proposition")
+
+-- Guarantees reward proposition correctness
+getRewardValueByPKH' :: Term s (PTxOut :--> PPubKeyHash :--> V1.PValue 'V1.Sorted 'V1.Positive)
+getRewardValueByPKH' = phoistAcyclic $
+    plam $ \out pubkeyHash -> unTermCont $ do
+        let addr = pfield @"address" # out
+        cred <- tletField @"credential" addr
+        tletUnwrap $ pmatch cred $ \case
+            PPubKeyCredential pcred ->
+                let pkh   = pfield @"_0" # pcred
+                    value = pfield @"value" # out
+                in pif (pkh #== pubkeyHash) value (ptraceError "Invalid reward proposition")
+            _ -> ptraceError "Invalid reward proposition"
 
 getStakeHash :: forall (s :: S). Term s (PAddress :--> PMaybeData PPubKeyHash)
 getStakeHash = phoistAcyclic $

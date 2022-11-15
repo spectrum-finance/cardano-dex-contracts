@@ -15,6 +15,8 @@ checkContractsRecovering = testGroup "ContractsRecovering"
   , HH.testProperty "pool_contract_recovering" poolRecovering
   , HH.testProperty "deposit_contract_recovering" depositRecovering
   , HH.testProperty "redeem_contract_recovering" redeemRecovering
+  , HH.testProperty "vesting_contract_recovering" redeemRecovering
+  , HH.testProperty "vesting_with_period_contract_recovering" redeemRecovering
   ]
 
 swapRecovering :: Property
@@ -28,3 +30,10 @@ redeemRecovering = withTests 1 . property $ evalIO (void redeemValidator)
 
 poolRecovering :: Property
 poolRecovering = withTests 1 . property $ evalIO (void poolValidator)
+
+vestingRecovering :: Property
+vestingRecovering = withTests 1 . property $ evalIO (void vestingValidator)
+
+vestingWithPeriodRecovering :: Property
+vestingWithPeriodRecovering = withTests 1 . property $ evalIO (void vestingWithPeriodValidator)
+
