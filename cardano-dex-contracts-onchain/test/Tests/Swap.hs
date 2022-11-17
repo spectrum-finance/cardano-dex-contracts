@@ -23,6 +23,7 @@ import Gen.SwapGen
 checkSwap = testGroup "CheckSwap"
   [ HH.testProperty "correct_swap" successSwap
   , HH.testProperty "correct_swap_x_is_ada" successSwapWithXIsAda
+  , HH.testProperty "correct_swap_y_is_ada" successSwapWithYIsAda
   , HH.testProperty "swap_invalid_ex_fee" invalidExFee
   , HH.testProperty "swap_invalid_fair_price" invalidFairPrice
   ]
@@ -88,6 +89,34 @@ successSwapWithXIsAda = property $ do
 
     cxtToData          = toData $ mkContext txInfo purpose
     orderRedeemToData  = toData $ mkOrderRedeemer 0 1 1
+
+    result = eraseRight $ evalWithArgs (wrapValidator PSwap.swapValidatorT) [cfgData, orderRedeemToData, cxtToData]
+
+  result === Right ()
+
+successSwapWithYIsAda :: Property
+successSwapWithYIsAda = property $ do
+  let (x, _, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    y             = mkAdaAssetClass 
+    (cfgData, dh) = genSConfig x y nft 995 4160772239327619 100000000000000 pkh 49405 48068
+    orderTxIn     = genSTxIn orderTxRef dh x 49405 3489838
+    orderTxOut    = genSTxOut dh y 0 1479634 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1
+    poolTxIn    = genPTxIn poolTxRef pdh x 9940655 y 0 lq 9223372036844775807 nft 1 10060000
+    poolTxOut   = genPTxOut pdh x 9990060 y 0 lq 9223372036854775787 nft 1 10010497
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose orderTxRef
+
+    cxtToData          = toData $ mkContext txInfo purpose
+    orderRedeemToData  = toData $ mkOrderRedeemer 1 0 1
 
     result = eraseRight $ evalWithArgs (wrapValidator PSwap.swapValidatorT) [cfgData, orderRedeemToData, cxtToData]
 
