@@ -18,11 +18,14 @@ module PExtra.API (
     findOwnInput,
     --convertBackValue,
     mustPayToPubKey,
+    ptryFromData
 ) where
 
 import qualified GHC.Generics as GHC
 
 import Plutarch.Prelude
+import Plutarch.Lift
+import Plutarch.FFI
 
 import Plutarch.Api.V2 (
     PAddress (PAddress),
@@ -34,6 +37,7 @@ import Plutarch.Api.V2 (
     PTxInfo (..),
     PTxOut (..),
     PTxOutRef (..),
+    PMintingPolicy,
  )
 
 import Plutarch.Api.V1 (
@@ -44,9 +48,13 @@ import Plutarch.Api.V1 (
  )
 
 import qualified Plutarch.Api.V1.Value as PlutarchValue
-import Plutarch.DataRepr (PDataFields)
+import Plutarch.DataRepr (DerivePConstantViaData (..), PDataFields)
 import Plutarch.List (pconvertLists)
 import Plutarch.Extra.TermCont
+import Plutarch
+import qualified Data.Text as T
+import qualified PlutusLedgerApi.V1.Scripts as Scripts
+import qualified PlutusLedgerApi.V1.Value   as Value
 
 import PExtra.Monadic (tcon, tlet, tletField, tmatchField)
 
@@ -70,9 +78,14 @@ newtype PAssetClass (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (PIsData, PDataFields, PlutusType)
+    deriving anyclass (PIsData, PDataFields, PlutusType, PShow, PTryFrom PData)
+
+instance PUnsafeLiftDecl PAssetClass where type PLifted PAssetClass = Value.AssetClass
 
 instance DerivePlutusType PAssetClass where type DPTStrat _ = PlutusTypeData
+deriving via (DerivePConstantViaData Value.AssetClass PAssetClass) instance (PConstantDecl Value.AssetClass)
+
+instance PTryFrom PData (PAsData PAssetClass)
 
 instance PEq PAssetClass where
     a #== b =
@@ -199,3 +212,6 @@ convertAC' = phoistAcyclic $
         cs <- tletField @"currencySymbol" ac
         tn <- tletField @"tokenName" ac
         tcon $ PPair cs tn
+
+ptryFromData :: forall a s. PTryFrom PData (PAsData a) => Term s PData -> Term s (PAsData a)
+ptryFromData x = unTermCont $ fst <$> tcont (ptryFrom @(PAsData a) x)

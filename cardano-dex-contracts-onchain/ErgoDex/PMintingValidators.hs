@@ -1,6 +1,7 @@
 module ErgoDex.PMintingValidators (
     poolNftMiningValidator,
     poolLqMiningValidator,
+    lmPoolLqMintValidator,
     wrapMintingValidator,
 ) where
 
@@ -13,11 +14,11 @@ import Plutarch.Unsafe (punsafeCoerce)
 
 import qualified ErgoDex.PContracts.PAssets as A
 import PlutusLedgerApi.V1.Scripts (MintingPolicy)
-import PlutusLedgerApi.V1.Value (TokenName)
+import PlutusLedgerApi.V1.Value (TokenName, AssetClass)
 import PlutusLedgerApi.V1.Contexts
 
 cfgForMintingValidator :: Config
-cfgForMintingValidator = Config NoTracing
+cfgForMintingValidator = Config DoTracingAndBinds
 
 wrapMintingValidator ::
     PIsData rdmr =>
@@ -39,3 +40,9 @@ poolLqMiningValidator oref tn emission =
     mkMintingPolicy cfgForMintingValidator $
         wrapMintingValidator $
             A.poolLqMintValidatorT (pconstant oref) (pconstant tn) (pconstant emission)
+
+lmPoolLqMintValidator :: AssetClass -> Integer -> MintingPolicy
+lmPoolLqMintValidator ac emission =
+    mkMintingPolicy cfgForMintingValidator $
+        wrapMintingValidator $
+            A.lmPoolLqMintValidatorT (pconstant ac) (pconstant emission)

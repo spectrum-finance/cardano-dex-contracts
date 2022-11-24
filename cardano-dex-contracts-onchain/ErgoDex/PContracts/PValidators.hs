@@ -3,12 +3,17 @@ module ErgoDex.PValidators (
     swapValidator,
     depositValidator,
     redeemValidator,
+    lmRedeemValidator,
+    lmStakingBundleValidator,
     validatorAddress,
     wrapValidator,
 ) where
 
 import PlutusLedgerApi.V1.Scripts (Validator (getValidator))
 import PlutusLedgerApi.V1.Address
+
+import qualified ErgoDex.PContracts.LqMining.Simple.Redeem        as LMR
+import qualified ErgoDex.PContracts.LqMining.Simple.StakingBundle as LMSB
 
 import qualified ErgoDex.PContracts.PDeposit as PD
 import qualified ErgoDex.PContracts.PPool as PP
@@ -42,6 +47,12 @@ depositValidator = mkValidator $ wrapValidator PD.depositValidatorT
 
 redeemValidator :: Validator
 redeemValidator = mkValidator $ wrapValidator PR.redeemValidatorT
+
+lmRedeemValidator :: Validator
+lmRedeemValidator = mkValidator $ wrapValidator LMR.redeemValidatorT
+
+lmStakingBundleValidator :: Validator
+lmStakingBundleValidator = mkValidator $ wrapValidator LMSB.stakingBundleValidatorT
 
 validatorAddress :: Validator -> Address
 validatorAddress = scriptHashAddress . validatorHash

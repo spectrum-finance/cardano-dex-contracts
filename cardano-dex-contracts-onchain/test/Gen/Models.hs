@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Gen.Models
   ( genTokenName
@@ -26,6 +27,12 @@ module Gen.Models
   , mkDepositValidator
   , mkSwapValidator
   , mkPoolValidator
+  , mkLMRedeemValidator
+  , mkLMDepositValidator
+  , mkLMPoolValidator
+  , mkLMStakingBundleValidator
+  , mintingPolicyHash
+  , scriptCurrencySymbol
   , mkTxOut
   , mkTxOut'
   , mkTxIn
@@ -49,7 +56,7 @@ import qualified PlutusLedgerApi.V1.Value as Value
 import PlutusLedgerApi.V2.Tx
 import PlutusLedgerApi.V2
 import qualified PlutusLedgerApi.V1.Interval as Interval
-import Plutarch.Api.V2 ( validatorHash, datumHash)
+import Plutarch.Api.V2 ( validatorHash, datumHash, scriptHash)
 
 import qualified ErgoDex.PValidators             as PScripts
 import qualified ErgoDex.Contracts.Pool          as P
@@ -58,10 +65,13 @@ import qualified ErgoDex.Contracts.Proxy.Order   as O
 import PlutusTx.Builtins as Builtins
 
 genBuiltinByteString :: MonadGen f => Int -> f BuiltinByteString
-genBuiltinByteString s = bytes (Range.singleton s) <&> BuiltinByteString
+genBuiltinByteString s = Gen.bytes (Range.singleton s) <&> BuiltinByteString
 
 random32bs :: MonadGen f => f BuiltinByteString
 random32bs = genBuiltinByteString 32
+
+random28bs :: MonadGen f => f BuiltinByteString
+random28bs = genBuiltinByteString 28
 
 genTxId :: MonadGen f => f TxId
 genTxId = prune $ random32bs <&> TxId
@@ -74,12 +84,12 @@ genTxOutRef = do
 
 genTokenName :: MonadGen f => f TokenName
 genTokenName = do
-  bs <- random32bs
+  bs <- prune $ random32bs
   return $ TokenName bs
 
 genCurrencySymbol :: MonadGen f => f CurrencySymbol
 genCurrencySymbol = do
-  bs <- random32bs
+  bs <- prune $ random28bs
   return $ CurrencySymbol bs
 
 mkAssetClass :: CurrencySymbol -> TokenName -> AssetClass
@@ -138,7 +148,7 @@ mkScriptCredential :: Credential
 mkScriptCredential = ScriptCredential $ validatorHash PScripts.poolValidator
 
 genPkh :: MonadGen f => f PubKeyHash
-genPkh = genBuiltinByteString 28 <&> PubKeyHash
+genPkh = prune $ genBuiltinByteString 28 <&> PubKeyHash
 
 mkDepositValidator :: ValidatorHash
 mkDepositValidator = validatorHash PScripts.depositValidator
@@ -148,6 +158,29 @@ mkPoolValidator = validatorHash PScripts.poolValidator
 
 mkSwapValidator :: ValidatorHash
 mkSwapValidator = validatorHash PScripts.swapValidator
+
+mkLMRedeemValidator :: ValidatorHash
+mkLMRedeemValidator = validatorHash PScripts.lmRedeemValidator
+
+mkLMStakingBundleValidator :: ValidatorHash
+mkLMStakingBundleValidator = validatorHash PScripts.lmStakingBundleValidator
+
+mkLMDepositValidator :: ValidatorHash
+mkLMDepositValidator = validatorHash PScripts.lmDepositValidator
+
+mkLMPoolValidator :: ValidatorHash
+mkLMPoolValidator = validatorHash PScripts.lmPoolValidator
+
+scriptCurrencySymbol :: MintingPolicy -> CurrencySymbol
+scriptCurrencySymbol scrpt =
+    let (MintingPolicyHash hsh) = mintingPolicyHash scrpt in CurrencySymbol hsh
+
+mintingPolicyHash :: MintingPolicy -> MintingPolicyHash
+mintingPolicyHash =
+    MintingPolicyHash
+  . getScriptHash
+  . scriptHash
+  . getMintingPolicy
 
 mkTxOut :: OutputDatum -> Value -> ValidatorHash -> TxOut
 mkTxOut od v vh =
@@ -178,6 +211,7 @@ mkPoolTxInfo :: TxInInfo -> TxOut -> TxInfo
 mkPoolTxInfo pIn pOut =
   TxInfo
     { txInfoInputs = [pIn]
+    , txInfoReferenceInputs = []
     , txInfoOutputs = [pOut]
     , txInfoFee = mempty
     , txInfoMint = mempty
@@ -185,6 +219,7 @@ mkPoolTxInfo pIn pOut =
     , txInfoWdrl = fromList []
     , txInfoValidRange = Interval.always
     , txInfoSignatories = mempty
+    , txInfoRedeemers = fromList []
     , txInfoData = fromList []
     , txInfoId = "b0"
     }
@@ -194,6 +229,7 @@ mkTxInfo :: TxInInfo -> TxInInfo -> TxOut -> TxOut -> TxInfo
 mkTxInfo pIn oIn pOut oOut =
   TxInfo
     { txInfoInputs = [pIn, oIn]
+    , txInfoReferenceInputs = []
     , txInfoOutputs = [pOut, oOut]
     , txInfoFee = mempty
     , txInfoMint = mempty
@@ -201,6 +237,7 @@ mkTxInfo pIn oIn pOut oOut =
     , txInfoWdrl = fromList []
     , txInfoValidRange = Interval.always
     , txInfoSignatories = mempty
+    , txInfoRedeemers = fromList []
     , txInfoData = fromList []
     , txInfoId = "b0"
     }
