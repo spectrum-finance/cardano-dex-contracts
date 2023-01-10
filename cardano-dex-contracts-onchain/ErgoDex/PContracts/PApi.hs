@@ -2,6 +2,7 @@ module ErgoDex.PContracts.PApi (
     containsSignature,
     ownCurrencySymbol,
     getRewardValue',
+    getRewardValueByPkh',
     tletUnwrap,
     pmin,
     getInputValue,
@@ -12,6 +13,7 @@ module ErgoDex.PContracts.PApi (
     maxLqCap,
     burnLqInitial,
     feeDen,
+    pmax
 ) where
 
 import Plutarch
@@ -69,6 +71,19 @@ getRewardValue' = phoistAcyclic $
         sPkh <- tlet $ getStakeHash # addr
         pure $ pif (sPkh #== stakePkhM) outValue (ptraceError "Invalid reward proposition")
 
+getRewardValueByPkh' :: Term s (PTxOut :--> PPubKeyHash :--> V1.PValue 'V1.Sorted 'V1.Positive)
+getRewardValueByPkh' = phoistAcyclic $
+    plam $ \out pubkeyHash -> unTermCont $ do
+        let addr = pfield @"address" # out
+        cred <- tletField @"credential" addr
+        tletUnwrap $
+            pmatch cred $ \case
+                PPubKeyCredential pcred ->
+                    let pkh   = pfield @"_0" # pcred
+                        value = pfield @"value" # out
+                     in pif (pkh #== pubkeyHash) value (ptraceError "Invalid reward proposition")
+                _ -> ptraceError "Invalid reward proposition"
+
 getStakeHash :: forall (s :: S). Term s (PAddress :--> PMaybeData PPubKeyHash)
 getStakeHash = phoistAcyclic $
     plam $ \address -> unTermCont $ do
@@ -114,3 +129,6 @@ ownCurrencySymbol = phoistAcyclic $
         PScriptContext te <- tmatch sc
         PMinting cs' <- tmatchField @"purpose" te
         pure $ pfield @"_0" # cs'
+
+pmax :: POrd a => Term s (a :--> a :--> a)
+pmax = phoistAcyclic $ plam $ \a b -> pif (a #<= b) b a

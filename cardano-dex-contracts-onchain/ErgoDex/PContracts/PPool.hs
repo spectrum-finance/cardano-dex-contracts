@@ -5,6 +5,7 @@ module ErgoDex.PContracts.PPool (
     PoolAction (..),
     PoolRedeemer (..),
     poolValidatorT,
+    findPoolOutput
 ) where
 
 import qualified GHC.Generics as GHC

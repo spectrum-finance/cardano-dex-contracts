@@ -1,6 +1,7 @@
 module ErgoDex.PMintingValidators (
     poolNftMiningValidator,
     poolLqMiningValidator,
+    lmPoolLqMintValidator,
     wrapMintingValidator,
 ) where
 
@@ -34,3 +35,9 @@ poolLqMiningValidator oref tn emission =
     mkMintingPolicy $
         wrapMintingValidator $
             A.poolLqMintValidatorT (pconstant oref) (pconstant tn) (pconstant emission)
+
+lmPoolLqMintValidator :: AssetClass -> Integer -> MintingPolicy
+lmPoolLqMintValidator ac emission =
+    mkMintingPolicy $
+        wrapMintingValidator $
+            A.lmPoolLqMintValidatorT (pconstant ac) (pconstant emission)

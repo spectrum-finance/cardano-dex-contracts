@@ -91,6 +91,10 @@ library
     ErgoDex.Contracts.Proxy.Swap
     ErgoDex.Contracts.Proxy.Order
     ErgoDex.Contracts.Proxy.Redeem
+    ErgoDex.Contracts.Proxy.LqMining.Simple.Deposit
+    ErgoDex.Contracts.Proxy.LqMining.Simple.LMPool
+    ErgoDex.Contracts.Proxy.LqMining.Simple.Redeem
+    ErgoDex.Contracts.Proxy.LqMining.Simple.StakingBundle
     ErgoDex.Contracts.Pool
     ErgoDex.PContracts.PApi
     ErgoDex.PContracts.PAssets
@@ -99,6 +103,10 @@ library
     ErgoDex.PContracts.PPool
     ErgoDex.PContracts.PRedeem
     ErgoDex.PContracts.PSwap
+    ErgoDex.PContracts.LqMining.Simple.PDeposit
+    ErgoDex.PContracts.LqMining.Simple.PLMPool
+    ErgoDex.PContracts.LqMining.Simple.PRedeem
+    ErgoDex.PContracts.LqMining.Simple.PStakingBundle
     ErgoDex.PMintingValidators
     ErgoDex.PValidators
     PExtra.Ada
@@ -130,6 +138,10 @@ test-suite cardano-dex-contracts-test
   hs-source-dirs: test
   other-modules:
     Gen.Models
+    Gen.LqMining.Simple.RedeemGen
+    Gen.LqMining.Simple.DepositGen
+    Gen.LqMining.Simple.LMPoolGen
+    Gen.LqMining.Simple.StakingBundleGen
     Gen.DepositGen
     Gen.PoolGen
     Gen.SwapGen
@@ -140,6 +152,10 @@ test-suite cardano-dex-contracts-test
     Tests.Pool
     Tests.Swap
     Tests.Redeem
+    Tests.LqMining.Simple.Deposit
+    Tests.LqMining.Simple.Redeem
+    Tests.LqMining.Simple.LMPool
+    Tests.LqMining.Simple.StakingBundle
     Eval
   build-depends:
     , base
