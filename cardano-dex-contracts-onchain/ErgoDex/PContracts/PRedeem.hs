@@ -81,7 +81,7 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     poolIn    <- pletFieldsC @'["outRef", "resolved"] poolIn'
     let 
         poolValue    = pfield @"value" # (getField @"resolved" poolIn)
-        poolIdentity =
+        poolIdentity = -- operation is performed with the pool selected by the user 
             let 
                 requiredNft = pfromData $ getField @"poolNft" conf
                 nftAmount   = assetClassValueOf # poolValue # requiredNft
@@ -98,13 +98,13 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
                 selfInRef = pfromData $ getField @"outRef" selfIn
              in selfRef #== selfInRef
 
-    collateralAda <-
+    collateralAda <- -- we reserve a small amount of ADA to put it into user output later
         let inAda = plovelaceValueOf # selfValue
          in tlet $ inAda - exFee
 
-    let strictInputs =
-            let inputsLength = plength # inputs
-             in inputsLength #== 2
+    let strictInputs = -- ensure double satisfaction attack is not possible
+        let inputsLength = plength # inputs
+            in inputsLength #== 2
 
     liquidity <-
         let lqNegative = assetClassValueOf # poolValue # lq
@@ -123,8 +123,8 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
         outY  = pfromData $ pfield @"_1" # outs
         opAda = pfromData $ pfield @"_2" # outs
 
-        fairShare = minReturnX #<= outX #&& minReturnY #<= outY
-        fairFee = opAda + collateralAda #<= outAda
+        fairShare = minReturnX #<= outX #&& minReturnY #<= outY -- output shares are proportional to the total LQ and LQ returned by the user
+        fairFee = opAda + collateralAda #<= outAda -- output ADA (if present) plus collateral ADA is returned in full to the user
 
     action <- tletUnwrap $ getField @"action" redeemer
     pure $
@@ -132,7 +132,7 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
             Apply -> poolIdentity #&& selfIdentity #&& strictInputs #&& fairShare #&& fairFee
             Refund ->
                 let sigs = pfromData $ getField @"signatories" txInfo
-                 in containsSignature # sigs # rewardPkh
+                 in containsSignature # sigs # rewardPkh -- user signed the refund
 
 calcMinReturn :: Term s (PInteger :--> PInteger :--> PValue _ _:--> PAssetClass :--> PInteger)
 calcMinReturn =

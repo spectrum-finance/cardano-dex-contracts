@@ -36,10 +36,10 @@ newtype DepositConfig (s :: S)
                  , "x" ':= PAssetClass
                  , "y" ':= PAssetClass
                  , "lq" ':= PAssetClass
-                 , "exFee" ':= PInteger
-                 , "rewardPkh" ':= PPubKeyHash
+                 , "exFee" ':= PInteger -- execution fee specified by the user
+                 , "rewardPkh" ':= PPubKeyHash -- PublicKeyHash of the user
                  , "stakePkh" ':= PMaybeData PPubKeyHash
-                 , "collateralAda" ':= PInteger
+                 , "collateralAda" ':= PInteger -- we reserve a small amount of ADA to put it into user output later
                  ]
             )
         )
@@ -88,7 +88,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     poolValue <-
         let pool = pfromData $ getField @"resolved" poolIn
          in tletField @"value" pool
-    let poolIdentity =
+    let poolIdentity = -- operation is performed with the pool selected by the user 
             let requiredNft = pfromData $ getField @"poolNft" conf
                 nftAmount = assetClassValueOf # poolValue # requiredNft
              in nftAmount #== 1
@@ -104,9 +104,9 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
         selfIdentity =
             let selfRef   = pfield @"_0" # selfRef'
                 selfInRef = getField @"outRef" selfIn
-             in selfRef #== selfInRef
+             in selfRef #== selfInRef -- check that orderInIx points to the actual order
 
-        strictInputs =
+        strictInputs = -- ensure double satisfaction attack is not possible
             let inputsLength = plength # inputs
              in inputsLength #== 2
 
@@ -119,7 +119,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 
     minRewardByX <- tlet $ minAssetReward # selfValue # x # reservesX # liquidity # exFee # collateralAda
     minRewardByY <- tlet $ minAssetReward # selfValue # y # reservesY # liquidity # exFee # collateralAda
-    let validChange =
+    let validChange = -- pair excess is returned to user
             pif
                 (minRewardByX #== minRewardByY)
                 (pcon PTrue)
@@ -129,7 +129,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
                     (validChange' # rewardValue # x # minRewardByX # minRewardByY # reservesX # liquidity)
                 )
         minReward = pmin # minRewardByX # minRewardByY
-        validReward =
+        validReward = -- calculated minimal output of LQ tokens is satisfied
             let actualReward = assetClassValueOf # rewardValue # lq
              in minReward #<= actualReward
 
@@ -138,7 +138,7 @@ depositValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
             Apply -> poolIdentity #&& selfIdentity #&& strictInputs #&& validChange #&& validReward
             Refund ->
                 let sigs = pfromData $ getField @"signatories" txInfo
-                 in containsSignature # sigs # rewardPkh
+                 in containsSignature # sigs # rewardPkh -- user signed the refund
 
 -- Checks whether an asset overflow is returned back to user
 validChange' :: Term s (PValue _ _ :--> PAssetClass :--> PInteger :--> PInteger :--> PInteger :--> PInteger :--> PBool)

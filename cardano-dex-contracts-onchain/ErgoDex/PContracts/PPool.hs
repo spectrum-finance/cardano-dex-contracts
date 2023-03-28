@@ -254,7 +254,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 let 
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
                     validAction     = pmatch action $ \case
-                        Swap -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy
-                        _ -> validDepositRedeem # s0 # dx # dy # dlq
+                        Swap -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
+                        _ -> validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly
 
                 pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction

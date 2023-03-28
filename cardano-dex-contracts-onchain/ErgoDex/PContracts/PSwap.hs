@@ -34,13 +34,13 @@ newtype SwapConfig (s :: S)
                 '[ "base" ':= PAssetClass
                  , "quote" ':= PAssetClass
                  , "poolNft" ':= PAssetClass
-                 , "feeNum" ':= PInteger
-                 , "exFeePerTokenNum" ':= PInteger
-                 , "exFeePerTokenDen" ':= PInteger
-                 , "rewardPkh" ':= PPubKeyHash
+                 , "feeNum" ':= PInteger -- numerator of pool fee
+                 , "exFeePerTokenNum" ':= PInteger -- numerator of execution fee
+                 , "exFeePerTokenDen" ':= PInteger -- denominator of execution fee
+                 , "rewardPkh" ':= PPubKeyHash -- PublicKeyHash of user
                  , "stakePkh" ':= PMaybeData PPubKeyHash
                  , "baseAmount" ':= PInteger
-                 , "minQuoteAmount" ':= PInteger
+                 , "minQuoteAmount" ':= PInteger -- minimal quote output that satisfies user
                  ]
             )
         )
@@ -91,7 +91,7 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     poolValue <- 
         let pool = getField @"resolved" poolIn
          in tletField @"value" pool
-    let poolIdentity =
+    let poolIdentity = -- operation is performed with the pool selected by the user 
             let nftAmount = assetClassValueOf # poolValue # requiredNft
              in nftAmount #== 1
 
@@ -106,7 +106,7 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
         selfIdentity =
             let selfRef   = pfromData $ pfield @"_0" # selfRef'
                 selfInRef = pfromData $ getField @"outRef" selfIn
-             in selfRef #== selfInRef
+             in selfRef #== selfInRef -- check that orderInIx points to the actual order
 
         quoteIn  = assetClassValueOf # selfValue   # quote
         quoteOut = assetClassValueOf # rewardValue # quote
@@ -122,10 +122,10 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
         tlet $ 
             (pIsAda # quote) #|| (validExFee # rewardValue # selfValue # base # baseAmount # quoteAmount # exFeePerTokenNum # exFeePerTokenDen)
     let 
-        strictInputs =
+        strictInputs = -- ensure double satisfaction attack is not possible
             let inputsLength = plength # inputs
-             in inputsLength #== 2 -- address double satisfaction attack
-        minSatisfaction = minOutput #<= quoteAmount
+             in inputsLength #== 2
+        minSatisfaction = minOutput #<= quoteAmount -- configured minimal output is satisfied
         fairPrice = validPrice # quoteAmount # poolValue # base # quote # baseAmount # feeNum
 
     pure $
@@ -133,8 +133,9 @@ swapValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
             Apply -> poolIdentity #&& selfIdentity #&& strictInputs #&& minSatisfaction #&& fairExFee #&& fairPrice
             Refund ->
                 let sigs = pfromData $ getField @"signatories" txInfo
-                 in containsSignature # sigs # rewardPkh
+                 in containsSignature # sigs # rewardPkh -- user signed the refund
 
+ -- ADA excess is returned to user
 validExFee ::
     Term
         s
@@ -163,6 +164,7 @@ validExFee =
                 exFee    = pdiv # (quoteAmount * exFeePerTokenNum) # exFeePerTokenDen
             pure $ (inAda - baseAda - exFee) #<= outAda
 
+ -- Swap price is adequate to pool reserves according to constant product formula.
 validPrice ::
     Term
         s
@@ -180,4 +182,4 @@ validPrice =
             reservesBase  = assetClassValueOf # poolValue # base
             reservesQuote = assetClassValueOf # poolValue # quote
             correctOut    = pdiv # (reservesQuote * baseAmount * feeNum) # (reservesBase * feeDen + baseAmount * feeNum)
-         in correctOut #<= relaxedOut 
+         in correctOut #<= relaxedOut
