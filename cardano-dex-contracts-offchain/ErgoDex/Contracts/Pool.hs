@@ -39,6 +39,7 @@ import qualified Prelude as Haskell
 import ErgoDex.Contracts.Types
 import qualified GHC.Generics as Haskell
 import Plutus.V1.Ledger.Value (AssetClass, assetClassValueOf, flattenValue)
+import Plutus.V1.Ledger.Api   (PubKeyHash)
 import qualified PlutusTx
 import PlutusTx.Builtins
 import PlutusTx.Prelude
@@ -49,14 +50,15 @@ data PoolConfig = PoolConfig
     , poolX   :: AssetClass
     , poolY   :: AssetClass
     , poolLq  :: AssetClass
-    , poolFeeNum :: Integer
+    , poolFeeNum    :: Integer
+    , stakeAdmins :: [PubKeyHash]
     }
     deriving (Haskell.Show, Eq)
 
 PlutusTx.makeIsDataIndexed ''PoolConfig [('PoolConfig, 0)]
 PlutusTx.makeLift ''PoolConfig
 
-data PoolAction = Deposit | Redeem | Swap | Destroy
+data PoolAction = Deposit | Redeem | Swap | Destroy | ChangeStakingPool
     deriving (Haskell.Show)
 PlutusTx.makeLift ''PoolAction
 
@@ -69,6 +71,7 @@ instance PlutusTx.FromData PoolAction where
             | i == 1 = Just Redeem
             | i == 2 = Just Swap
             | i == 3 = Just Destroy
+            | i == 4 = Just ChangeStakingPool
             | otherwise = Nothing
 
 instance PlutusTx.UnsafeFromData PoolAction where
@@ -82,6 +85,7 @@ instance PlutusTx.ToData PoolAction where
         Redeem -> 1
         Swap -> 2
         Destroy -> 3
+        ChangeStakingPool -> 4
 
 data PoolRedeemer = PoolRedeemer
     { action :: PoolAction

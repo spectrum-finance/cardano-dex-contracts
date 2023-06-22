@@ -12,19 +12,21 @@ module ErgoDex.Contracts.Pool (
 import PlutusTx.Builtins
 import qualified PlutusTx
 import PlutusLedgerApi.V1.Value
+import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 
 data PoolConfig = PoolConfig
-    { poolNft    :: AssetClass
-    , poolX      :: AssetClass
-    , poolY      :: AssetClass
-    , poolLq     :: AssetClass
-    , poolFeeNum :: Integer
+    { poolNft      :: AssetClass
+    , poolX        :: AssetClass
+    , poolY        :: AssetClass
+    , poolLq       :: AssetClass
+    , poolFeeNum   :: Integer
+    , stakeChanger :: [PubKeyHash]
     }
     deriving stock (Show)
 
 PlutusTx.makeIsDataIndexed ''PoolConfig [('PoolConfig, 0)]
 
-data PoolAction = Deposit | Redeem | Swap | Destroy
+data PoolAction = Deposit | Redeem | Swap | Destroy | ChangeStakingPool
     deriving (Show)
 
 instance PlutusTx.FromData PoolAction where
@@ -36,6 +38,7 @@ instance PlutusTx.FromData PoolAction where
             | i == 1 = Just Redeem
             | i == 2 = Just Swap
             | i == 3 = Just Destroy
+            | i == 4 = Just ChangeStakingPool
             | otherwise = Nothing
 
 instance PlutusTx.UnsafeFromData PoolAction where
@@ -49,6 +52,7 @@ instance PlutusTx.ToData PoolAction where
         Redeem -> 1
         Swap -> 2
         Destroy -> 3
+        ChangeStakingPool -> 4
 
 data PoolRedeemer = PoolRedeemer
     { action :: PoolAction

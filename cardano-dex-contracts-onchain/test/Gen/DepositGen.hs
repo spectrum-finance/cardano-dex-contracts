@@ -2,6 +2,8 @@ module Gen.DepositGen where
 
 import Hedgehog
 
+import RIO hiding (Data(..))
+
 import Gen.Models
 
 import PlutusLedgerApi.V2
@@ -14,6 +16,8 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16  as Hex
 import qualified Data.Text.Encoding      as E
 import qualified Data.Text as T
+
+import Gen.Models
 
 genNft :: TokenName
 genNft = TokenName $ BuiltinByteString $ mkByteString $ T.pack "4e46545f546f6b656e5f6e65775f706f6f6c0a"
@@ -29,6 +33,12 @@ genLQ = TokenName $ BuiltinByteString $ mkByteString $ T.pack "6572676f6c6162736
 
 genCS :: CurrencySymbol
 genCS = CurrencySymbol $ BuiltinByteString $ mkByteString $ T.pack "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da"
+
+genTNRandom :: MonadGen f => f TokenName
+genTNRandom = random16bs <&> TokenName
+
+genCSRandom :: MonadGen f => f CurrencySymbol
+genCSRandom = random28bs <&> CurrencySymbol
 
 mkByteString :: T.Text -> BS.ByteString
 mkByteString input = unsafeFromEither (Hex.decode . E.encodeUtf8 $ input)
@@ -46,6 +56,15 @@ genAssetClasses =
     x   = genX
     y   = genY
   in (mkAssetClass cs x, mkAssetClass cs y, mkAssetClass cs nft, mkAssetClass cs lq)
+
+genRandomAssetClasses :: MonadGen f => f (AssetClass, AssetClass, AssetClass, AssetClass)
+genRandomAssetClasses = do
+  cs  <- genCSRandom
+  lq  <- genTNRandom
+  nft <- genTNRandom
+  x   <- genTNRandom
+  y   <- genTNRandom
+  pure (mkAssetClass cs x, mkAssetClass cs y, mkAssetClass cs nft, mkAssetClass cs lq)
 
 genDConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> Integer -> (Data, OutputDatum)
 genDConfig x y nft lq fee pkh cFee =

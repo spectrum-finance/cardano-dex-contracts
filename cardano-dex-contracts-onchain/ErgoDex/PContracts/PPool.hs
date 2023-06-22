@@ -4,6 +4,8 @@ module ErgoDex.PContracts.PPool (
     PoolConfig (..),
     PoolAction (..),
     PoolRedeemer (..),
+    readPoolState,
+    findPoolOutput,
     poolValidatorT,
 ) where
 
@@ -11,8 +13,8 @@ import qualified GHC.Generics as GHC
 import           Generics.SOP (Generic, I (I))
 
 import Plutarch
-import Plutarch.Api.V2              (PMaybeData (PDJust), PTxOut, POutputDatum(POutputDatum, PNoOutputDatum, POutputDatumHash))
-import Plutarch.Api.V2.Contexts     (PScriptContext, PScriptPurpose (PSpending))
+import Plutarch.Api.V2              (PMaybeData (..), PTxOut, POutputDatum(..), PAddress(..), PPubKeyHash(..), PDatum(..), PValue(..), KeyGuarantees(..), AmountGuarantees(..))
+import Plutarch.Api.V2.Contexts     (PScriptContext, PScriptPurpose (PSpending), PTxInfo(..))
 import Plutarch.DataRepr
 import Plutarch.Lift
 import Plutarch.Prelude
@@ -21,23 +23,25 @@ import Plutarch.Builtin             (pasInt, pforgetData, pfromData, pdata, PIsD
 import Plutarch.Unsafe              (punsafeCoerce)
 import Plutarch.Internal.PlutusType (PInner, PlutusType, pcon', pmatch')
 
-import PExtra.API                   (PAssetClass, assetClassValueOf)
+import PExtra.API                   (PAssetClass, assetClassValueOf, ptryFromData, assetClass)
 import PExtra.List                  (pelemAt)
 import PExtra.Monadic               (tcon, tlet, tletField, tmatch)
 
-import qualified ErgoDex.Contracts.Pool  as P
-import           ErgoDex.PContracts.PApi (burnLqInitial, feeDen, maxLqCap, tletUnwrap, zero)
+import qualified ErgoDex.Contracts.Pool     as P
+import           ErgoDex.PContracts.PApi    (burnLqInitial, feeDen, maxLqCap, tletUnwrap, zero, containsSignature)
+import           ErgoDex.PConstants
 
 newtype PoolConfig (s :: S)
     = PoolConfig
         ( Term
             s
             ( PDataRecord
-                '[ "poolNft" ':= PAssetClass
-                 , "poolX"   ':= PAssetClass
-                 , "poolY"   ':= PAssetClass
-                 , "poolLq"  ':= PAssetClass
-                 , "feeNum"  ':= PInteger
+                '[ "poolNft"       ':= PAssetClass
+                 , "poolX"         ':= PAssetClass
+                 , "poolY"         ':= PAssetClass
+                 , "poolLq"        ':= PAssetClass
+                 , "feeNum"        ':= PInteger
+                 , "stakeAdmins"   ':= PBuiltinList (PAsData PPubKeyHash)
                  ]
             )
         )
@@ -50,7 +54,9 @@ instance DerivePlutusType PoolConfig where type DPTStrat _ = PlutusTypeData
 instance PUnsafeLiftDecl PoolConfig where type PLifted PoolConfig = P.PoolConfig
 deriving via (DerivePConstantViaData P.PoolConfig PoolConfig) instance (PConstantDecl P.PoolConfig)
 
-data PoolAction (s :: S) = Deposit | Redeem | Swap | Destroy
+instance PTryFrom PData (PAsData PoolConfig)
+
+data PoolAction (s :: S) = Deposit | Redeem | Swap | Destroy | ChangeStakingPool
 
 instance PIsData PoolAction where
     pfromDataImpl tx =
@@ -65,6 +71,7 @@ instance PlutusType PoolAction where
     pcon' Redeem = 1
     pcon' Swap = 2
     pcon' Destroy = 3
+    pcon' ChangeStakingPool = 4
 
     pmatch' x f =
         pif
@@ -73,7 +80,11 @@ instance PlutusType PoolAction where
             ( pif
                 (x #== 1)
                 (f Redeem)
-                (pif (x #== 2) (f Swap) (f Destroy))
+                ( pif
+                    (x #== 2)
+                    (f Swap)
+                    (pif (x #== 3) (f Destroy) (f ChangeStakingPool))
+                )
             )
 
 newtype PoolRedeemer (s :: S)
@@ -97,9 +108,9 @@ newtype PoolState (s :: S)
         ( Term
             s
             ( PDataRecord
-                '[ "reservesX" ':= PInteger
-                 , "reservesY" ':= PInteger
-                 , "liquidity" ':= PInteger
+                '[ "reservesX"   ':= PInteger
+                 , "reservesY"   ':= PInteger
+                 , "liquidity"   ':= PInteger
                  ]
             )
         )
@@ -193,6 +204,12 @@ findPoolOutput =
                 )
                 (const $ ptraceError "Pool output not found")
 
+poolCheckStakeChange :: ClosedTerm (PTxInfo :--> PBool)
+poolCheckStakeChange = plam $ \txInfo -> unTermCont $ do
+  valueMint <- tletField @"mint" txInfo
+  let mintedAc = assetClass # poolStakeChangeMintCurSymbolP # poolStakeChangeMintTokenNameP
+  pure $ assetClassValueOf # valueMint # mintedAc #== 1
+
 poolValidatorT :: ClosedTerm (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
 poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
     redeemer <- pletFieldsC @'["action", "selfIx"] redeemer'
@@ -207,7 +224,8 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
     inputs  <- tletUnwrap $ getField @"inputs" txInfo
     selfIn' <- tlet $ pelemAt # selfIx # inputs
     selfIn  <- pletFieldsC @'["outRef", "resolved"] selfIn'
-    let self = getField @"resolved" selfIn
+    let 
+        self = getField @"resolved" selfIn
 
     s0  <- tlet $ readPoolState # conf # self
     lq0 <- tletField @"liquidity" s0
@@ -219,7 +237,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 outputs <- tletUnwrap $ getField @"outputs" txInfo
                 nft     <- tletField @"poolNft" conf
 
-                successor <- tlet $ findPoolOutput # nft # outputs -- nft is preserved
+                successor     <- tlet $ findPoolOutput # nft # outputs -- nft is preserved
 
                 s1  <- tlet $ readPoolState # conf # successor
                 rx0 <- tletField @"reservesX" s0
@@ -253,8 +271,8 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 succAddr <- tletField @"address" successor
                 let 
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
-                    validAction     = pmatch action $ \case
-                        Swap -> dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
-                        _ -> validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly
-
-                pure $ selfIdentity #&& confPreserved #&& scriptPreserved #&& validAction
+                    valid = pmatch action $ \case
+                        Swap -> selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
+                        ChangeStakingPool -> poolCheckStakeChange # txinfo'
+                        _ -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
+                pure valid

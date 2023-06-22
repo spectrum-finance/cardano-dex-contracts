@@ -1,6 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module ErgoDex.PMintingValidators (
     poolNftMiningValidator,
     poolLqMiningValidator,
+    poolStakeChangeMintPolicyValidator,
     wrapMintingValidator,
 ) where
 
@@ -8,12 +11,12 @@ import Plutarch
 import Plutarch.Api.V2 (mkMintingPolicy)
 import Plutarch.Api.V2.Contexts (PScriptContext)
 import Plutarch.Prelude
-import Plutarch.Internal (Config(..), TracingMode(..))
 import Plutarch.Unsafe (punsafeCoerce)
 
 import qualified ErgoDex.PContracts.PAssets as A
-import PlutusLedgerApi.V1.Scripts (MintingPolicy)
-import PlutusLedgerApi.V1.Value (TokenName)
+import ErgoDex.PContracts.PPoolStakeChangeMintPolicy
+import PlutusLedgerApi.V1.Scripts (MintingPolicy(..))
+import PlutusLedgerApi.V1.Value   (TokenName(..))
 import PlutusLedgerApi.V1.Contexts
 
 cfgForMintingValidator :: Config
@@ -39,3 +42,6 @@ poolLqMiningValidator oref tn emission =
     mkMintingPolicy cfgForMintingValidator $
         wrapMintingValidator $
             A.poolLqMintValidatorT (pconstant oref) (pconstant tn) (pconstant emission)
+
+poolStakeChangeMintPolicyValidator :: MintingPolicy
+poolStakeChangeMintPolicyValidator = mkMintingPolicy cfgForMintingValidator $ wrapMintingValidator poolStakeChangeMintPolicyValidatorT
