@@ -103,7 +103,7 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
          in tlet $ inAda - exFee
 
     let strictInputs = -- ensure double satisfaction attack is not possible
-        let inputsLength = plength # inputs
+           let inputsLength = plength # inputs
             in inputsLength #== 2
 
     liquidity <-

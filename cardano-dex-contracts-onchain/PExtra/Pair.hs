@@ -12,26 +12,26 @@ import Plutarch.Prelude
 import PExtra.Monadic (tmatch)
 import Plutarch.Builtin (ppairDataBuiltin)
 
-instance (PEq a, PPartialOrd a, PPartialOrd b) => PPartialOrd (PPair a b) where
-    a' #< b' =
-        phoistAcyclic
-            ( plam $ \a b ->
-                pmatch a $ \(PPair al ar) ->
-                    pmatch b $ \(PPair bl br) ->
-                        (al #< bl) #|| ((al #== bl) #&& (ar #< br))
-            )
-            # a'
-            # b'
+-- instance (PEq a, PPartialOrd a, PPartialOrd b) => PPartialOrd (PPair a b) where
+--     a' #< b' =
+--         phoistAcyclic
+--             ( plam $ \a b ->
+--                 pmatch a $ \(PPair al ar) ->
+--                     pmatch b $ \(PPair bl br) ->
+--                         (al #< bl) #|| ((al #== bl) #&& (ar #< br))
+--             )
+--             # a'
+--             # b'
 
-    a' #<= b' =
-        phoistAcyclic
-            ( plam $ \a b ->
-                pmatch a $ \(PPair al ar) ->
-                    pmatch b $ \(PPair bl br) ->
-                        (al #< bl) #|| ((al #== bl) #&& (ar #<= br))
-            )
-            # a'
-            # b'
+--     a' #<= b' =
+--         phoistAcyclic
+--             ( plam $ \a b ->
+--                 pmatch a $ \(PPair al ar) ->
+--                     pmatch b $ \(PPair bl br) ->
+--                         (al #< bl) #|| ((al #== bl) #&& (ar #<= br))
+--             )
+--             # a'
+--             # b'
 
 pairToBuiltin :: (PIsData a, PIsData b) => Term s (PPair a b :--> PBuiltinPair (PAsData a) (PAsData b))
 pairToBuiltin = phoistAcyclic $
