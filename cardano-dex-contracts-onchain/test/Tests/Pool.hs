@@ -290,15 +290,15 @@ successPoolChangeStakePartCorrectMinting :: Property
 successPoolChangeStakePartCorrectMinting = property $ do
   let (x, y, nft, lq) = genAssetClasses
   
-  stakeChangerPkh <- forAll genPkh
+  stakeAdminPkh <- forAll genPkh
   newPkhForSC     <- forAll genPkh
   let 
-    previousSc = Just $ StakingHash (PubKeyCredential stakeChangerPkh)
+    previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeChangerPkh]
+    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
 
@@ -306,7 +306,7 @@ successPoolChangeStakePartCorrectMinting = property $ do
 
     mintValue = mkValue scMintAssetClass 1
 
-    txInfo  = mkTxInfoWithSignaturesAndMinting poolTxIn poolTxOut [stakeChangerPkh] mintValue
+    txInfo  = mkTxInfoWithSignaturesAndMinting poolTxIn poolTxOut [stakeAdminPkh] mintValue
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -320,21 +320,21 @@ failedPoolChangeStakePartIncorrectMinting :: Property
 failedPoolChangeStakePartIncorrectMinting = property $ do
   let (x, y, nft, lq) = genAssetClasses
   
-  stakeChangerPkh <- forAll genPkh
+  stakeAdminPkh <- forAll genPkh
   newPkhForSC     <- forAll genPkh
   let 
-    previousSc = Just $ StakingHash (PubKeyCredential stakeChangerPkh)
+    previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, previousPdh) = genPConfig x y nft lq 1 [stakeChangerPkh]
+    (pcfg, previousPdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
 
     (_, newPdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxInWithSC poolTxRef previousSc previousPdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC newPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
-    txInfo  = mkTxInfoWithSignaturesAndMinting poolTxIn poolTxOut [stakeChangerPkh] mempty
+    txInfo  = mkTxInfoWithSignaturesAndMinting poolTxIn poolTxOut [stakeAdminPkh] mempty
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -348,16 +348,16 @@ failedPoolChangeStakePart :: Property
 failedPoolChangeStakePart = property $ do
   let (x, y, nft, lq) = genAssetClasses
   
-  stakeChangerPkh <- forAll genPkh
+  stakeAdminPkh <- forAll genPkh
   incorrectPkh    <- forAll genPkh
   newPkhForSC     <- forAll genPkh
   let 
-    previousSc = Just $ StakingHash (PubKeyCredential stakeChangerPkh)
+    previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeChangerPkh]
+    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
@@ -378,21 +378,21 @@ failedPoolChangeStakePartIncorrectFinalDatum = property $ do
 
   (incorretX, incorrectY, incorrectNft, incorrectlq) <- forAll genRandomAssetClasses
   
-  stakeChangerPkh <- forAll genPkh
+  stakeAdminPkh <- forAll genPkh
   newPkhForSC     <- forAll genPkh
   let 
-    previousSc = Just $ StakingHash (PubKeyCredential stakeChangerPkh)
+    previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeChangerPkh]
-    (_, incorrectPdh) = genPConfig incorretX incorrectY incorrectNft incorrectlq 1 [stakeChangerPkh]
+    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
+    (_, incorrectPdh) = genPConfig incorretX incorrectY incorrectNft incorrectlq 1 [stakeAdminPkh]
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC incorrectPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
   let
-    txInfo  = mkTxInfoWithSignatures poolTxIn poolTxOut [stakeChangerPkh]
+    txInfo  = mkTxInfoWithSignatures poolTxIn poolTxOut [stakeAdminPkh]
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -406,20 +406,20 @@ failedPoolChangeStakePartIncorrectFinalValue :: Property
 failedPoolChangeStakePartIncorrectFinalValue = property $ do
   let (x, y, nft, lq) = genAssetClasses
   
-  stakeChangerPkh <- forAll genPkh
+  stakeAdminPkh <- forAll genPkh
   newPkhForSC     <- forAll genPkh
   let 
-    previousSc = Just $ StakingHash (PubKeyCredential stakeChangerPkh)
+    previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeChangerPkh]
+    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 1 y 1 lq 1 nft 0 10000
   
   let
-    txInfo  = mkTxInfoWithSignatures poolTxIn poolTxOut [stakeChangerPkh]
+    txInfo  = mkTxInfoWithSignatures poolTxIn poolTxOut [stakeAdminPkh]
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose

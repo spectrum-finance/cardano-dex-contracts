@@ -11,9 +11,9 @@ import PlutusLedgerApi.V1.Value
 import qualified ErgoDex.Contracts.Pool as P
 
 genPConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [PubKeyHash] -> (Data, OutputDatum)
-genPConfig x y nft lq fee stakeChanger =
+genPConfig x y nft lq fee stakeAdmin =
   let 
-    config = mkPoolConfig nft x y lq fee stakeChanger
+    config = mkPoolConfig nft x y lq fee stakeAdmin
     od     = OutputDatum $ mkDatum config
   in (toData config, od)
 

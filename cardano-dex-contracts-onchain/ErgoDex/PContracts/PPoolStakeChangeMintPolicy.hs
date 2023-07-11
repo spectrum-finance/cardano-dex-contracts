@@ -80,7 +80,7 @@ poolStakeChangeMintPolicyValidatorT = plam $ \_ ctx -> unTermCont $ do
         validCred  = prevCred #== newCred
         
         stakeAdmins    = getField @"stakeAdmins" prevConf
-        stakeChanger   = pfromData $ phead # stakeAdmins
-        validSignature = containsSignature # signatories # stakeChanger
+        stakeAdmin   = pfromData $ phead # stakeAdmins
+        validSignature = containsSignature # signatories # stakeAdmin
     
     pure $ validDelta #&& validPoolParams #&& validCred #&& validSignature

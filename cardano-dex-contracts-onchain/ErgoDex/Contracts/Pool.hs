@@ -20,7 +20,7 @@ data PoolConfig = PoolConfig
     , poolY        :: AssetClass
     , poolLq       :: AssetClass
     , poolFeeNum   :: Integer
-    , stakeChanger :: [PubKeyHash]
+    , stakeAdmins  :: [PubKeyHash]
     }
     deriving stock (Show)
 
