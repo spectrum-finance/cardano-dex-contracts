@@ -18,6 +18,7 @@ module PExtra.API (
     findOwnInput,
     --convertBackValue,
     mustPayToPubKey,
+    ptryFromData
 ) where
 
 import qualified GHC.Generics as GHC
@@ -35,6 +36,7 @@ import Plutarch.Api.V2 (
     PTxOut (..),
     PTxOutRef (..),
  )
+import Plutarch
 
 import Plutarch.Api.V1 (
     PCredential (PPubKeyCredential),
@@ -44,11 +46,12 @@ import Plutarch.Api.V1 (
  )
 
 import qualified Plutarch.Api.V1.Value as PlutarchValue
-import Plutarch.DataRepr (PDataFields)
+import Plutarch.DataRepr (PDataFields, DerivePConstantViaData)
 import Plutarch.List (pconvertLists)
 import Plutarch.Extra.TermCont
 
 import PExtra.Monadic (tcon, tlet, tletField, tmatchField)
+import qualified PlutusLedgerApi.V1.Value   as Value
 
 tletUnwrap :: (PIsData a) => Term s (PAsData a) -> TermCont @r s (Term s a)
 tletUnwrap = tlet . pfromData
@@ -70,7 +73,7 @@ newtype PAssetClass (s :: S)
             )
         )
     deriving stock (GHC.Generic)
-    deriving anyclass (PIsData, PDataFields, PlutusType)
+    deriving anyclass (PIsData, PDataFields, PlutusType, PTryFrom PData)
 
 instance DerivePlutusType PAssetClass where type DPTStrat _ = PlutusTypeData
 
@@ -199,3 +202,6 @@ convertAC' = phoistAcyclic $
         cs <- tletField @"currencySymbol" ac
         tn <- tletField @"tokenName" ac
         tcon $ PPair cs tn
+
+ptryFromData :: forall a s. PTryFrom PData (PAsData a) => Term s PData -> Term s (PAsData a)
+ptryFromData x = unTermCont $ fst <$> tcont (ptryFrom @(PAsData a) x)

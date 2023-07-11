@@ -92,19 +92,20 @@ redeemValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
     let selfValue = pfield @"value" # (getField @"resolved" selfIn)
 
     PSpending selfRef' <- tmatch (pfromData $ getField @"purpose" ctx)
-    let selfIdentity =
+    let 
+        selfIdentity =
             let 
                 selfRef = pfromData $ pfield @"_0" # selfRef'
                 selfInRef = pfromData $ getField @"outRef" selfIn
              in selfRef #== selfInRef
-
+        
     collateralAda <- -- we reserve a small amount of ADA to put it into user output later
         let inAda = plovelaceValueOf # selfValue
          in tlet $ inAda - exFee
 
     let strictInputs = -- ensure double satisfaction attack is not possible
-        let inputsLength = plength # inputs
-            in inputsLength #== 2
+          let inputsLength = plength # inputs
+           in inputsLength #== 2
 
     liquidity <-
         let lqNegative = assetClassValueOf # poolValue # lq

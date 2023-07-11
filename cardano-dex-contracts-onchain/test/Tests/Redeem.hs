@@ -55,7 +55,7 @@ successRedeem = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -83,7 +83,7 @@ successRedeemXAda = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20000 y 20000 lq 9223372036854755797 nft 1 0
     poolTxOut   = genPTxOut pdh x 10000 y 10000 lq 9223372036854765797 nft 1 0
           
@@ -111,7 +111,7 @@ successRedeemYAda = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20000 y 20000 lq 9223372036854755797 nft 1 0
     poolTxOut   = genPTxOut pdh x 10000 y 10000 lq 9223372036854765797 nft 1 0
           
@@ -138,7 +138,7 @@ redeemIncorrectPoolInIx = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -165,7 +165,7 @@ redeemIncorrectOrderInIx = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -192,7 +192,7 @@ redeemIncorrectRewardOutIx = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -219,7 +219,7 @@ redeemSelfIdentity = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -246,7 +246,7 @@ redeemPoolIdentity = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 2 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -273,7 +273,7 @@ redeemFairFee = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -300,7 +300,7 @@ redeemFairShareX = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -327,7 +327,7 @@ redeemFairShareY = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1
+    (pcfg, pdh) = genPConfig x y nft lq 1 []
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   

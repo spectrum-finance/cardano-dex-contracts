@@ -3,6 +3,8 @@ module ErgoDex.PValidators (
     swapValidator,
     depositValidator,
     redeemValidator,
+    simpleStakingValidator,
+    lockPkhStakingValidator
 ) where
 
 import           Codec.Serialise
@@ -36,6 +38,18 @@ redeemValidatorDataFileName = "redeem.uplc"
 
 redeemValidator :: (MonadIO m) => m PV2.Validator
 redeemValidator = readValidatorFromFile redeemValidatorDataFileName
+
+simpleStakingValidatorDataFileName :: String
+simpleStakingValidatorDataFileName = "simpleStaking.uplc"
+
+simpleStakingValidator :: (MonadIO m) => m PV2.Validator
+simpleStakingValidator = readValidatorFromFile simpleStakingValidatorDataFileName
+
+lockPkhStakingValidatorDataFileName :: String
+lockPkhStakingValidatorDataFileName = "stakinWithPkh.uplc"
+
+lockPkhStakingValidator :: (MonadIO m) => m PV2.Validator
+lockPkhStakingValidator = readValidatorFromFile lockPkhStakingValidatorDataFileName
 
 readValidatorFromFile :: (MonadIO m) => String -> m PV2.Validator
 readValidatorFromFile dataFieldName = do

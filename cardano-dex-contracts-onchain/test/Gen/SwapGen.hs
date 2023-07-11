@@ -28,6 +28,13 @@ genSTxIn ref od x xQty adaQty =
     txOut = mkTxOut od value mkSwapValidator
   in mkTxIn ref txOut
 
+genSTxInWithStaking :: TxOutRef -> OutputDatum -> AssetClass -> Integer -> Integer -> TxInInfo
+genSTxInWithStaking ref od x xQty adaQty =
+  let
+    value = mkValues [mkValue x xQty, mkAdaValue adaQty] mempty
+    txOut = mkTxOut od value mkSwapValidator
+  in mkTxIn ref txOut
+
 genSTxOut :: OutputDatum -> AssetClass -> Integer -> Integer -> PubKeyHash -> TxOut
 genSTxOut od y yQty adaQty pkh =
   let
