@@ -13,8 +13,9 @@ import qualified GHC.Generics as GHC
 import           Generics.SOP (Generic, I (I))
 
 import Plutarch
-import Plutarch.Api.V2              (PMaybeData (..), PTxOut, POutputDatum(..), PAddress(..), PPubKeyHash(..), PDatum(..), PValue(..), KeyGuarantees(..), AmountGuarantees(..))
+import Plutarch.Api.V2              (PMaybeData (..), PTxOut, POutputDatum(..), PAddress(..), PPubKeyHash(..), PDatum(..), PValue(..), KeyGuarantees(..), AmountGuarantees(..), PPOSIXTime(..))
 import Plutarch.Api.V2.Contexts     (PScriptContext, PScriptPurpose (PSpending), PTxInfo(..))
+import Plutarch.Extra.Interval
 import Plutarch.DataRepr
 import Plutarch.Lift
 import Plutarch.Prelude
@@ -42,6 +43,7 @@ newtype PoolConfig (s :: S)
                  , "poolLq"        ':= PAssetClass
                  , "feeNum"        ':= PInteger
                  , "stakeAdmins"   ':= PBuiltinList (PAsData PPubKeyHash)
+                 , "swapStartTime" ':= PPOSIXTime
                  ]
             )
         )
@@ -220,7 +222,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
     ctx <- pletFieldsC @'["txInfo", "purpose"] ctx'
     let txinfo' = getField @"txInfo" ctx
 
-    txInfo  <- pletFieldsC @'["inputs", "outputs"] txinfo'
+    txInfo  <- pletFieldsC @'["inputs", "outputs", "validRange"] txinfo'
     inputs  <- tletUnwrap $ getField @"inputs" txInfo
     selfIn' <- tlet $ pelemAt # selfIx # inputs
     selfIn  <- pletFieldsC @'["outRef", "resolved"] selfIn'
@@ -237,7 +239,11 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 outputs <- tletUnwrap $ getField @"outputs" txInfo
                 nft     <- tletField @"poolNft" conf
 
-                successor     <- tlet $ findPoolOutput # nft # outputs -- nft is preserved
+
+                validRange    <- tletUnwrap $ getField @"validRange" txInfo
+                swapStartTime <- tletField @"swapStartTime" conf
+
+                successor  <- tlet $ findPoolOutput # nft # outputs -- nft is preserved
 
                 s1  <- tlet $ readPoolState # conf # successor
                 rx0 <- tletField @"reservesX" s0
@@ -266,13 +272,14 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 succD <- tletField @"outputDatum" succD'
                 let 
                     confPreserved = selfD #== succD -- config preserved
+                    validSwapTime = pbefore # swapStartTime # validRange
 
                 selfAddr <- tletField @"address" self
                 succAddr <- tletField @"address" successor
                 let 
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
                     valid = pmatch action $ \case
-                        Swap -> selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
+                        Swap -> validSwapTime #&& selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
                         ChangeStakingPool -> poolCheckStakeChange # txinfo'
                         _ -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
                 pure valid

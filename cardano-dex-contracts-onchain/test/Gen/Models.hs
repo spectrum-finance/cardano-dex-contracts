@@ -56,6 +56,7 @@ import PlutusTx.Builtins.Internal
 import PlutusLedgerApi.V1.Value 
 import qualified PlutusLedgerApi.V1.Value as Value
 import PlutusLedgerApi.V2.Tx
+import PlutusLedgerApi.V1.Time
 import PlutusLedgerApi.V2
 import qualified PlutusLedgerApi.V1.Interval as Interval
 import Plutarch.Api.V2 ( validatorHash, datumHash)
@@ -119,8 +120,8 @@ mkValues :: [Value] -> Value -> Value
 mkValues (x:xs) acc = mkValues xs (x <> acc)
 mkValues [] acc = acc
 
-mkPoolConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [PubKeyHash] -> P.PoolConfig
-mkPoolConfig nft x y lq fee stakeAdmin = P.PoolConfig nft x y lq fee stakeAdmin
+mkPoolConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [PubKeyHash] -> POSIXTime -> P.PoolConfig
+mkPoolConfig nft x y lq fee stakeAdmin swapStartTime = P.PoolConfig nft x y lq fee stakeAdmin swapStartTime
 
 mkDepositConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> Integer -> D.DepositConfig
 mkDepositConfig nft x y lq fee pkh cFee = D.DepositConfig nft x y lq fee pkh Nothing cFee
@@ -207,7 +208,7 @@ mkPoolTxInfo pIn pOut =
     , txInfoMint = mempty
     , txInfoDCert = []
     , txInfoWdrl = fromList []
-    , txInfoValidRange = Interval.always
+    , txInfoValidRange = Interval.interval 10 15 
     , txInfoSignatories = mempty
     , txInfoData = fromList []
     , txInfoId = "b0"
@@ -222,7 +223,7 @@ mkTxInfo pIn oIn pOut oOut =
     , txInfoMint = mempty
     , txInfoDCert = []
     , txInfoWdrl = fromList []
-    , txInfoValidRange = Interval.always
+    , txInfoValidRange = Interval.interval 10 15 
     , txInfoSignatories = mempty
     , txInfoData = fromList []
     , txInfoId = "b0"

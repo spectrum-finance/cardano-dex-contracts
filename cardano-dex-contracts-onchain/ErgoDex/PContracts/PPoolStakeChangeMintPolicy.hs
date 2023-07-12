@@ -54,27 +54,30 @@ poolStakeChangeMintPolicyValidatorT = plam $ \_ ctx -> unTermCont $ do
     succPoolOutputDatum' <- tlet $ extractPoolConfig # successor
     prevCred <- tletField @"credential" selfAddr
     newCred  <- tletField @"credential" succAddr
-    prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "stakeAdmins"] poolInputConfig
-    newConf  <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum"] succPoolOutputDatum'
+    prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "stakeAdmins", "swapStartTime"] poolInputConfig
+    newConf  <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "swapStartTime"] succPoolOutputDatum'
     let
-        prevPoolNft    = getField @"poolNft" prevConf
-        prevPoolX      = getField @"poolX"   prevConf
-        prevPoolY      = getField @"poolY"   prevConf
-        prevPoolLq     = getField @"poolLq"  prevConf
-        prevPoolFeeNum = getField @"feeNum"  prevConf
+        prevPoolNft       = getField @"poolNft" prevConf
+        prevPoolX         = getField @"poolX"   prevConf
+        prevPoolY         = getField @"poolY"   prevConf
+        prevPoolLq        = getField @"poolLq"  prevConf
+        prevPoolFeeNum    = getField @"feeNum"  prevConf
+        prevSwapStartTime = getField @"swapStartTime" prevConf
 
-        newPoolNft    = pfromData $ getField @"poolNft" newConf
-        newPoolX      = pfromData $ getField @"poolX"   newConf
-        newPoolY      = pfromData $ getField @"poolY"   newConf
-        newPoolLq     = pfromData $ getField @"poolLq"  newConf
-        newPoolFeeNum = pfromData $ getField @"feeNum"  newConf
+        newPoolNft       = pfromData $ getField @"poolNft" newConf
+        newPoolX         = pfromData $ getField @"poolX"   newConf
+        newPoolY         = pfromData $ getField @"poolY"   newConf
+        newPoolLq        = pfromData $ getField @"poolLq"  newConf
+        newPoolFeeNum    = pfromData $ getField @"feeNum"  newConf
+        newSwapStartTime = pfromData $ getField @"swapStartTime" newConf
 
         validPoolParams = 
             prevPoolNft    #== newPoolNft    #&&
             prevPoolX      #== newPoolX      #&&
             prevPoolY      #== newPoolY      #&&
             prevPoolLq     #== newPoolLq     #&&
-            prevPoolFeeNum #== newPoolFeeNum
+            prevPoolFeeNum #== newPoolFeeNum #&&
+            prevSwapStartTime #== newSwapStartTime
 
         validDelta = poolInputValue #== poolOutputValue
         validCred  = prevCred #== newCred

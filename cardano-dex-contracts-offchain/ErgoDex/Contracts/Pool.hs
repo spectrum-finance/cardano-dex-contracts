@@ -40,6 +40,7 @@ import ErgoDex.Contracts.Types
 import qualified GHC.Generics as Haskell
 import Plutus.V1.Ledger.Value (AssetClass, assetClassValueOf, flattenValue)
 import Plutus.V1.Ledger.Api   (PubKeyHash)
+import Plutus.V1.Ledger.Time
 import qualified PlutusTx
 import PlutusTx.Builtins
 import PlutusTx.Prelude
@@ -51,7 +52,8 @@ data PoolConfig = PoolConfig
     , poolY   :: AssetClass
     , poolLq  :: AssetClass
     , poolFeeNum    :: Integer
-    , stakeAdmins :: [PubKeyHash]
+    , stakeAdmins   :: [PubKeyHash]
+    , swapStartTime :: POSIXTime
     }
     deriving (Haskell.Show, Eq)
 

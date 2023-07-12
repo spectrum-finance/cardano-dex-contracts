@@ -13,14 +13,16 @@ import PlutusTx.Builtins
 import qualified PlutusTx
 import PlutusLedgerApi.V1.Value
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
+import PlutusLedgerApi.V1.Time
 
 data PoolConfig = PoolConfig
-    { poolNft      :: AssetClass
-    , poolX        :: AssetClass
-    , poolY        :: AssetClass
-    , poolLq       :: AssetClass
-    , poolFeeNum   :: Integer
-    , stakeAdmins  :: [PubKeyHash]
+    { poolNft       :: AssetClass
+    , poolX         :: AssetClass
+    , poolY         :: AssetClass
+    , poolLq        :: AssetClass
+    , poolFeeNum    :: Integer
+    , stakeAdmins   :: [PubKeyHash]
+    , swapStartTime :: POSIXTime
     }
     deriving stock (Show)
 

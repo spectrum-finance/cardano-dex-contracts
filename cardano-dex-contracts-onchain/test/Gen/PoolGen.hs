@@ -7,13 +7,14 @@ import Gen.DepositGen
 
 import PlutusLedgerApi.V2
 import PlutusLedgerApi.V1.Value
+import PlutusLedgerApi.V1.Time
 
 import qualified ErgoDex.Contracts.Pool as P
 
-genPConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [PubKeyHash] -> (Data, OutputDatum)
-genPConfig x y nft lq fee stakeAdmin =
+genPConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [PubKeyHash] -> POSIXTime -> (Data, OutputDatum)
+genPConfig x y nft lq fee stakeAdmin swapStartTime =
   let 
-    config = mkPoolConfig nft x y lq fee stakeAdmin
+    config = mkPoolConfig nft x y lq fee stakeAdmin swapStartTime
     od     = OutputDatum $ mkDatum config
   in (toData config, od)
 
