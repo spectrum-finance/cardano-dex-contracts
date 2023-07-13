@@ -54,8 +54,8 @@ poolStakeChangeMintPolicyValidatorT = plam $ \_ ctx -> unTermCont $ do
     succPoolOutputDatum' <- tlet $ extractPoolConfig # successor
     prevCred <- tletField @"credential" selfAddr
     newCred  <- tletField @"credential" succAddr
-    prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "stakeAdmins"] poolInputConfig
-    newConf  <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum"] succPoolOutputDatum'
+    prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "stakeAdmins", "lqBound"] poolInputConfig
+    newConf  <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] succPoolOutputDatum'
     let
         prevPoolNft    = getField @"poolNft" prevConf
         prevPoolX      = getField @"poolX"   prevConf
