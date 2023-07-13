@@ -21,6 +21,7 @@ data PoolConfig = PoolConfig
     , poolLq       :: AssetClass
     , poolFeeNum   :: Integer
     , stakeAdmins  :: [PubKeyHash]
+    , lqBound      :: Integer
     }
     deriving stock (Show)
 

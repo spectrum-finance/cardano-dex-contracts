@@ -31,6 +31,7 @@ checkPool = testGroup "CheckPoolContract"
   , HH.testProperty "pool_change_stake_part_is_incorrect (incorrect minting)" failedPoolChangeStakePartIncorrectMinting
   , HH.testProperty "pool_deposit_is_correct" successPoolDeposit
   , HH.testProperty "pool_swap_is_correct" successPoolSwap
+  , HH.testProperty "pool_swap_insufficient_lq_for_bound" poolSwapInsufficientLiqudityForBound
   , HH.testProperty "pool_redeem_is_correct" successPoolRedeem
   , HH.testProperty "pool_redeem_too_much_liquidity_removed" (poolRedeemLqCheck 9 9 9223372036854775797)
   , HH.testProperty "pool_redeem_liquidity_removed_lq_intact" (poolRedeemLqCheck 19 19 9223372036854775787)
@@ -56,7 +57,7 @@ poolDestroyCheck lqQty expected = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 []
+    (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genDTxIn poolTxRef pdh lq lqQty nft 1 5000000
   
   let
@@ -82,7 +83,7 @@ successPoolRedeem = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 []
+    (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -109,7 +110,7 @@ poolRedeemLqCheck xQty yQty lqOutQty = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 []
+    (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x xQty y yQty lq lqOutQty nft 1 3000000
   
@@ -136,7 +137,7 @@ poolRedeemRedeemerIncorrectIx = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 []
+    (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -163,7 +164,7 @@ poolRedeemRedeemerIncorrectAction action = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 []
+    (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 10 y 10 lq 9223372036854775797 nft 1 3000000
   
@@ -190,7 +191,7 @@ successPoolSwap = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 995 []
+    (pcfg, pdh) = genPConfig x y nft lq 995 [] 0
     poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000000
     poolTxOut   = genPTxOut pdh x 20 y 6 lq 9223372036854775797 nft 1 3000000
   
@@ -205,6 +206,33 @@ successPoolSwap = property $ do
 
   result === Right ()
 
+poolSwapInsufficientLiqudityForBound :: Property
+poolSwapInsufficientLiqudityForBound = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genSConfig x y nft 995 500000 1 pkh 10 4
+    orderTxIn     = genSTxIn orderTxRef dh x 10 3813762
+    orderTxOut    = genSTxOut dh y 4 1813762 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 995 [] 21
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000000
+    poolTxOut   = genPTxOut pdh x 20 y 6 lq 9223372036854775797 nft 1 3000000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Swap
+
+    result = eraseLeft $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
+
 poolSwapRedeemerIncorrectIx :: Property
 poolSwapRedeemerIncorrectIx = property $ do
   let (x, y, nft, lq) = genAssetClasses
@@ -217,7 +245,7 @@ poolSwapRedeemerIncorrectIx = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1000 []
+    (pcfg, pdh) = genPConfig x y nft lq 1000 [] 0
     poolTxIn    = genPTxIn poolTxRef pdh x 100 y 10000 lq 9223372036854775797 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 11000 y 9000 lq 9223372036854775787 nft 1 3000000
   
@@ -244,7 +272,7 @@ poolSwapRedeemerIncorrectAction action = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1000 []
+    (pcfg, pdh) = genPConfig x y nft lq 1000 [] 0
     poolTxIn    = genPTxIn poolTxRef pdh x 100 y 10000 lq 9223372036854775797 nft 1 5000000
     poolTxOut   = genPTxOut pdh x 11000 y 9000 lq 9223372036854775787 nft 1 3000000
   
@@ -271,7 +299,7 @@ successPoolDeposit = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 []
+    (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOut pdh x 20 y 20 lq 9223372036854775787 nft 1 10000
   
@@ -298,7 +326,7 @@ successPoolChangeStakePartCorrectMinting = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
+    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
 
@@ -328,9 +356,9 @@ failedPoolChangeStakePartIncorrectMinting = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, previousPdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
+    (pcfg, previousPdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
 
-    (_, newPdh) = genPConfig x y nft lq 1 []
+    (_, newPdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genPTxInWithSC poolTxRef previousSc previousPdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC newPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
@@ -357,7 +385,7 @@ failedPoolChangeStakePart = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
+    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
@@ -386,8 +414,8 @@ failedPoolChangeStakePartIncorrectFinalDatum = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
-    (_, incorrectPdh) = genPConfig incorretX incorrectY incorrectNft incorrectlq 1 [stakeAdminPkh]
+    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
+    (_, incorrectPdh) = genPConfig incorretX incorrectY incorrectNft incorrectlq 1 [stakeAdminPkh] 0
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC incorrectPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
@@ -414,7 +442,7 @@ failedPoolChangeStakePartIncorrectFinalValue = property $ do
   
   poolTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh]
+    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 1 y 1 lq 1 nft 0 10000
   
@@ -440,7 +468,7 @@ poolDepositRedeemerIncorrectIx = property $ do
     orderTxOut    = genTxOut dh lq 10 (1000000 - 300) pkh
   
   poolTxRef <- forAll genTxOutRef
-  let (pcfg, pdh) = genPConfig x y nft lq 1 []
+  let (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
 
   let
     poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000
@@ -468,7 +496,7 @@ poolDepositRedeemerIncorrectAction action = property $ do
     orderTxOut    = genTxOut dh lq 10 (1000000 - 300) pkh
   
   poolTxRef <- forAll genTxOutRef
-  let (pcfg, pdh) = genPConfig x y nft lq 1 []
+  let (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
 
   let
     poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000

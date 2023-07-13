@@ -42,6 +42,7 @@ newtype PoolConfig (s :: S)
                  , "poolLq"        ':= PAssetClass
                  , "feeNum"        ':= PInteger
                  , "stakeAdmins"   ':= PBuiltinList (PAsData PPubKeyHash)
+                 , "lqBound"       ':= PInteger
                  ]
             )
         )
@@ -262,17 +263,20 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 POutputDatum selfD' <- pmatchC selfDatum
                 POutputDatum succD' <- pmatchC succDatum
 
+                lqBound <- tletField @"lqBound" conf
+
                 selfD <- tletField @"outputDatum" selfD'
                 succD <- tletField @"outputDatum" succD'
                 let 
                     confPreserved = selfD #== succD -- config preserved
+                    swapAllowed   = lqBound #<= (rx0 * 2)
 
                 selfAddr <- tletField @"address" self
                 succAddr <- tletField @"address" successor
                 let 
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
                     valid = pmatch action $ \case
-                        Swap -> selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
+                        Swap -> swapAllowed #&& selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
                         ChangeStakingPool -> poolCheckStakeChange # txinfo'
                         _ -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
                 pure valid

@@ -119,8 +119,8 @@ mkValues :: [Value] -> Value -> Value
 mkValues (x:xs) acc = mkValues xs (x <> acc)
 mkValues [] acc = acc
 
-mkPoolConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [PubKeyHash] -> P.PoolConfig
-mkPoolConfig nft x y lq fee stakeAdmin = P.PoolConfig nft x y lq fee stakeAdmin
+mkPoolConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [PubKeyHash] -> Integer -> P.PoolConfig
+mkPoolConfig nft x y lq fee stakeAdmin lqBound = P.PoolConfig nft x y lq fee stakeAdmin lqBound
 
 mkDepositConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> Integer -> D.DepositConfig
 mkDepositConfig nft x y lq fee pkh cFee = D.DepositConfig nft x y lq fee pkh Nothing cFee
