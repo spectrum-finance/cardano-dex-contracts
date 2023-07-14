@@ -12,6 +12,8 @@ import Eval
 import Gen.Utils
 
 import PlutusLedgerApi.V2
+import Plutarch.Api.V2 as PV2
+import ErgoDex.PConstants
 
 import Hedgehog
 
@@ -27,7 +29,8 @@ import Gen.RedeemGen
 import Gen.DestroyGen
 
 checkPool = testGroup "CheckPoolContract"
-  [ HH.testProperty "pool_change_stake_part_is_correct (correct minting)" successPoolChangeStakePartCorrectMinting
+  [ HH.testProperty "pool_validator_hash_is_correct" validPoolHash
+  , HH.testProperty "pool_change_stake_part_is_correct (correct minting)" successPoolChangeStakePartCorrectMinting
   , HH.testProperty "pool_change_stake_part_is_incorrect (incorrect minting)" failedPoolChangeStakePartIncorrectMinting
   , HH.testProperty "pool_deposit_is_correct" successPoolDeposit
   , HH.testProperty "pool_swap_is_correct" successPoolSwap
@@ -50,6 +53,12 @@ checkPoolRedeemer = testGroup "CheckPoolRedeemer"
   , HH.testProperty "fail_if_pool_ix_is_incorrect_redeem" poolRedeemRedeemerIncorrectIx
   , HH.testProperty "fail_if_pool_action_is_incorrect_redeem_to_swap" (poolRedeemRedeemerIncorrectAction Pool.Swap)
   ]
+
+validPoolHash :: Property
+validPoolHash = withTests 1 $ property $ do
+  let
+    actualPoolValidatorHash = PV2.validatorHash poolValidator
+  actualPoolValidatorHash === poolValidatorHash
 
 poolDestroyCheck :: Integer -> Either () () -> Property
 poolDestroyCheck lqQty expected = property $ do
@@ -334,7 +343,7 @@ successPoolChangeStakePartCorrectMinting = property $ do
 
     mintValue = mkValue scMintAssetClass 1
 
-    txInfo  = mkTxInfoWithSignaturesAndMinting poolTxIn poolTxOut [stakeAdminPkh] mintValue
+    txInfo  = mkTxInfoWithSignaturesAndMinting [poolTxIn] poolTxOut [stakeAdminPkh] mintValue
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -362,7 +371,7 @@ failedPoolChangeStakePartIncorrectMinting = property $ do
     poolTxIn    = genPTxInWithSC poolTxRef previousSc previousPdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC newPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
-    txInfo  = mkTxInfoWithSignaturesAndMinting poolTxIn poolTxOut [stakeAdminPkh] mempty
+    txInfo  = mkTxInfoWithSignaturesAndMinting [poolTxIn] poolTxOut [stakeAdminPkh] mempty
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -390,7 +399,7 @@ failedPoolChangeStakePart = property $ do
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
   let
-    txInfo  = mkTxInfoWithSignatures poolTxIn poolTxOut [incorrectPkh]
+    txInfo  = mkTxInfoWithSignatures [poolTxIn] [poolTxOut] [incorrectPkh]
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -420,7 +429,7 @@ failedPoolChangeStakePartIncorrectFinalDatum = property $ do
     poolTxOut   = genPTxOutWithSC incorrectPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
   let
-    txInfo  = mkTxInfoWithSignatures poolTxIn poolTxOut [stakeAdminPkh]
+    txInfo  = mkTxInfoWithSignatures [poolTxIn] [poolTxOut] [stakeAdminPkh]
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -447,7 +456,7 @@ failedPoolChangeStakePartIncorrectFinalValue = property $ do
     poolTxOut   = genPTxOutWithSC pdh newSc x 1 y 1 lq 1 nft 0 10000
   
   let
-    txInfo  = mkTxInfoWithSignatures poolTxIn poolTxOut [stakeAdminPkh]
+    txInfo  = mkTxInfoWithSignatures [poolTxIn] [poolTxOut] [stakeAdminPkh]
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose

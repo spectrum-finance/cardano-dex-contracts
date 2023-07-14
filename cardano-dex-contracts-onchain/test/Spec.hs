@@ -12,10 +12,14 @@ import Tests.StakeMinting
 import Test.Tasty
 import Test.Tasty.HUnit
 
+import ErgoDex.PValidators
+import PlutusLedgerApi.V2 as PV2
+import Plutarch.Api.V2
+
 main :: IO ()
 main = do
   defaultMain tests
-
+  
 tests = testGroup "Contracts"
   [ checkStakeChangeMintingPolicy
   , checkPool

@@ -30,6 +30,8 @@ module Gen.Models
   , mkSwapValidator
   , mkPoolValidator
   , mkTxOut
+  , mkUserTxOut
+  , mkUserTxOutWithDatum
   , mkTxOutWithSC
   , mkTxOut'
   , mkTxIn
@@ -173,6 +175,24 @@ mkTxOut od v vh =
     , txOutReferenceScript = Nothing
     }
 
+mkUserTxOut :: Value -> PubKeyHash -> TxOut
+mkUserTxOut v pkh =
+  TxOut
+    { txOutAddress = Address (PubKeyCredential pkh) Nothing
+    , txOutValue   = v
+    , txOutDatum   = NoOutputDatum
+    , txOutReferenceScript = Nothing
+    }
+
+mkUserTxOutWithDatum :: OutputDatum -> Value -> PubKeyHash -> TxOut
+mkUserTxOutWithDatum od v pkh =
+  TxOut
+    { txOutAddress = Address (PubKeyCredential pkh) Nothing
+    , txOutValue   = v
+    , txOutDatum   = od
+    , txOutReferenceScript = Nothing
+    }
+
 mkTxOutWithSC :: OutputDatum -> Value -> ValidatorHash -> Maybe StakingCredential -> TxOut
 mkTxOutWithSC od v vh sc =
   TxOut
@@ -228,11 +248,11 @@ mkTxInfo pIn oIn pOut oOut =
     , txInfoId = "b0"
     }
 
-mkTxInfoWithSignatures :: TxInInfo -> TxOut -> [PubKeyHash] -> TxInfo
-mkTxInfoWithSignatures pIn pOut sigs =
+mkTxInfoWithSignatures :: [TxInInfo] -> [TxOut] -> [PubKeyHash] -> TxInfo
+mkTxInfoWithSignatures pIns pOuts sigs =
   TxInfo
-    { txInfoInputs = [pIn]
-    , txInfoOutputs = [pOut]
+    { txInfoInputs = pIns
+    , txInfoOutputs = pOuts
     , txInfoFee = mempty
     , txInfoMint = mempty
     , txInfoDCert = []
@@ -243,10 +263,10 @@ mkTxInfoWithSignatures pIn pOut sigs =
     , txInfoId = "b0"
     }
 
-mkTxInfoWithSignaturesAndMinting :: TxInInfo -> TxOut -> [PubKeyHash] -> Value -> TxInfo
+mkTxInfoWithSignaturesAndMinting :: [TxInInfo] -> TxOut -> [PubKeyHash] -> Value -> TxInfo
 mkTxInfoWithSignaturesAndMinting pIn pOut sigs mintValue =
   TxInfo
-    { txInfoInputs = [pIn]
+    { txInfoInputs = pIn
     , txInfoOutputs = [pOut]
     , txInfoFee = mempty
     , txInfoMint = mintValue
