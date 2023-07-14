@@ -20,7 +20,7 @@ import PlutusLedgerApi.V1.Value   (TokenName(..))
 import PlutusLedgerApi.V1.Contexts
 
 cfgForMintingValidator :: Config
-cfgForMintingValidator = Config DoTracingAndBinds
+cfgForMintingValidator = Config NoTracing
 
 wrapMintingValidator ::
     PIsData rdmr =>

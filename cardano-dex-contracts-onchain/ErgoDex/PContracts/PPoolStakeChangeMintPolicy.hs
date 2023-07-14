@@ -57,8 +57,6 @@ poolStakeChangeMintPolicyValidatorT = plam $ \_ ctx -> unTermCont $ do
     selfAddr <- tletField @"address" poolInputResolved
     succAddr <- tletField @"address" successor
 
-    succDatum <- tletField @"datum" successor
-
     succPoolOutputDatum' <- tlet $ extractPoolConfig # successor
     prevCred <- tletField @"credential" selfAddr
     newCred  <- tletField @"credential" succAddr
