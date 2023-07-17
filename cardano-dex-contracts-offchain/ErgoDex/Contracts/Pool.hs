@@ -50,9 +50,9 @@ data PoolConfig = PoolConfig
     , poolX   :: AssetClass
     , poolY   :: AssetClass
     , poolLq  :: AssetClass
-    , poolFeeNum  :: Integer
-    , stakeAdmins :: [PubKeyHash]
-    , lqBound     :: Integer
+    , poolFeeNum       :: Integer
+    , stakeAdminPolicy :: [CurrencySymbol]
+    , lqBound          :: Integer
     }
     deriving (Haskell.Show, Eq)
 

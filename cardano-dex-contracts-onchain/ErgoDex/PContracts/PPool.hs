@@ -13,7 +13,7 @@ import qualified GHC.Generics as GHC
 import           Generics.SOP (Generic, I (I))
 
 import Plutarch
-import Plutarch.Api.V2              (PMaybeData (..), PTxOut, POutputDatum(..), PAddress(..), PPubKeyHash(..), PDatum(..), PValue(..), KeyGuarantees(..), AmountGuarantees(..))
+import Plutarch.Api.V2              (PMaybeData (..), PTxOut, POutputDatum(..), PAddress(..), PPubKeyHash(..), PDatum(..), PValue(..), KeyGuarantees(..), AmountGuarantees(..), PCurrencySymbol(..))
 import Plutarch.Api.V2.Contexts     (PScriptContext, PScriptPurpose (PSpending), PTxInfo(..))
 import Plutarch.DataRepr
 import Plutarch.Lift
@@ -36,13 +36,13 @@ newtype PoolConfig (s :: S)
         ( Term
             s
             ( PDataRecord
-                '[ "poolNft"       ':= PAssetClass
-                 , "poolX"         ':= PAssetClass
-                 , "poolY"         ':= PAssetClass
-                 , "poolLq"        ':= PAssetClass
-                 , "feeNum"        ':= PInteger
-                 , "stakeAdmins"   ':= PBuiltinList (PAsData PPubKeyHash)
-                 , "lqBound"       ':= PInteger
+                '[ "poolNft"          ':= PAssetClass
+                 , "poolX"            ':= PAssetClass
+                 , "poolY"            ':= PAssetClass
+                 , "poolLq"           ':= PAssetClass
+                 , "feeNum"           ':= PInteger
+                 , "stakeAdminPolicy" ':= PBuiltinList (PAsData PCurrencySymbol)
+                 , "lqBound"          ':= PInteger
                  ]
             )
         )
@@ -205,10 +205,13 @@ findPoolOutput =
                 )
                 (const $ ptraceError "Pool output not found")
 
-poolCheckStakeChange :: ClosedTerm (PTxInfo :--> PBool)
-poolCheckStakeChange = plam $ \txInfo -> unTermCont $ do
+poolCheckStakeChange :: ClosedTerm (PoolConfig :--> PTxInfo :--> PBool)
+poolCheckStakeChange = plam $ \cfg txInfo -> unTermCont $ do
   valueMint <- tletField @"mint" txInfo
-  let mintedAc = assetClass # poolStakeChangeMintCurSymbolP # poolStakeChangeMintTokenNameP
+  policies  <- tletField @"stakeAdminPolicy" cfg
+  let 
+      policyCS = pfromData $ phead # policies
+      mintedAc = assetClass # policyCS # poolStakeChangeMintTokenNameP
   pure $ assetClassValueOf # valueMint # mintedAc #== 1
 
 poolValidatorT :: ClosedTerm (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
@@ -277,6 +280,6 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
                     valid = pmatch action $ \case
                         Swap -> swapAllowed #&& selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
-                        ChangeStakingPool -> poolCheckStakeChange # txinfo'
+                        ChangeStakingPool -> poolCheckStakeChange # conf # txinfo'
                         _ -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
                 pure valid

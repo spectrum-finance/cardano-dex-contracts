@@ -16,6 +16,8 @@ import Plutarch.Api.V2 (scriptHash)
 import Plutarch.Prelude
 import PlutusTx.Builtins.Internal
 
+import qualified Data.Text as T
+
 import qualified ErgoDex.Contracts.Pool   as Pool
 import ErgoDex.PContracts.PPoolStakeChangeMintPolicy
 import ErgoDex.PMintingValidators
@@ -45,11 +47,15 @@ checkStakeChangeMintingPolicy = testGroup "StakeMinting"
 
 correctCurrencySymbol :: Property
 correctCurrencySymbol = withTests 1 $ property $ do
-  let origCurSymbol = Plutus.CurrencySymbol $ getScriptHash $ scriptHash (Plutus.unMintingPolicyScript poolStakeChangeMintPolicyValidator)
-  origCurSymbol === poolStakeChangeMintCurSymbol
+  let
+    stakeAdminPkh  = (PubKeyHash $ BuiltinByteString . mkByteString $ T.pack "61616161616161616161616161616161616161616161616161616161")
+    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "e64efcb1db9998803fadf1972a4f538964733dd4c762f41814598193"
+    (_, _, nft, _) = genAssetClasses
+    origCurSymbol = Plutus.CurrencySymbol $ getScriptHash $ scriptHash (Plutus.unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
+  origCurSymbol === correctCSValue
 
 successPoolChangeStakePart :: Property
-successPoolChangeStakePart = withTests 1 $ property $ do
+successPoolChangeStakePart = property $ do
   let (x, y, nft, lq) = genAssetClasses
   
   stakeAdminPkh  <- forAll genPkh
@@ -58,11 +64,12 @@ successPoolChangeStakePart = withTests 1 $ property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
-  
+    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
+
   poolTxRef    <- forAll genTxOutRef
   userFeeTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
+    (pcfg, pdh) = genPConfig x y nft lq 1 [mintingCS] 0
     feeTxIn     = genUTxIn userFeeTxRef 10 userFeePkh
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
@@ -76,13 +83,12 @@ successPoolChangeStakePart = withTests 1 $ property $ do
 
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.ChangeStakingPool
-    testRes = evalWithArgs (wrapMintingValidator poolStakeChangeMintPolicyValidatorT) [poolRedeemToData, cxtToData]
-    result = eraseRight $ evalWithArgs (wrapMintingValidator poolStakeChangeMintPolicyValidatorT) [poolRedeemToData, cxtToData]
+    result = eraseRight $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant stakeAdminPkh))) [poolRedeemToData, cxtToData]
 
   result === Right ()
 
 successPoolstakeAdminDestory :: Property
-successPoolstakeAdminDestory = withTests 1 $ property $ do
+successPoolstakeAdminDestory = property $ do
   let (x, y, nft, lq) = genAssetClasses
   
   stakeAdminPkh <- forAll genPkh
@@ -91,11 +97,12 @@ successPoolstakeAdminDestory = withTests 1 $ property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
+    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
   
   poolTxRef    <- forAll genTxOutRef
   userFeeTxRef <- forAll genTxOutRef
   let
-    (pcfg, previousPdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
+    (pcfg, previousPdh) = genPConfig x y nft lq 1 [mintingCS] 0
     
     (_, newPdh) = genPConfig x y nft lq 1 [] 0
     feeTxIn     = genUTxIn userFeeTxRef 10 userFeePkh
@@ -109,7 +116,7 @@ successPoolstakeAdminDestory = withTests 1 $ property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.ChangeStakingPool
 
-    result = eraseRight $ evalWithArgs (wrapMintingValidator poolStakeChangeMintPolicyValidatorT) [poolRedeemToData, cxtToData]
+    result = eraseRight $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant stakeAdminPkh))) [poolRedeemToData, cxtToData]
 
   result === Right ()
 
@@ -124,11 +131,12 @@ failedPoolChangeStakePart = property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
+    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
   
   poolTxRef    <- forAll genTxOutRef
   userFeeTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
+    (pcfg, pdh) = genPConfig x y nft lq 1 [mintingCS] 0
     feeTxIn     = genUTxIn userFeeTxRef 10 userFeePkh
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
@@ -140,7 +148,7 @@ failedPoolChangeStakePart = property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.ChangeStakingPool
 
-    result = eraseLeft $ evalWithArgs (wrapMintingValidator poolStakeChangeMintPolicyValidatorT) [poolRedeemToData, cxtToData]
+    result = eraseLeft $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant stakeAdminPkh))) [poolRedeemToData, cxtToData]
 
   result === Left ()
 
@@ -154,11 +162,12 @@ failedPoolChangeStakePartIncorrectFinalValue = property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
+    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
   
   poolTxRef    <- forAll genTxOutRef
   userFeeTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
+    (pcfg, pdh) = genPConfig x y nft lq 1 [mintingCS] 0
     feeTxIn     = genUTxIn userFeeTxRef 10 userFeePkh
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 1 y 1 lq 1 nft 0 10000
@@ -170,7 +179,7 @@ failedPoolChangeStakePartIncorrectFinalValue = property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.ChangeStakingPool
 
-    result = eraseLeft $ evalWithArgs (wrapMintingValidator poolStakeChangeMintPolicyValidatorT) [poolRedeemToData, cxtToData]
+    result = eraseLeft $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant stakeAdminPkh))) [poolRedeemToData, cxtToData]
 
   result === Left ()
 
@@ -186,13 +195,16 @@ failedPoolChangeStakePartIncorrectFinalDatum = property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
-  
+
+    mintingCS    = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
+    newMintingCS = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft userFeePkh))
+
   poolTxRef    <- forAll genTxOutRef
   userFeeTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
+    (pcfg, pdh) = genPConfig x y nft lq 1 [mintingCS] 0
     feeTxIn     = genUTxIn userFeeTxRef 10 userFeePkh
-    (_, incorrectPdh) = genPConfig incorretX incorrectY incorrectNft incorrectlq 1 [userFeePkh] 100
+    (_, incorrectPdh) = genPConfig incorretX incorrectY incorrectNft incorrectlq 1 [newMintingCS] 100
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC incorrectPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
@@ -203,12 +215,12 @@ failedPoolChangeStakePartIncorrectFinalDatum = property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.ChangeStakingPool
   
-    result = eraseLeft $ evalWithArgs (wrapMintingValidator poolStakeChangeMintPolicyValidatorT) [poolRedeemToData, cxtToData]
+    result = eraseLeft $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant userFeePkh))) [poolRedeemToData, cxtToData]
 
   result === Left ()
 
 failedPoolChangeStakePartIncorrectInputsFakePool :: Property
-failedPoolChangeStakePartIncorrectInputsFakePool = withTests 1 $ property $ do
+failedPoolChangeStakePartIncorrectInputsFakePool = property $ do
   let (x, y, nft, lq) = genAssetClasses
   let (newX, newY, newNft, newLq) = genAssetClasses
 
@@ -220,12 +232,15 @@ failedPoolChangeStakePartIncorrectInputsFakePool = withTests 1 $ property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
+
+    mintingCS    = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
+    newMintingCS = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft userPkh))
   
   poolTxRef      <- forAll genTxOutRef
   userPoolTxRef  <- forAll genTxOutRef
   let
-    (pcfg, originalPD) = genPConfig x y nft lq 1 [stakeAdminPkh] 0
-    (_, userPd)   = genPConfig newX newY newNft newLq 1 [userPkh] 0
+    (pcfg, originalPD) = genPConfig x y nft lq 1 [mintingCS] 0
+    (_, userPd)   = genPConfig newX newY newNft newLq 1 [newMintingCS] 0
     poolTxIn      = genPTxInWithSC poolTxRef previousSc originalPD x 10 y 10 lq 9223372036854775797 nft 1 10000
     userPoolTxIn  = genPTxInWithSC userPoolTxRef previousSc userPd newX 10 newY 10 newLq 9223372036854775797 newNft 1 10000
     poolTxOut     = genPTxOutWithSC originalPD newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
@@ -237,13 +252,13 @@ failedPoolChangeStakePartIncorrectInputsFakePool = withTests 1 $ property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.ChangeStakingPool
   
-    result = eraseLeft $ evalWithArgs (wrapMintingValidator poolStakeChangeMintPolicyValidatorT) [poolRedeemToData, cxtToData]
+    result = eraseLeft $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant userPkh))) [poolRedeemToData, cxtToData]
 
   result === Left ()
 
--- Inputs: User input with same pool datum (except of stakeAdmins), original pool input
+-- Inputs: User input with same pool datum (except of stakeAdminPolicy), original pool input
 failedPoolChangeStakePartIncorrectInputsFakeDatum :: Property
-failedPoolChangeStakePartIncorrectInputsFakeDatum = withTests 1 $ property $ do
+failedPoolChangeStakePartIncorrectInputsFakeDatum = property $ do
   let (x, y, nft, lq) = genAssetClasses
   
   stakeAdminPkh <- forAll genPkh
@@ -252,12 +267,15 @@ failedPoolChangeStakePartIncorrectInputsFakeDatum = withTests 1 $ property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
+
+    mintingCS     = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
+    newMintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft userFeePkh))
   
   poolTxRef    <- forAll genTxOutRef
   userFeeTxRef <- forAll genTxOutRef
   let
-    (pcfg, pdh)  = genPConfig x y nft lq 1 [stakeAdminPkh] 0
-    (_, userPd)  = genPConfig x y nft lq 1 [userFeePkh] 0
+    (pcfg, pdh)  = genPConfig x y nft lq 1 [mintingCS] 0
+    (_, userPd)  = genPConfig x y nft lq 1 [newMintingCS] 0
     userTxInWithPoolDatum = genUTxInWithDatum userFeeTxRef 10 userPd userFeePkh
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
@@ -268,6 +286,6 @@ failedPoolChangeStakePartIncorrectInputsFakeDatum = withTests 1 $ property $ do
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.ChangeStakingPool
   
-    result = eraseLeft $ evalWithArgs (wrapMintingValidator poolStakeChangeMintPolicyValidatorT) [poolRedeemToData, cxtToData]
+    result = eraseLeft $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant stakeAdminPkh))) [poolRedeemToData, cxtToData]
 
   result === Left ()

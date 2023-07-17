@@ -24,6 +24,8 @@ module PExtra.API (
 import qualified GHC.Generics as GHC
 
 import Plutarch.Prelude
+import Plutarch.DataRepr
+import Plutarch.Lift
 
 import Plutarch.Api.V2 (
     PAddress (PAddress),
@@ -76,6 +78,9 @@ newtype PAssetClass (s :: S)
     deriving anyclass (PIsData, PDataFields, PlutusType, PTryFrom PData)
 
 instance DerivePlutusType PAssetClass where type DPTStrat _ = PlutusTypeData
+
+instance PUnsafeLiftDecl PAssetClass where type PLifted PAssetClass = Value.AssetClass
+deriving via (DerivePConstantViaData Value.AssetClass PAssetClass) instance (PConstantDecl Value.AssetClass)
 
 instance PEq PAssetClass where
     a #== b =

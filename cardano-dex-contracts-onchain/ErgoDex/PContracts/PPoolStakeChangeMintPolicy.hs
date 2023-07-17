@@ -1,11 +1,11 @@
 module ErgoDex.PContracts.PPoolStakeChangeMintPolicy where
 
-import ErgoDex.PContracts.PApi (ownCurrencySymbol, tletUnwrap, containsSignature)
-import PExtra.API (assetClass, assetClassValueOf, ptryFromData)
+import ErgoDex.PContracts.PApi (ownCurrencySymbol, tletUnwrap, containsSignature, checkPoolNft)
+import PExtra.API (assetClass, assetClassValueOf, ptryFromData, PAssetClass(..))
 import PExtra.List (pexists)
 import PExtra.Monadic
 import Plutarch
-import Plutarch.Api.V2
+import Plutarch.Api.V2 
 import Plutarch.Api.V1 (PTokenName)
 import Plutarch.Api.V1.Value
 import Plutarch.Prelude
@@ -25,8 +25,8 @@ extractPoolConfig = plam $ \txOut -> unTermCont $ do
 
   tletUnwrap $ ptryFromData @(PoolConfig) $ poolDatum
 
-poolStakeChangeMintPolicyValidatorT :: Term s (PData :--> PScriptContext :--> PBool)
-poolStakeChangeMintPolicyValidatorT = plam $ \_ ctx -> unTermCont $ do
+poolStakeChangeMintPolicyValidatorT :: Term s PAssetClass -> Term s PPubKeyHash -> Term s (PData :--> PScriptContext :--> PBool)
+poolStakeChangeMintPolicyValidatorT poolNft adminPkh = plam $ \_ ctx -> unTermCont $ do
     txinfo' <- tletField @"txInfo" ctx
     txinfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txinfo'
 
@@ -48,9 +48,7 @@ poolStakeChangeMintPolicyValidatorT = plam $ \_ ctx -> unTermCont $ do
     poolInputValue  <- tletField @"value" poolInputResolved
     poolInputConfig <- tlet $ extractPoolConfig # poolInputResolved
 
-    nft <- tletField @"poolNft" poolInputConfig
-
-    successor  <- tlet $ findPoolOutput # nft # outputs
+    successor  <- tlet $ findPoolOutput # poolNft # outputs
 
     poolOutputValue <- tletField @"value" successor
 
@@ -65,7 +63,7 @@ poolStakeChangeMintPolicyValidatorT = plam $ \_ ctx -> unTermCont $ do
 
     PNoOutputDatum _ <- pmatchC feeInputDatum
 
-    prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "stakeAdmins", "lqBound"] poolInputConfig
+    prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] poolInputConfig
     newConf  <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] succPoolOutputDatum'
     let
         prevPoolNft    = getField @"poolNft" prevConf
@@ -93,10 +91,9 @@ poolStakeChangeMintPolicyValidatorT = plam $ \_ ctx -> unTermCont $ do
 
         validDelta = poolInputValue #== poolOutputValue
         validCred  = prevCred #== newCred
-                
-        stakeAdmins    = getField @"stakeAdmins" prevConf
 
-        stakeAdmin     = pfromData $ phead # stakeAdmins
-        validSignature = containsSignature # signatories # stakeAdmin
+        correctPoolInput = checkPoolNft # poolInputValue # poolNft
+                
+        validSignature = containsSignature # signatories # adminPkh
     
     pure $ strictInputs #&& validDelta #&& validPoolParams #&& validCred #&& validSignature
