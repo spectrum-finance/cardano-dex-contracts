@@ -205,14 +205,40 @@ findPoolOutput =
                 )
                 (const $ ptraceError "Pool output not found")
 
-poolCheckStakeChange :: ClosedTerm (PoolConfig :--> PTxInfo :--> PBool)
-poolCheckStakeChange = plam $ \cfg txInfo -> unTermCont $ do
+poolCheckStakeChange :: ClosedTerm (PoolConfig :--> PTxInfo :--> PDatum :--> PBool)
+poolCheckStakeChange = plam $ \cfg txInfo nextPoolDatum -> unTermCont $ do
   valueMint <- tletField @"mint" txInfo
   policies  <- tletField @"stakeAdminPolicy" cfg
-  let 
+
+  PDatum poolDatum <- pmatchC nextPoolDatum
+  pcfg <- tletUnwrap $ ptryFromData @(PoolConfig) $ poolDatum
+
+  prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] cfg
+  newConf  <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] pcfg
+  let
+      prevPoolNft    = getField @"poolNft" prevConf
+      prevPoolX      = getField @"poolX"   prevConf
+      prevPoolY      = getField @"poolY"   prevConf
+      prevPoolLq     = getField @"poolLq"  prevConf
+      prevPoolFeeNum = getField @"feeNum"  prevConf
+
+      newPoolNft     = pfromData $ getField @"poolNft" newConf
+      newPoolX       = pfromData $ getField @"poolX"   newConf
+      newPoolY       = pfromData $ getField @"poolY"   newConf
+      newPoolLq      = pfromData $ getField @"poolLq"  newConf
+      newPoolFeeNum  = pfromData $ getField @"feeNum"  newConf
+
+      validPoolParams = 
+          prevPoolNft    #== newPoolNft    #&&
+          prevPoolX      #== newPoolX      #&&
+          prevPoolY      #== newPoolY      #&&
+          prevPoolLq     #== newPoolLq     #&&
+          prevPoolFeeNum #== newPoolFeeNum
+
       policyCS = pfromData $ phead # policies
       mintedAc = assetClass # policyCS # poolStakeChangeMintTokenNameP
-  pure $ assetClassValueOf # valueMint # mintedAc #== 1
+
+  pure $ (assetClassValueOf # valueMint # mintedAc #== 1) #&& validPoolParams
 
 poolValidatorT :: ClosedTerm (PoolConfig :--> PoolRedeemer :--> PScriptContext :--> PBool)
 poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
@@ -280,6 +306,6 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
                     valid = pmatch action $ \case
                         Swap -> swapAllowed #&& selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
-                        ChangeStakingPool -> poolCheckStakeChange # conf # txinfo'
+                        ChangeStakingPool -> poolCheckStakeChange # conf # txinfo' # succD
                         _ -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
                 pure valid

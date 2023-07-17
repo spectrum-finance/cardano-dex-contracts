@@ -40,11 +40,6 @@ poolStakeChangeMintPolicyValidatorT poolNft adminPkh = plam $ \_ ctx -> unTermCo
     let
       poolInputResolved = getField @"resolved" poolInput
 
-    feeInput' <- tlet $ pelemAt # 1 # inputs
-    feeInput  <- pletFieldsC @'["outRef", "resolved"] feeInput'
-    let
-      feeInputResolved = getField @"resolved" feeInput
-    
     poolInputValue  <- tletField @"value" poolInputResolved
     poolInputConfig <- tlet $ extractPoolConfig # poolInputResolved
 
@@ -58,10 +53,6 @@ poolStakeChangeMintPolicyValidatorT poolNft adminPkh = plam $ \_ ctx -> unTermCo
     succPoolOutputDatum' <- tlet $ extractPoolConfig # successor
     prevCred <- tletField @"credential" selfAddr
     newCred  <- tletField @"credential" succAddr
-
-    feeInputDatum <- tletField @"datum" feeInputResolved
-
-    PNoOutputDatum _ <- pmatchC feeInputDatum
 
     prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] poolInputConfig
     newConf  <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] succPoolOutputDatum'
@@ -85,10 +76,6 @@ poolStakeChangeMintPolicyValidatorT poolNft adminPkh = plam $ \_ ctx -> unTermCo
             prevPoolLq     #== newPoolLq     #&&
             prevPoolFeeNum #== newPoolFeeNum
 
-        strictInputs =
-          let inputsLength = plength # inputs
-          in inputsLength #== 2
-
         validDelta = poolInputValue #== poolOutputValue
         validCred  = prevCred #== newCred
 
@@ -96,4 +83,4 @@ poolStakeChangeMintPolicyValidatorT poolNft adminPkh = plam $ \_ ctx -> unTermCo
                 
         validSignature = containsSignature # signatories # adminPkh
     
-    pure $ strictInputs #&& validDelta #&& validPoolParams #&& validCred #&& validSignature #&& correctPoolInput
+    pure $ validDelta #&& validPoolParams #&& validCred #&& validSignature #&& correctPoolInput

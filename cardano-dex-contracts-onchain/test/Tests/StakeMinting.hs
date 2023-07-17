@@ -49,7 +49,7 @@ correctCurrencySymbol :: Property
 correctCurrencySymbol = withTests 1 $ property $ do
   let
     stakeAdminPkh  = (PubKeyHash $ BuiltinByteString . mkByteString $ T.pack "61616161616161616161616161616161616161616161616161616161")
-    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "5115309ffa85b7ae1f6edd731f974b8b36083e2464a9347d76c0e697"
+    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "518c79b04ec296af266171bb9551f917b69604fac9c7bc6b90db281e"
     (_, _, nft, _) = genAssetClasses
     origCurSymbol = Plutus.CurrencySymbol $ getScriptHash $ scriptHash (Plutus.unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
   origCurSymbol === correctCSValue
@@ -222,9 +222,8 @@ failedPoolChangeStakePartIncorrectFinalDatum = property $ do
 failedPoolChangeStakePartIncorrectInputsFakePool :: Property
 failedPoolChangeStakePartIncorrectInputsFakePool = property $ do
   let (x, y, nft, lq) = genAssetClasses
-  let (newX, newY, newNft, newLq) = genAssetClasses
 
-  (incorretX, incorrectY, incorrectNft, incorrectlq) <- forAll genRandomAssetClasses
+  (newX, newY, newNft, newLq) <- forAll genRandomAssetClasses
   
   stakeAdminPkh <- forAll genPkh
   newPkhForSC   <- forAll genPkh

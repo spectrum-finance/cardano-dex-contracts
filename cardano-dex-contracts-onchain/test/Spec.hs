@@ -19,23 +19,23 @@ import Plutarch.Api.V2
 main :: IO ()
 main = do
   defaultMain tests
-  
+
 tests = testGroup "Contracts"
   [ checkStakeChangeMintingPolicy
-  -- , checkPool
-  -- , checkPoolRedeemer
-  -- , checkRedeem
-  -- , checkRedeemIdentity
-  -- , checkRedeemIsFair
-  -- , checkRedeemRedeemer
-  -- , checkDeposit 
-  -- , checkDepositChange
-  -- , checkDepositRedeemer
-  -- , checkDepositIdentity
-  -- , checkDepositLq
-  -- , checkDepositTokenReward
-  -- , checkSwap
-  -- , checkSwapRedeemer
-  -- , checkSwapIdentity
-  -- , checkPkhLockStaking
+  , checkPool
+  , checkPoolRedeemer
+  , checkRedeem
+  , checkRedeemIdentity
+  , checkRedeemIsFair
+  , checkRedeemRedeemer
+  , checkDeposit 
+  , checkDepositChange
+  , checkDepositRedeemer
+  , checkDepositIdentity
+  , checkDepositLq
+  , checkDepositTokenReward
+  , checkSwap
+  , checkSwapRedeemer
+  , checkSwapIdentity
+  , checkPkhLockStaking
   ]
