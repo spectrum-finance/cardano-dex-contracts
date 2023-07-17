@@ -96,4 +96,4 @@ poolStakeChangeMintPolicyValidatorT poolNft adminPkh = plam $ \_ ctx -> unTermCo
                 
         validSignature = containsSignature # signatories # adminPkh
     
-    pure $ strictInputs #&& validDelta #&& validPoolParams #&& validCred #&& validSignature
+    pure $ strictInputs #&& validDelta #&& validPoolParams #&& validCred #&& validSignature #&& correctPoolInput

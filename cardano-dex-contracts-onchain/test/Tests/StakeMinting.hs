@@ -49,7 +49,7 @@ correctCurrencySymbol :: Property
 correctCurrencySymbol = withTests 1 $ property $ do
   let
     stakeAdminPkh  = (PubKeyHash $ BuiltinByteString . mkByteString $ T.pack "61616161616161616161616161616161616161616161616161616161")
-    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "e64efcb1db9998803fadf1972a4f538964733dd4c762f41814598193"
+    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "5115309ffa85b7ae1f6edd731f974b8b36083e2464a9347d76c0e697"
     (_, _, nft, _) = genAssetClasses
     origCurSymbol = Plutus.CurrencySymbol $ getScriptHash $ scriptHash (Plutus.unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
   origCurSymbol === correctCSValue
@@ -74,7 +74,7 @@ successPoolChangeStakePart = property $ do
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
     poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
 
-    scMintAssetClass = mkAssetClass poolStakeChangeMintCurSymbol poolStakeChangeMintTokenName
+    scMintAssetClass = mkAssetClass mintingCS poolStakeChangeMintTokenName
 
     mintValue = mkValue scMintAssetClass 1
 
