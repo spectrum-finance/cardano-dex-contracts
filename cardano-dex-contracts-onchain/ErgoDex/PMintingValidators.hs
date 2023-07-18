@@ -44,8 +44,8 @@ poolLqMiningValidator oref tn emission =
         wrapMintingValidator $
             A.poolLqMintValidatorT (pconstant oref) (pconstant tn) (pconstant emission)
 
-poolStakeChangeMintPolicyValidator :: AssetClass -> PubKeyHash -> MintingPolicy
-poolStakeChangeMintPolicyValidator ac stakeAdminPkh = 
+poolStakeChangeMintPolicyValidator :: AssetClass -> [PubKeyHash] -> Integer -> MintingPolicy
+poolStakeChangeMintPolicyValidator ac stakeAdminPkh threshold = 
     mkMintingPolicy cfgForMintingValidator $ 
         wrapMintingValidator $
-            poolStakeChangeMintPolicyValidatorT (pconstant ac) (pconstant stakeAdminPkh)
+            poolStakeChangeMintPolicyValidatorT (pconstant ac) (pconstant stakeAdminPkh) (pconstant threshold)

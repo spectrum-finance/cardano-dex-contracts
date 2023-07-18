@@ -334,7 +334,7 @@ successPoolChangeStakePartCorrectMinting = property $ do
   let
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
-    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
+    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft [stakeAdminPkh] 1))
 
   poolTxRef <- forAll genTxOutRef
   let
@@ -365,7 +365,7 @@ failedPoolChangeStakePartIncorrectMinting = property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
-    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
+    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft [stakeAdminPkh] 1))
   
   poolTxRef <- forAll genTxOutRef
   let
@@ -396,7 +396,7 @@ failedPoolChangeStakePartIncorrectDatum = property $ do
   let 
     previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
     newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
-    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft stakeAdminPkh))
+    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft [stakeAdminPkh] 1))
   
   poolTxRef <- forAll genTxOutRef
   let

@@ -25,8 +25,8 @@ extractPoolConfig = plam $ \txOut -> unTermCont $ do
 
   tletUnwrap $ ptryFromData @(PoolConfig) $ poolDatum
 
-poolStakeChangeMintPolicyValidatorT :: Term s PAssetClass -> Term s PPubKeyHash -> Term s (PData :--> PScriptContext :--> PBool)
-poolStakeChangeMintPolicyValidatorT poolNft adminPkh = plam $ \_ ctx -> unTermCont $ do
+poolStakeChangeMintPolicyValidatorT :: Term s PAssetClass -> Term s (PBuiltinList PPubKeyHash) -> Term s PInteger -> Term s (PData :--> PScriptContext :--> PBool)
+poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx -> unTermCont $ do
     txinfo' <- tletField @"txInfo" ctx
     txinfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txinfo'
 
@@ -81,6 +81,9 @@ poolStakeChangeMintPolicyValidatorT poolNft adminPkh = plam $ \_ ctx -> unTermCo
 
         correctPoolInput = checkPoolNft # poolInputValue # poolNft
                 
-        validSignature = containsSignature # signatories # adminPkh
-    
-    pure $ validDelta #&& validPoolParams #&& validCred #&& validSignature #&& correctPoolInput
+        validSignaturesQty = 
+          pfoldl # plam (\acc pkh -> pif (containsSignature # signatories # pkh) (acc + 1) acc) # 0 # adminsPkhs
+
+        validThreshold = threshold #<= validSignaturesQty
+
+    pure $ validDelta #&& validPoolParams #&& validCred #&& validThreshold #&& correctPoolInput
