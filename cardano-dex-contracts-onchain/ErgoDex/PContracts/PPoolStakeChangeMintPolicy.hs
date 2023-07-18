@@ -41,7 +41,6 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx
       poolInputResolved = getField @"resolved" poolInput
 
     poolInputValue  <- tletField @"value" poolInputResolved
-    poolInputConfig <- tlet $ extractPoolConfig # poolInputResolved
 
     successor  <- tlet $ findPoolOutput # poolNft # outputs
 
@@ -54,27 +53,9 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx
     prevCred <- tletField @"credential" selfAddr
     newCred  <- tletField @"credential" succAddr
 
-    prevConf <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] poolInputConfig
-    newConf  <- pletFieldsC @'["poolNft", "poolX", "poolY", "poolLq", "feeNum", "lqBound"] succPoolOutputDatum'
+    newAdminPolicy <- tletField @"stakeAdminPolicy" succPoolOutputDatum'
     let
-        prevPoolNft    = getField @"poolNft" prevConf
-        prevPoolX      = getField @"poolX"   prevConf
-        prevPoolY      = getField @"poolY"   prevConf
-        prevPoolLq     = getField @"poolLq"  prevConf
-        prevPoolFeeNum = getField @"feeNum"  prevConf
-
-        newPoolNft    = pfromData $ getField @"poolNft" newConf
-        newPoolX      = pfromData $ getField @"poolX"   newConf
-        newPoolY      = pfromData $ getField @"poolY"   newConf
-        newPoolLq     = pfromData $ getField @"poolLq"  newConf
-        newPoolFeeNum = pfromData $ getField @"feeNum"  newConf
-
-        validPoolParams = 
-            prevPoolNft    #== newPoolNft    #&&
-            prevPoolX      #== newPoolX      #&&
-            prevPoolY      #== newPoolY      #&&
-            prevPoolLq     #== newPoolLq     #&&
-            prevPoolFeeNum #== newPoolFeeNum
+        correctFinalPolicy = pnull # newAdminPolicy
 
         validDelta = poolInputValue #== poolOutputValue
         validCred  = prevCred #== newCred
@@ -86,4 +67,4 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx
 
         validThreshold = threshold #<= validSignaturesQty
 
-    pure $ validDelta #&& validPoolParams #&& validCred #&& validThreshold #&& correctPoolInput
+    pure $ validDelta #&& correctFinalPolicy #&& validCred #&& validThreshold #&& correctPoolInput

@@ -51,7 +51,7 @@ correctCurrencySymbol :: Property
 correctCurrencySymbol = withTests 1 $ property $ do
   let
     stakeAdminPkh  = (PubKeyHash $ BuiltinByteString . mkByteString $ T.pack "61616161616161616161616161616161616161616161616161616161")
-    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "7537ad022323ebc25b5e64c99b93312183aec3264c9f775852182a74"
+    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "d7acc15d3f8fd5fd9630d8525716be72730e7acb271faef89d6c7a3e"
     (_, _, nft, _) = genAssetClasses
     origCurSymbol = Plutus.CurrencySymbol $ getScriptHash $ scriptHash (Plutus.unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft [stakeAdminPkh] 1))
   origCurSymbol === correctCSValue
@@ -72,9 +72,10 @@ successPoolChangeStakePart = property $ do
   userFeeTxRef <- forAll genTxOutRef
   let
     (pcfg, pdh) = genPConfig x y nft lq 1 [mintingCS] 0
+    (_, newPdh) = genPConfig x y nft lq 1 [] 0
     feeTxIn     = genUTxIn userFeeTxRef 10 userFeePkh
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
-    poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
+    poolTxOut   = genPTxOutWithSC newPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
 
     scMintAssetClass = mkAssetClass mintingCS poolStakeChangeMintTokenName
 
@@ -107,9 +108,10 @@ successPoolChangeStakePartWithThreshold = property $ do
   userFeeTxRef <- forAll genTxOutRef
   let
     (pcfg, pdh) = genPConfig x y nft lq 1 [mintingCS] 0
+    (_, newPdh) = genPConfig x y nft lq 1 [] 0
     feeTxIn     = genUTxIn userFeeTxRef 10 userFeePkh
     poolTxIn    = genPTxInWithSC poolTxRef previousSc pdh x 10 y 10 lq 9223372036854775797 nft 1 10000
-    poolTxOut   = genPTxOutWithSC pdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
+    poolTxOut   = genPTxOutWithSC newPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
 
     scMintAssetClass = mkAssetClass mintingCS poolStakeChangeMintTokenName
 
