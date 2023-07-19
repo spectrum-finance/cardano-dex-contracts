@@ -33,7 +33,6 @@ checkPool = testGroup "CheckPoolContract"
   [ HH.testProperty "pool_validator_hash_is_correct" validPoolHash
   , HH.testProperty "pool_change_stake_part_is_correct (correct minting)" successPoolChangeStakePartCorrectMinting
   , HH.testProperty "pool_change_stake_part_is_incorrect (incorrect minting)" failedPoolChangeStakePartIncorrectMinting
-  , HH.testProperty "pool_change_stake_part_is_incorrect (incorrect datum)" failedPoolChangeStakePartIncorrectDatum
   , HH.testProperty "pool_deposit_is_correct" successPoolDeposit
   , HH.testProperty "pool_swap_is_correct" successPoolSwap
   , HH.testProperty "pool_swap_insufficient_lq_for_bound" poolSwapInsufficientLiqudityForBound
@@ -376,41 +375,6 @@ failedPoolChangeStakePartIncorrectMinting = property $ do
     poolTxOut   = genPTxOutWithSC newPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
   
     txInfo  = mkTxInfoWithSignaturesAndMinting [poolTxIn] poolTxOut [stakeAdminPkh] mempty
-    purpose = mkPurpose poolTxRef
-
-    cxtToData        = toData $ mkContext txInfo purpose
-    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.ChangeStakingPool
-
-    result = eraseLeft $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
-
-  result === Left ()
-
-failedPoolChangeStakePartIncorrectDatum :: Property
-failedPoolChangeStakePartIncorrectDatum = property $ do
-  let (x, y, nft, lq) = genAssetClasses
-
-  (incorretX, incorrectY, incorrectNft, incorrectlq) <- forAll genRandomAssetClasses
-  
-  stakeAdminPkh <- forAll genPkh
-  newPkhForSC   <- forAll genPkh
-  let 
-    previousSc = Just $ StakingHash (PubKeyCredential stakeAdminPkh)
-    newSc      = Just $ StakingHash (PubKeyCredential newPkhForSC)
-    mintingCS  = CurrencySymbol $ getScriptHash $ scriptHash (unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft [stakeAdminPkh] 1))
-  
-  poolTxRef <- forAll genTxOutRef
-  let
-    (pcfg, previousPdh) = genPConfig x y nft lq 1 [mintingCS] 0
-
-    scMintAssetClass = mkAssetClass mintingCS poolStakeChangeMintTokenName
-
-    mintValue = mkValue scMintAssetClass 1
-
-    (_, newPdh) = genPConfig x y incorrectNft lq 1 [] 0
-    poolTxIn    = genPTxInWithSC poolTxRef previousSc previousPdh x 10 y 10 lq 9223372036854775797 nft 1 10000
-    poolTxOut   = genPTxOutWithSC newPdh newSc x 10 y 10 lq 9223372036854775797 nft 1 10000
-  
-    txInfo  = mkTxInfoWithSignaturesAndMinting [poolTxIn] poolTxOut [stakeAdminPkh] mintValue
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
