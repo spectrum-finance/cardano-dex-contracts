@@ -16,7 +16,8 @@ import Plutarch.Unsafe (punsafeCoerce)
 import qualified ErgoDex.PContracts.PAssets as A
 import ErgoDex.PContracts.PPoolStakeChangeMintPolicy
 import PlutusLedgerApi.V1.Scripts (MintingPolicy(..))
-import PlutusLedgerApi.V1.Value   (TokenName(..))
+import PlutusLedgerApi.V1.Value   (TokenName(..), AssetClass(..))
+import PlutusLedgerApi.V1.Crypto  (PubKeyHash)
 import PlutusLedgerApi.V1.Contexts
 
 cfgForMintingValidator :: Config
@@ -43,5 +44,8 @@ poolLqMiningValidator oref tn emission =
         wrapMintingValidator $
             A.poolLqMintValidatorT (pconstant oref) (pconstant tn) (pconstant emission)
 
-poolStakeChangeMintPolicyValidator :: MintingPolicy
-poolStakeChangeMintPolicyValidator = mkMintingPolicy cfgForMintingValidator $ wrapMintingValidator poolStakeChangeMintPolicyValidatorT
+poolStakeChangeMintPolicyValidator :: AssetClass -> [PubKeyHash] -> Integer -> MintingPolicy
+poolStakeChangeMintPolicyValidator ac stakeAdminPkh threshold = 
+    mkMintingPolicy cfgForMintingValidator $ 
+        wrapMintingValidator $
+            poolStakeChangeMintPolicyValidatorT (pconstant ac) (pconstant stakeAdminPkh) (pconstant threshold)

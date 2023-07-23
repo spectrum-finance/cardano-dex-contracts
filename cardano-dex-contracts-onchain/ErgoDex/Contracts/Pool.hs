@@ -15,13 +15,13 @@ import PlutusLedgerApi.V1.Value
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 
 data PoolConfig = PoolConfig
-    { poolNft      :: AssetClass
-    , poolX        :: AssetClass
-    , poolY        :: AssetClass
-    , poolLq       :: AssetClass
-    , poolFeeNum   :: Integer
-    , stakeAdmins  :: [PubKeyHash]
-    , lqBound      :: Integer
+    { poolNft          :: AssetClass
+    , poolX            :: AssetClass
+    , poolY            :: AssetClass
+    , poolLq           :: AssetClass
+    , poolFeeNum       :: Integer
+    , stakeAdminPolicy :: [CurrencySymbol]
+    , lqBound          :: Integer
     }
     deriving stock (Show)
 

@@ -13,7 +13,7 @@ import UntypedPlutusCore (DeBruijn, DefaultFun, DefaultUni, Program)
 import PlutusTx (Data)
 
 evalConfig :: Config
-evalConfig = Config DoTracing
+evalConfig = Config NoTracing
 
 evalWithArgs :: ClosedTerm a -> [Data] -> Either Text (ExBudget, [Text], Program DeBruijn DefaultUni DefaultFun ())
 evalWithArgs x args = do

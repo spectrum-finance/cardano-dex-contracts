@@ -30,6 +30,8 @@ module Gen.Models
   , mkSwapValidator
   , mkPoolValidator
   , mkTxOut
+  , mkUserTxOut
+  , mkUserTxOutWithDatum
   , mkTxOutWithSC
   , mkTxOut'
   , mkTxIn
@@ -119,8 +121,8 @@ mkValues :: [Value] -> Value -> Value
 mkValues (x:xs) acc = mkValues xs (x <> acc)
 mkValues [] acc = acc
 
-mkPoolConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [PubKeyHash] -> Integer -> P.PoolConfig
-mkPoolConfig nft x y lq fee stakeAdmin lqBound = P.PoolConfig nft x y lq fee stakeAdmin lqBound
+mkPoolConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> [CurrencySymbol] -> Integer -> P.PoolConfig
+mkPoolConfig nft x y lq fee stakeAdminCS lqBound = P.PoolConfig nft x y lq fee stakeAdminCS lqBound
 
 mkDepositConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> Integer -> D.DepositConfig
 mkDepositConfig nft x y lq fee pkh cFee = D.DepositConfig nft x y lq fee pkh Nothing cFee
@@ -168,6 +170,24 @@ mkTxOut :: OutputDatum -> Value -> ValidatorHash -> TxOut
 mkTxOut od v vh =
   TxOut
     { txOutAddress = Address (ScriptCredential vh) Nothing
+    , txOutValue   = v
+    , txOutDatum   = od
+    , txOutReferenceScript = Nothing
+    }
+
+mkUserTxOut :: Value -> PubKeyHash -> TxOut
+mkUserTxOut v pkh =
+  TxOut
+    { txOutAddress = Address (PubKeyCredential pkh) Nothing
+    , txOutValue   = v
+    , txOutDatum   = NoOutputDatum
+    , txOutReferenceScript = Nothing
+    }
+
+mkUserTxOutWithDatum :: OutputDatum -> Value -> PubKeyHash -> TxOut
+mkUserTxOutWithDatum od v pkh =
+  TxOut
+    { txOutAddress = Address (PubKeyCredential pkh) Nothing
     , txOutValue   = v
     , txOutDatum   = od
     , txOutReferenceScript = Nothing
@@ -228,11 +248,11 @@ mkTxInfo pIn oIn pOut oOut =
     , txInfoId = "b0"
     }
 
-mkTxInfoWithSignatures :: TxInInfo -> TxOut -> [PubKeyHash] -> TxInfo
-mkTxInfoWithSignatures pIn pOut sigs =
+mkTxInfoWithSignatures :: [TxInInfo] -> [TxOut] -> [PubKeyHash] -> TxInfo
+mkTxInfoWithSignatures pIns pOuts sigs =
   TxInfo
-    { txInfoInputs = [pIn]
-    , txInfoOutputs = [pOut]
+    { txInfoInputs = pIns
+    , txInfoOutputs = pOuts
     , txInfoFee = mempty
     , txInfoMint = mempty
     , txInfoDCert = []
@@ -243,10 +263,10 @@ mkTxInfoWithSignatures pIn pOut sigs =
     , txInfoId = "b0"
     }
 
-mkTxInfoWithSignaturesAndMinting :: TxInInfo -> TxOut -> [PubKeyHash] -> Value -> TxInfo
+mkTxInfoWithSignaturesAndMinting :: [TxInInfo] -> TxOut -> [PubKeyHash] -> Value -> TxInfo
 mkTxInfoWithSignaturesAndMinting pIn pOut sigs mintValue =
   TxInfo
-    { txInfoInputs = [pIn]
+    { txInfoInputs = pIn
     , txInfoOutputs = [pOut]
     , txInfoFee = mempty
     , txInfoMint = mintValue
