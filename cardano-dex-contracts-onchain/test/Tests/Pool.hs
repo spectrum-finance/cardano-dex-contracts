@@ -63,7 +63,7 @@ validPoolHash = withTests 1 $ property $ do
   actualPoolValidatorHash === poolValidatorHash
 
 poolDestroyCheck :: Integer -> Either () () -> Property
-poolDestroyCheck lqQty expected = property $ do
+poolDestroyCheck lqQty expected = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   
   poolTxRef <- forAll genTxOutRef
@@ -82,7 +82,7 @@ poolDestroyCheck lqQty expected = property $ do
   result === expected
 
 poolDestroyCheckIncorrectPoolInput :: Integer -> Property
-poolDestroyCheckIncorrectPoolInput lqQty = property $ do
+poolDestroyCheckIncorrectPoolInput lqQty = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
 
   (_, _, fakeNft, _) <- forAll genRandomAssetClasses
@@ -105,7 +105,7 @@ poolDestroyCheckIncorrectPoolInput lqQty = property $ do
   result === Left ()
 
 successPoolRedeem :: Property
-successPoolRedeem = property $ do
+successPoolRedeem = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -132,7 +132,7 @@ successPoolRedeem = property $ do
   result === Right ()
 
 poolRedeemLqCheck :: Integer -> Integer -> Integer -> Property
-poolRedeemLqCheck xQty yQty lqOutQty = property $ do
+poolRedeemLqCheck xQty yQty lqOutQty = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -159,7 +159,7 @@ poolRedeemLqCheck xQty yQty lqOutQty = property $ do
   result === Left ()
 
 poolRedeemRedeemerIncorrectIx :: Property
-poolRedeemRedeemerIncorrectIx = property $ do
+poolRedeemRedeemerIncorrectIx = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -186,7 +186,7 @@ poolRedeemRedeemerIncorrectIx = property $ do
   result === Left ()
 
 poolRedeemRedeemerIncorrectAction :: Pool.PoolAction -> Property
-poolRedeemRedeemerIncorrectAction action = property $ do
+poolRedeemRedeemerIncorrectAction action = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -213,7 +213,7 @@ poolRedeemRedeemerIncorrectAction action = property $ do
   result === Left ()
 
 successPoolSwap :: Property
-successPoolSwap = property $ do
+successPoolSwap = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -240,7 +240,7 @@ successPoolSwap = property $ do
   result === Right ()
 
 poolSwapInsufficientLiqudityForBound :: Property
-poolSwapInsufficientLiqudityForBound = property $ do
+poolSwapInsufficientLiqudityForBound = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -267,7 +267,7 @@ poolSwapInsufficientLiqudityForBound = property $ do
   result === Left ()
 
 poolSwapRedeemerIncorrectIx :: Property
-poolSwapRedeemerIncorrectIx = property $ do
+poolSwapRedeemerIncorrectIx = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -294,7 +294,7 @@ poolSwapRedeemerIncorrectIx = property $ do
   result === Left ()
 
 poolSwapRedeemerIncorrectAction :: Pool.PoolAction -> Property
-poolSwapRedeemerIncorrectAction action = property $ do
+poolSwapRedeemerIncorrectAction action = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -321,7 +321,7 @@ poolSwapRedeemerIncorrectAction action = property $ do
   result === Left ()
 
 successPoolDeposit :: Property
-successPoolDeposit = property $ do
+successPoolDeposit = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -348,7 +348,7 @@ successPoolDeposit = property $ do
   result === Right ()
 
 successPoolChangeStakePartCorrectMinting :: Property
-successPoolChangeStakePartCorrectMinting = property $ do
+successPoolChangeStakePartCorrectMinting = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   
   stakeAdminPkh  <- forAll genPkh
@@ -379,7 +379,7 @@ successPoolChangeStakePartCorrectMinting = property $ do
   result === Right ()
 
 failedPoolChangeStakePartIncorrectMinting :: Property
-failedPoolChangeStakePartIncorrectMinting = property $ do
+failedPoolChangeStakePartIncorrectMinting = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   
   stakeAdminPkh <- forAll genPkh
@@ -408,7 +408,7 @@ failedPoolChangeStakePartIncorrectMinting = property $ do
   result === Left ()
 
 poolDepositRedeemerIncorrectIx :: Property
-poolDepositRedeemerIncorrectIx = property $ do
+poolDepositRedeemerIncorrectIx = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
@@ -436,7 +436,7 @@ poolDepositRedeemerIncorrectIx = property $ do
   result === Left ()
 
 poolDepositRedeemerIncorrectAction :: Pool.PoolAction -> Property
-poolDepositRedeemerIncorrectAction action = property $ do
+poolDepositRedeemerIncorrectAction action = withTests 1 $ property $ do
   let (x, y, nft, lq) = genAssetClasses
   pkh             <- forAll genPkh
   orderTxRef      <- forAll genTxOutRef
