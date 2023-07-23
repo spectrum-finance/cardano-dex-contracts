@@ -38,7 +38,7 @@ import qualified Prelude as Haskell
 
 import ErgoDex.Contracts.Types
 import qualified GHC.Generics as Haskell
-import Plutus.V1.Ledger.Value (AssetClass, assetClassValueOf, flattenValue)
+import Plutus.V1.Ledger.Value (AssetClass, assetClassValueOf, flattenValue, CurrencySymbol)
 import Plutus.V1.Ledger.Api   (PubKeyHash)
 import qualified PlutusTx
 import PlutusTx.Builtins
