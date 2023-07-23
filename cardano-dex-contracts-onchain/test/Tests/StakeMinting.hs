@@ -52,7 +52,7 @@ correctCurrencySymbol :: Property
 correctCurrencySymbol = withTests 1 $ property $ do
   let
     stakeAdminPkh  = (PubKeyHash $ BuiltinByteString . mkByteString $ T.pack "61616161616161616161616161616161616161616161616161616161")
-    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "d323683b6b00f04a0b74f0525721f91061704f4a8e79434dcd6309e4"
+    correctCSValue = Plutus.CurrencySymbol $ BuiltinByteString . mkByteString $ T.pack "d7d2d653cc0e13188a9471ce2e1e2ab659629b21f3678056a85cc33c"
     (_, _, nft, _) = genAssetClasses
     origCurSymbol = Plutus.CurrencySymbol $ getScriptHash $ scriptHash (Plutus.unMintingPolicyScript (poolStakeChangeMintPolicyValidator nft [stakeAdminPkh] 1))
   origCurSymbol === correctCSValue
@@ -394,6 +394,6 @@ failedPoolChangeStakePartIncorrectPoolIdx = property $ do
 
     cxtToData        = toData $ mkContext txInfo purpose
     poolRedeemToData = toData (1 :: Integer)
-    result = eraseRight $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant [stakeAdminPkh]) (pconstant 1))) [poolRedeemToData, cxtToData]
+    result = eraseLeft $ evalWithArgs (wrapMintingValidator (poolStakeChangeMintPolicyValidatorT (pconstant nft) (pconstant [stakeAdminPkh]) (pconstant 1))) [poolRedeemToData, cxtToData]
 
   result === Left ()

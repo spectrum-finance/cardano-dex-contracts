@@ -37,6 +37,12 @@ genPTxOut od x xQty y yQty lq lqQty nft nftQty adaQty =
     value = mkValues [mkValue x xQty, mkValue y yQty, mkValue lq lqQty, mkValue nft nftQty, mkAdaValue adaQty] mempty
   in mkTxOut od value mkPoolValidator
 
+genPTxOutWithAdditionalTokens :: OutputDatum -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> AssetClass -> Integer -> TxOut
+genPTxOutWithAdditionalTokens od x xQty y yQty lq lqQty nft nftQty adaQty additionalToken additionalTokenQty =
+  let
+    value = mkValues [mkValue x xQty, mkValue y yQty, mkValue lq lqQty, mkValue nft nftQty, mkValue additionalToken additionalTokenQty, mkAdaValue adaQty] mempty
+  in mkTxOut od value mkPoolValidator
+
 genPTxOutWithSC :: OutputDatum -> Maybe StakingCredential -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> AssetClass -> Integer -> Integer -> TxOut
 genPTxOutWithSC od sc x xQty y yQty lq lqQty nft nftQty adaQty =
   let

@@ -15,7 +15,7 @@ import qualified PlutusLedgerApi.V1 as Plutus
 import ErgoDex.Utils
 
 poolValidatorHashValue :: String
-poolValidatorHashValue = "db5f86596284b426cb113a50139eb52317bea385815a4691a758c750"
+poolValidatorHashValue = "e628bfd68c07a7a38fcd7d8df650812a9dfdbee54b1ed4c25c87ffbf"
 
 poolValidatorHash :: Plutus.ValidatorHash
 poolValidatorHash = Plutus.ValidatorHash $ BuiltinByteString . mkByteString $ T.pack poolValidatorHashValue
