@@ -25,8 +25,8 @@ extractPoolConfig = plam $ \txOut -> unTermCont $ do
 
   tletUnwrap $ ptryFromData @(PoolConfig) $ poolDatum
 
-poolStakeChangeMintPolicyValidatorT :: Term s PAssetClass -> Term s (PBuiltinList PPubKeyHash) -> Term s PInteger -> Term s (PData :--> PScriptContext :--> PBool)
-poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx -> unTermCont $ do
+poolStakeChangeMintPolicyValidatorT :: Term s PAssetClass -> Term s (PBuiltinList PPubKeyHash) -> Term s PInteger -> Term s (PInteger :--> PScriptContext :--> PBool)
+poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \poolIdx ctx -> unTermCont $ do
     txinfo' <- tletField @"txInfo" ctx
     txinfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txinfo'
 
@@ -35,7 +35,7 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx
 
     signatories <- tletUnwrap $ getField @"signatories" txinfo
 
-    poolInput' <- tlet $ pelemAt # 0 # inputs
+    poolInput' <- tlet $ pelemAt # poolIdx # inputs
     poolInput  <- pletFieldsC @'["outRef", "resolved"] poolInput'
     let
       poolInputResolved = getField @"resolved" poolInput

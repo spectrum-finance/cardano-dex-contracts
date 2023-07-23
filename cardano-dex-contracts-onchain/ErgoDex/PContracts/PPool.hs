@@ -161,37 +161,6 @@ readPoolState = phoistAcyclic $
                     #$ pdcons @"liquidity" @PInteger # lq
                         # pdnil
 
--- validDepositRedeem :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
--- validDepositRedeem = phoistAcyclic $
---     plam $ \state' dx dy dlq -> unTermCont $ do
---         state <- pletFieldsC @'["reservesX", "reservesY", "liquidity"] state'
---         let
---             rx = getField @"reservesX" state
---             ry = getField @"reservesY" state
---             lq = getField @"liquidity" state
-
---         pure $ dlq * rx #<= dx * lq #&& dlq * ry #<= dy * lq
-
--- validSwap :: Term s (PoolConfig :--> PoolState :--> PInteger :--> PInteger :--> PBool)
--- validSwap = phoistAcyclic $
---     plam $ \conf state' dx dy -> unTermCont $ do
---         state <- pletFieldsC @'["reservesX", "reservesY"] state'
---         let 
---             rx = getField @"reservesX" state
---             ry = getField @"reservesY" state
-
---         feeNum  <- tletField @"feeNum" conf
---         feeDen' <- tlet feeDen
-
---         let
---            dxf = dx * feeNum
---            dyf = dy * feeNum
---         pure $
---             pif
---                 (zero #< dx)
---                 (-dy * (rx * feeDen' + dxf) #<= ry * dxf)
---                 (-dx * (ry * feeDen' + dyf) #<= rx * dyf)
-
 -- Guarantees preservation of pool NFT
 findPoolOutput :: Term s (PAssetClass :--> PBuiltinList PTxOut :--> PTxOut)
 findPoolOutput =
