@@ -28,7 +28,7 @@ import PExtra.List                  (pelemAt)
 import PExtra.Monadic               (tcon, tlet, tletField, tmatch)
 
 import qualified ErgoDex.Contracts.Pool     as P
-import           ErgoDex.PContracts.PApi    (burnLqInitial, feeDen, maxLqCap, tletUnwrap, zero, containsSignature)
+import           ErgoDex.PContracts.PApi    (burnLqInitial, feeDen, maxLqCap, tletUnwrap, zero, containsSignature, checkPoolNft)
 import           ErgoDex.PConstants
 
 newtype PoolConfig (s :: S)
@@ -228,18 +228,29 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
     inputs  <- tletUnwrap $ getField @"inputs" txInfo
     selfIn' <- tlet $ pelemAt # selfIx # inputs
     selfIn  <- pletFieldsC @'["outRef", "resolved"] selfIn'
+
+    PSpending selfRef' <- pmatchC $ getField @"purpose" ctx
+
+    selfRef <- tletField @"_0" selfRef'
     let 
+        selfInRef    = getField @"outRef" selfIn
+        selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
+
         self = getField @"resolved" selfIn
+    
+    poolInputValue  <- tletField @"value" self
+
+    nft <- tletField @"poolNft" conf
+    let correctPoolInput = checkPoolNft # poolInputValue # nft
 
     s0  <- tlet $ readPoolState # conf # self
     lq0 <- tletField @"liquidity" s0
 
     pure $
         pmatch action $ \case
-            Destroy -> lq0 #<= burnLqInitial -- all tokens except for permanetly locked ones are removed
+            Destroy -> correctPoolInput #&& (lq0 #<= burnLqInitial) -- all tokens except for permanetly locked ones are removed
             _ -> unTermCont $ do
                 outputs <- tletUnwrap $ getField @"outputs" txInfo
-                nft     <- tletField @"poolNft" conf
 
                 successor     <- tlet $ findPoolOutput # nft # outputs -- nft is preserved
 
@@ -252,13 +263,6 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 let dx  = rx1 - rx0
                     dy  = ry1 - ry0
                     dlq = lq1 - lq0 -- pool keeps only the negative part of LQ tokens
-
-                PSpending selfRef' <- pmatchC $ getField @"purpose" ctx
-
-                selfRef <- tletField @"_0" selfRef'
-                let 
-                    selfInRef    = getField @"outRef" selfIn
-                    selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
 
                 selfDatum <- tletField @"datum" self
                 succDatum <- tletField @"datum" successor
@@ -279,7 +283,7 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 let 
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
                     valid = pmatch action $ \case
-                        Swap -> swapAllowed #&& selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
+                        Swap -> swapAllowed #&& correctPoolInput #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
                         ChangeStakingPool -> poolCheckStakeChange # conf # txinfo'
-                        _ -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
+                        _ -> correctPoolInput #&& confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
                 pure valid

@@ -43,6 +43,7 @@ checkPool = testGroup "CheckPoolContract"
   , HH.testProperty "pool_destroy_lq_burnLqInitial" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial) (Right ()))
   , HH.testProperty "pool_destroy_lq_burnLqInitial-1" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial + 1) (Right ()))
   , HH.testProperty "pool_destroy_lq_burnLqInitial+1" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial - 1) (Left ()))
+  , HH.testProperty "pool_destroy_incorrect_pool_input" (poolDestroyCheckIncorrectPoolInput (Pool.maxLqCap - Pool.burnLqInitial))
   ]
 
 checkPoolRedeemer = testGroup "CheckPoolRedeemer"
@@ -70,8 +71,7 @@ poolDestroyCheck lqQty expected = property $ do
     (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genDTxIn poolTxRef pdh lq lqQty nft 1 5000000
   
-  let
-    txInfo  = mkDTxInfo poolTxIn
+    txInfo  = mkDTxInfo [poolTxIn]
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -80,6 +80,29 @@ poolDestroyCheck lqQty expected = property $ do
     result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
 
   result === expected
+
+poolDestroyCheckIncorrectPoolInput :: Integer -> Property
+poolDestroyCheckIncorrectPoolInput lqQty = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+
+  (_, _, fakeNft, _) <- forAll genRandomAssetClasses
+
+  poolTxRef      <- forAll genTxOutRef
+  incorrectTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
+    poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
+    incorrectPoolTxIn = genDTxIn incorrectTxRef pdh lq lqQty fakeNft 1 5000000 
+
+    txInfo  = mkDTxInfo [incorrectPoolTxIn, poolTxIn]
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Destroy
+
+    result = eraseLeft $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
 
 successPoolRedeem :: Property
 successPoolRedeem = property $ do
