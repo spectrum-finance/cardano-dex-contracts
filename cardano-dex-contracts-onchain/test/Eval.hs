@@ -11,6 +11,7 @@ import PlutusLedgerApi.V1.Scripts (Script (unScript), applyArguments)
 import Control.Arrow
 import UntypedPlutusCore (DeBruijn, DefaultFun, DefaultUni, Program)
 import PlutusTx (Data)
+import Debug.Trace
 
 evalConfig :: Config
 evalConfig = Config NoTracing
@@ -19,6 +20,7 @@ evalWithArgs :: ClosedTerm a -> [Data] -> Either Text (ExBudget, [Text], Program
 evalWithArgs x args = do
   cmp <- compile evalConfig x
   let (escr, budg, trc) = evalScript $ applyArguments cmp args
+  -- traceM $ show budg
   scr <- left (pack . show) escr
   pure (budg, trc, unScript scr)
 

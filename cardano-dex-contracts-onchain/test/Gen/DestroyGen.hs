@@ -20,10 +20,10 @@ genDTxIn ref od lq lqQty nft nftQty adaQty =
     txOut = mkTxOut od value mkPoolValidator
   in mkTxIn ref txOut
 
-mkDTxInfo :: TxInInfo -> TxInfo
+mkDTxInfo :: [TxInInfo] -> TxInfo
 mkDTxInfo pIn =
   TxInfo
-    { txInfoInputs = [pIn]
+    { txInfoInputs = pIn
     , txInfoOutputs = []
     , txInfoFee = mempty
     , txInfoMint = mempty

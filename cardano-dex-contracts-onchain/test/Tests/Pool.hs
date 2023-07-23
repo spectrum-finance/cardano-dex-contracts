@@ -37,12 +37,14 @@ checkPool = testGroup "CheckPoolContract"
   , HH.testProperty "pool_swap_is_correct" successPoolSwap
   , HH.testProperty "pool_swap_insufficient_lq_for_bound" poolSwapInsufficientLiqudityForBound
   , HH.testProperty "pool_redeem_is_correct" successPoolRedeem
+  , HH.testProperty "pool_swap_additional_tokens" incorrectPoolSwapAdditionalTokens
   , HH.testProperty "pool_redeem_too_much_liquidity_removed" (poolRedeemLqCheck 9 9 9223372036854775797)
   , HH.testProperty "pool_redeem_liquidity_removed_lq_intact" (poolRedeemLqCheck 19 19 9223372036854775787)
   , HH.testProperty "pool_redeem_liquidity_intact_lq_removed" (poolRedeemLqCheck 20 20 9223372036854775786)
   , HH.testProperty "pool_destroy_lq_burnLqInitial" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial) (Right ()))
   , HH.testProperty "pool_destroy_lq_burnLqInitial-1" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial + 1) (Right ()))
   , HH.testProperty "pool_destroy_lq_burnLqInitial+1" (poolDestroyCheck (Pool.maxLqCap - Pool.burnLqInitial - 1) (Left ()))
+  , HH.testProperty "pool_destroy_incorrect_pool_input" (poolDestroyCheckIncorrectPoolInput (Pool.maxLqCap - Pool.burnLqInitial))
   ]
 
 checkPoolRedeemer = testGroup "CheckPoolRedeemer"
@@ -70,8 +72,7 @@ poolDestroyCheck lqQty expected = property $ do
     (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
     poolTxIn    = genDTxIn poolTxRef pdh lq lqQty nft 1 5000000
   
-  let
-    txInfo  = mkDTxInfo poolTxIn
+    txInfo  = mkDTxInfo [poolTxIn]
     purpose = mkPurpose poolTxRef
 
     cxtToData        = toData $ mkContext txInfo purpose
@@ -80,6 +81,29 @@ poolDestroyCheck lqQty expected = property $ do
     result = eraseBoth $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
 
   result === expected
+
+poolDestroyCheckIncorrectPoolInput :: Integer -> Property
+poolDestroyCheckIncorrectPoolInput lqQty = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+
+  (_, _, fakeNft, _) <- forAll genRandomAssetClasses
+
+  poolTxRef      <- forAll genTxOutRef
+  incorrectTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 1 [] 0
+    poolTxIn    = genPTxIn poolTxRef pdh x 20 y 20 lq 9223372036854775787 nft 1 5000000
+    incorrectPoolTxIn = genDTxIn incorrectTxRef pdh lq lqQty fakeNft 1 5000000 
+
+    txInfo  = mkDTxInfo [incorrectPoolTxIn, poolTxIn]
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Destroy
+
+    result = eraseLeft $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
 
 successPoolRedeem :: Property
 successPoolRedeem = property $ do
@@ -215,6 +239,34 @@ successPoolSwap = property $ do
     result = eraseRight $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
 
   result === Right ()
+
+incorrectPoolSwapAdditionalTokens :: Property
+incorrectPoolSwapAdditionalTokens = property $ do
+  let (x, y, nft, lq) = genAssetClasses
+  (tokenA, _, _, _) <- forAll genRandomAssetClasses
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genSConfig x y nft 995 500000 1 pkh 10 4
+    orderTxIn     = genSTxIn orderTxRef dh x 10 3813762
+    orderTxOut    = genSTxOut dh y 4 1813762 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 995 [] 0
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000000
+    poolTxOut   = genPTxOutWithAdditionalTokens pdh x 20 y 6 lq 9223372036854775797 nft 1 3000000 tokenA 10
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Swap
+
+    result = eraseLeft $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
 
 poolSwapInsufficientLiqudityForBound :: Property
 poolSwapInsufficientLiqudityForBound = property $ do

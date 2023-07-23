@@ -161,37 +161,6 @@ readPoolState = phoistAcyclic $
                     #$ pdcons @"liquidity" @PInteger # lq
                         # pdnil
 
-validDepositRedeem :: Term s (PoolState :--> PInteger :--> PInteger :--> PInteger :--> PBool)
-validDepositRedeem = phoistAcyclic $
-    plam $ \state' dx dy dlq -> unTermCont $ do
-        state <- pletFieldsC @'["reservesX", "reservesY", "liquidity"] state'
-        let
-            rx = getField @"reservesX" state
-            ry = getField @"reservesY" state
-            lq = getField @"liquidity" state
-
-        pure $ dlq * rx #<= dx * lq #&& dlq * ry #<= dy * lq
-
-validSwap :: Term s (PoolConfig :--> PoolState :--> PInteger :--> PInteger :--> PBool)
-validSwap = phoistAcyclic $
-    plam $ \conf state' dx dy -> unTermCont $ do
-        state <- pletFieldsC @'["reservesX", "reservesY"] state'
-        let 
-            rx = getField @"reservesX" state
-            ry = getField @"reservesY" state
-
-        feeNum  <- tletField @"feeNum" conf
-        feeDen' <- tlet feeDen
-
-        let
-           dxf = dx * feeNum
-           dyf = dy * feeNum
-        pure $
-            pif
-                (zero #< dx)
-                (-dy * (rx * feeDen' + dxf) #<= ry * dxf)
-                (-dx * (ry * feeDen' + dyf) #<= rx * dyf)
-
 -- Guarantees preservation of pool NFT
 findPoolOutput :: Term s (PAssetClass :--> PBuiltinList PTxOut :--> PTxOut)
 findPoolOutput =
@@ -228,22 +197,32 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
     inputs  <- tletUnwrap $ getField @"inputs" txInfo
     selfIn' <- tlet $ pelemAt # selfIx # inputs
     selfIn  <- pletFieldsC @'["outRef", "resolved"] selfIn'
-    let 
-        self = getField @"resolved" selfIn
 
-    s0  <- tlet $ readPoolState # conf # self
+    PSpending selfRef' <- pmatchC $ getField @"purpose" ctx
+
+    selfRef <- tletField @"_0" selfRef'
+    let 
+        selfInRef    = getField @"outRef" selfIn
+        selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
+
+        selfInput = getField @"resolved" selfIn
+        
+    s0  <- tlet $ readPoolState # conf # selfInput
     lq0 <- tletField @"liquidity" s0
 
     pure $
-        pmatch action $ \case
+        selfIdentity #&& (pmatch action $ \case
             Destroy -> lq0 #<= burnLqInitial -- all tokens except for permanetly locked ones are removed
             _ -> unTermCont $ do
                 outputs <- tletUnwrap $ getField @"outputs" txInfo
-                nft     <- tletField @"poolNft" conf
 
-                successor     <- tlet $ findPoolOutput # nft # outputs -- nft is preserved
+                nft <- tletField @"poolNft" conf
 
-                s1  <- tlet $ readPoolState # conf # successor
+                successorOut <- tlet $ findPoolOutput # nft # outputs -- nft is preserved
+                successor <- pletFieldsC @'["datum", "address", "value"] successorOut
+                self      <- pletFieldsC @'["datum", "address", "value"] selfInput
+
+                s1  <- tlet $ readPoolState # conf # successorOut
                 rx0 <- tletField @"reservesX" s0
                 rx1 <- tletField @"reservesX" s1
                 ry0 <- tletField @"reservesY" s0
@@ -253,15 +232,8 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                     dy  = ry1 - ry0
                     dlq = lq1 - lq0 -- pool keeps only the negative part of LQ tokens
 
-                PSpending selfRef' <- pmatchC $ getField @"purpose" ctx
-
-                selfRef <- tletField @"_0" selfRef'
-                let 
-                    selfInRef    = getField @"outRef" selfIn
-                    selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
-
-                selfDatum <- tletField @"datum" self
-                succDatum <- tletField @"datum" successor
+                selfDatum <- tletUnwrap $ getField @"datum" self
+                succDatum <- tletUnwrap $ getField @"datum" successor
 
                 POutputDatum selfD' <- pmatchC selfDatum
                 POutputDatum succD' <- pmatchC succDatum
@@ -274,12 +246,36 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                     confPreserved = selfD #== succD -- config preserved
                     swapAllowed   = lqBound #<= (rx0 * 2)
 
-                selfAddr <- tletField @"address" self
-                succAddr <- tletField @"address" successor
+                selfValue     <- tletUnwrap $ getField @"value" self
+                succesorValue <- tletUnwrap $ getField @"value" successor
+
+                let 
+                    selfValueLength = plength # (pto . pto $ selfValue)
+                    succesorValueLength = plength # (pto . pto $ succesorValue)
+
+                    noMoreTokens = selfValueLength #== succesorValueLength
+
+                selfAddr <- tletUnwrap $ getField @"address" self
+                succAddr <- tletUnwrap $ getField @"address" successor
                 let 
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
                     valid = pmatch action $ \case
-                        Swap -> swapAllowed #&& selfIdentity #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
+                        Swap -> unTermCont $ do
+                            feeNum  <- tletField @"feeNum" conf
+                            feeDen' <- tlet feeDen
+                            let
+                                dxf = dx * feeNum
+                                dyf = dy * feeNum
+                                validSwap =
+                                    pif
+                                        (zero #< dx)
+                                        (-dy * (rx0 * feeDen' + dxf) #<= ry0 * dxf)
+                                        (-dx * (ry0 * feeDen' + dyf) #<= rx0 * dyf)                            
+                            pure $ noMoreTokens #&& swapAllowed #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap -- liquidity left intact and swap is performed properly
                         ChangeStakingPool -> poolCheckStakeChange # conf # txinfo'
-                        _ -> selfIdentity #&& confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
+                        _ -> 
+                            let
+                              validDepositRedeem = dlq * rx0 #<= dx * lq0 #&& dlq * ry0 #<= dy * lq0
+                            in noMoreTokens #&& confPreserved #&& scriptPreserved #&& validDepositRedeem -- either deposit or redeem is performed properly                
                 pure valid
+            )

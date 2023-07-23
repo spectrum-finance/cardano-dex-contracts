@@ -25,8 +25,8 @@ extractPoolConfig = plam $ \txOut -> unTermCont $ do
 
   tletUnwrap $ ptryFromData @(PoolConfig) $ poolDatum
 
-poolStakeChangeMintPolicyValidatorT :: Term s PAssetClass -> Term s (PBuiltinList PPubKeyHash) -> Term s PInteger -> Term s (PData :--> PScriptContext :--> PBool)
-poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx -> unTermCont $ do
+poolStakeChangeMintPolicyValidatorT :: Term s PAssetClass -> Term s (PBuiltinList PPubKeyHash) -> Term s PInteger -> Term s (PInteger :--> PScriptContext :--> PBool)
+poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \poolIdx ctx -> unTermCont $ do
     txinfo' <- tletField @"txInfo" ctx
     txinfo  <- tcont $ pletFields @'["inputs", "outputs", "signatories"] txinfo'
 
@@ -35,7 +35,7 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx
 
     signatories <- tletUnwrap $ getField @"signatories" txinfo
 
-    poolInput' <- tlet $ pelemAt # 0 # inputs
+    poolInput' <- tlet $ pelemAt # poolIdx # inputs
     poolInput  <- pletFieldsC @'["outRef", "resolved"] poolInput'
     let
       poolInputResolved = getField @"resolved" poolInput
@@ -62,6 +62,7 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx
         prevPoolY      = getField @"poolY"   prevConf
         prevPoolLq     = getField @"poolLq"  prevConf
         prevPoolFeeNum = getField @"feeNum"  prevConf
+        prevLqBound    = getField @"lqBound"  prevConf
 
         newPoolNft     = pfromData $ getField @"poolNft" newConf
         newPoolX       = pfromData $ getField @"poolX"   newConf
@@ -69,12 +70,14 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \_ ctx
         newPoolLq      = pfromData $ getField @"poolLq"  newConf
         newPoolFeeNum  = pfromData $ getField @"feeNum"  newConf
         newAdminPolicy = pfromData $ getField @"stakeAdminPolicy" newConf
+        newLqBound     = pfromData $ getField @"lqBound" newConf
 
         validPoolParams = 
             prevPoolNft    #== newPoolNft    #&&
             prevPoolX      #== newPoolX      #&&
             prevPoolY      #== newPoolY      #&&
             prevPoolLq     #== newPoolLq     #&&
+            prevLqBound    #== newLqBound    #&&
             prevPoolFeeNum #== newPoolFeeNum
 
         correctFinalPolicy = pnull # newAdminPolicy
