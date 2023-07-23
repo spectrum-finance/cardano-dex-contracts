@@ -62,6 +62,7 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \poolI
         prevPoolY      = getField @"poolY"   prevConf
         prevPoolLq     = getField @"poolLq"  prevConf
         prevPoolFeeNum = getField @"feeNum"  prevConf
+        prevLqBound    = getField @"lqBound"  prevConf
 
         newPoolNft     = pfromData $ getField @"poolNft" newConf
         newPoolX       = pfromData $ getField @"poolX"   newConf
@@ -69,12 +70,14 @@ poolStakeChangeMintPolicyValidatorT poolNft adminsPkhs threshold = plam $ \poolI
         newPoolLq      = pfromData $ getField @"poolLq"  newConf
         newPoolFeeNum  = pfromData $ getField @"feeNum"  newConf
         newAdminPolicy = pfromData $ getField @"stakeAdminPolicy" newConf
+        newLqBound     = pfromData $ getField @"lqBound" newConf
 
         validPoolParams = 
             prevPoolNft    #== newPoolNft    #&&
             prevPoolX      #== newPoolX      #&&
             prevPoolY      #== newPoolY      #&&
             prevPoolLq     #== newPoolLq     #&&
+            prevLqBound    #== newLqBound    #&&
             prevPoolFeeNum #== newPoolFeeNum
 
         correctFinalPolicy = pnull # newAdminPolicy
