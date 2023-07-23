@@ -238,8 +238,6 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
 
         self = getField @"resolved" selfIn
     
-    poolInputValue  <- tletField @"value" self
-
     s0  <- tlet $ readPoolState # conf # self
     lq0 <- tletField @"liquidity" s0
 
@@ -282,7 +280,8 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 let 
                     scriptPreserved = succAddr #== selfAddr -- validator, staking cred preserved
                     valid = pmatch action $ \case
-                        Swap -> correctPoolInput #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
+                        Swap -> swapAllowed #&& confPreserved #&& scriptPreserved #&& dlq #== 0 #&& validSwap # conf # s0 # dx # dy -- liquidity left intact and swap is performed properly
                         ChangeStakingPool -> poolCheckStakeChange # conf # txinfo'
                         _ -> confPreserved #&& scriptPreserved #&& validDepositRedeem # s0 # dx # dy # dlq -- either deposit or redeem is performed properly                
                 pure valid
+            )
