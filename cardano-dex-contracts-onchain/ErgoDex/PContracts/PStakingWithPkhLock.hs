@@ -14,14 +14,18 @@ import Plutarch.Api.V2          (PPubKeyHash)
 import ErgoDex.PContracts.PApi  (containsSignature)
 import PExtra.Monadic           (tletField)
 
-pkhLockStakingValidatorT :: Term s PPubKeyHash -> Term s (PData :--> PScriptContext :--> PBool)
-pkhLockStakingValidatorT authPkh = plam $ \_ ctx' -> unTermCont $ do
+pkhLockStakingValidatorT :: Term s (PBuiltinList PPubKeyHash) -> Term s PInteger -> Term s (PData :--> PScriptContext :--> PBool)
+pkhLockStakingValidatorT adminsPkhs threshold = plam $ \_ ctx' -> unTermCont $ do
     ctx    <- pletFieldsC @'["txInfo", "purpose"] ctx'
     let txInfo' = getField @"txInfo" ctx
 
     sigs <- tletField @"signatories" txInfo'
 
+    let 
+        validSignaturesQty = pfoldl # plam (\acc pkh -> pif (containsSignature # sigs # pkh) (acc + 1) acc) # 0 # adminsPkhs
+        validThreshold = threshold #<= validSignaturesQty
+
     pmatchC (getField @"purpose" ctx) >>= \case
-        PRewarding  _ -> pure $ containsSignature # sigs # authPkh
-        PCertifying _ -> pure $ containsSignature # sigs # authPkh
+        PRewarding  _ -> pure validThreshold
+        PCertifying _ -> pure validThreshold
         _             -> pure . pcon $ PFalse
