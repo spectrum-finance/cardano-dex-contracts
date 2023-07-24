@@ -32,6 +32,6 @@ simpleStakingValidator :: StakeValidator
 simpleStakingValidator = 
    mkStakeValidator cfgForStakingValidator $ wrapStakingValidator Staking.simpleStakingValidatorT
 
-pkhLockStakingValidator :: PubKeyHash -> StakeValidator
-pkhLockStakingValidator authPkh = 
-   mkStakeValidator cfgForStakingValidator $ wrapStakingValidator $ PkhStaking.pkhLockStakingValidatorT (pconstant authPkh)
+pkhLockStakingValidator :: [PubKeyHash] -> Integer -> StakeValidator
+pkhLockStakingValidator authPkhs threshold = 
+   mkStakeValidator cfgForStakingValidator $ wrapStakingValidator $ PkhStaking.pkhLockStakingValidatorT (pconstant authPkhs) (pconstant threshold)
