@@ -22,6 +22,7 @@ module Gen.Models
   , mkRedeemer
   , mkDatum
   , mkDatumHash
+  , mkOrderRedeemerRefund
   , mkMaxLq
   , mkTxInType
   , mkScriptCredential
@@ -138,6 +139,9 @@ mkDepositRedeemer a b c = O.OrderRedeemer a b c O.Apply
 
 mkOrderRedeemer :: Integer -> Integer -> Integer -> O.OrderRedeemer
 mkOrderRedeemer a b c = O.OrderRedeemer a b c O.Apply
+
+mkOrderRedeemerRefund :: Integer -> Integer -> Integer -> O.OrderRedeemer
+mkOrderRedeemerRefund a b c = O.OrderRedeemer a b c O.Refund
 
 mkRedeemer :: ToData a => a -> Redeemer
 mkRedeemer = Redeemer . toBuiltinData

@@ -110,7 +110,6 @@ library
     ErgoDex.PMintingValidators
     ErgoDex.PValidators
     ErgoDex.PConstants
-    ErgoDex.Utils
     PExtra.Time
     PExtra.Ada
     PExtra.API
@@ -154,7 +153,6 @@ test-suite cardano-dex-contracts-test
     Tests.Pool
     Tests.Swap
     Tests.Redeem
-    Tests.Staking
     Tests.StakeMinting
     Tests.Vesting
     Tests.VestingWithPeriod

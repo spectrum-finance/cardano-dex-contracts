@@ -72,11 +72,13 @@ instance PTryFrom PData (PAsData VestingWithPeriodConfig)
 
 vestingWithPeriodValidatorT :: ClosedTerm (VestingWithPeriodConfig :--> VestingWithPeriodRedeemer :--> PScriptContext :--> PBool)
 vestingWithPeriodValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
-  let ctx = pfield @"txInfo" # ctx'
+  ctx <- pletFieldsC @'["txInfo", "purpose"] ctx'
+  let txinfo' = getField @"txInfo" ctx
 
   conf     <- pletFieldsC @'["vestingStart", "vestingPeriodDuration", "totalVested", "periodVested", "pkhs", "vestingAC"] conf'
-  redeemer <- pletFieldsC @'["vestingPeriodIdx"] redeemer'
-  txInfo   <- pletFieldsC @'["validRange", "signatories"] ctx
+  redeemer <- pletFieldsC @'["vestingPeriodIdx", "vestingInIx"] redeemer'
+  txInfo   <- pletFieldsC @'["validRange", "signatories", "inputs"] txinfo'
+  inputs   <- tletUnwrap $ getField @"inputs" txInfo
   let
       vestingStart          = pfromData $ getField @"vestingStart" conf
       vestingPeriodDuration = pfromData $ getField @"vestingPeriodDuration" conf
@@ -87,10 +89,14 @@ vestingWithPeriodValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
       vestingAC    = pfromData $ getField @"vestingAC" conf
       
       vestingPeriodIdx = pfromData $ getField @"vestingPeriodIdx" redeemer
+      vestingInIdx     = pfromData $ getField @"vestingInIx" redeemer
   
       sigs = pfromData $ getField @"signatories" txInfo
   
   validRange <- tletUnwrap $ getField @"validRange" txInfo
+
+  selfIn' <- tlet $ pelemAt # vestingInIdx # inputs
+  selfIn  <- pletFieldsC @'["outRef", "resolved"] selfIn'
   let
       periodAdditionalTime = pmultiply # vestingPeriodIdx # vestingPeriodDuration
   
@@ -100,22 +106,35 @@ vestingWithPeriodValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
 
       maxPeriodsQty = pdiv # totalVested # periodVested
       isLastPeriod  = maxPeriodsQty #<= vestingPeriodIdx
+
+      self = getField @"resolved" selfIn
+
+  selfAddr <- tletField @"address" self
   
+  PSpending selfRef' <- pmatchC $ getField @"purpose" ctx
+
+  selfRef <- tletField @"_0" selfRef'
+  let 
+    selfInRef    = getField @"outRef" selfIn
+    selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
+
   correctReward <- 
      tlet $ 
-         isLastPeriod #|| (checkRewardAndDatumCorrectness # ctx' # conf' # totalVested # periodVested # vestingPeriodIdx # vestingAC)
+         isLastPeriod #|| (checkRewardAndDatumCorrectness # ctx' # conf' # totalVested # periodVested # vestingPeriodIdx # vestingAC # selfAddr)
   pure $ validTime
        #&& validSignature 
        #&& correctReward
+       #&& selfIdentity
 
-checkRewardAndDatumCorrectness :: Term s (PScriptContext :--> VestingWithPeriodConfig :--> PInteger :--> PInteger :--> PInteger :--> PAssetClass :--> PBool)
+checkRewardAndDatumCorrectness :: Term s (PScriptContext :--> VestingWithPeriodConfig :--> PInteger :--> PInteger :--> PInteger :--> PAssetClass :--> PAddress :--> PBool)
 checkRewardAndDatumCorrectness = 
-    plam $ \ctx prevCfg totalVested periodVested periodId vestingAC -> unTermCont $ do
+    plam $ \ctx prevCfg totalVested periodVested periodId vestingAC selfAddr -> unTermCont $ do
         let
             selfOutputsList = getContinuingOutputs # ctx
             selfOutput      = phead # selfOutputsList
             selfValue       = pfield @"value" # selfOutput
         txOutDatum <- tletField @"datum" selfOutput
+        succAddr   <- tletField @"address" selfOutput
 
         POutputDatum txOutOutputDatum <- pmatchC txOutDatum
 
@@ -127,4 +146,5 @@ checkRewardAndDatumCorrectness =
             correctOutQty   = totalVested - (periodId * periodVested) 
             realOutQty      = assetClassValueOf # selfValue # vestingAC
             correctConfigs  = prevCfg #== newVestingConfig
-        pure $ (realOutQty #== correctOutQty) #&& correctConfigs
+            correctAddress  = succAddr #== selfAddr
+        pure $ (realOutQty #== correctOutQty) #&& correctConfigs #&& correctAddress
