@@ -9,7 +9,7 @@ The Vesting with Period Protocol enables individuals to create their own customi
 | `vestingStart`          | `POSIXTime`         | Time of program start               |
 | `vestingPeriodDuration` | `POSIXTime`         | Period duration                     |
 | `totalVested`           | `Integer`           | Program budget                      |
-| `totalVested`           | `Integer`           | Period budget                       |
+| `periodVested`           | `Integer`           | Period budget                       |
 | `pkhs`                  | `List[PPubKeyHash]` | List of authority members           |
 | `vestingAC`             | `AssetClass`        | Program budget token (e.g ADA, SPF) |
 
