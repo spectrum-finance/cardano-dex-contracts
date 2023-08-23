@@ -12,7 +12,10 @@ import Plutarch.Prelude
 
 import qualified PlutusLedgerApi.V1 as Plutus
 
-import ErgoDex.Utils
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Base16  as Hex
+import qualified Data.Text.Encoding      as E
+import qualified Data.Text as T
 
 poolValidatorHashValue :: String
 poolValidatorHashValue = "e628bfd68c07a7a38fcd7d8df650812a9dfdbee54b1ed4c25c87ffbf"
@@ -34,3 +37,10 @@ poolStakeChangeMintTokenName = Plutus.TokenName $ BuiltinByteString . mkByteStri
 
 poolStakeChangeMintTokenNameP :: Term s PTokenName
 poolStakeChangeMintTokenNameP = pcon $ PTokenName $ phexByteStr poolStakeChangeMintTnValue
+
+mkByteString :: T.Text -> BS.ByteString
+mkByteString input = unsafeFromEither (Hex.decode . E.encodeUtf8 $ input)
+
+unsafeFromEither :: (Show b) => Either b a -> a
+unsafeFromEither (Left err)    = Prelude.error ("Err:" ++ show err)
+unsafeFromEither (Right value) = value

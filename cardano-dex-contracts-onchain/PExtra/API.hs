@@ -18,7 +18,8 @@ module PExtra.API (
     findOwnInput,
     --convertBackValue,
     mustPayToPubKey,
-    ptryFromData
+    ptryFromData,
+    pValueLength
 ) where
 
 import qualified GHC.Generics as GHC
@@ -37,6 +38,7 @@ import Plutarch.Api.V2 (
     PTxInfo (..),
     PTxOut (..),
     PTxOutRef (..),
+    PMap (..)
  )
 import Plutarch
 
@@ -210,3 +212,13 @@ convertAC' = phoistAcyclic $
 
 ptryFromData :: forall a s. PTryFrom PData (PAsData a) => Term s PData -> Term s (PAsData a)
 ptryFromData x = unTermCont $ fst <$> tcont (ptryFrom @(PAsData a) x)
+
+-- return correct qty of tokens in value
+pValueLength :: Term s (PValue _ _ :--> PInteger)
+pValueLength = plam $ \val -> outer #$ pto . pto $ val
+  where
+    outer :: ClosedTerm (PBuiltinList (PBuiltinPair (PAsData PCurrencySymbol) (PAsData (PMap k PTokenName PInteger))) :--> PInteger)
+    outer = pfix #$ plam $ \self m ->
+      pmatch m $ \case
+        PCons x xs -> (plength # (pto . pfromData $ psndBuiltin # x)) + self # xs
+        PNil -> pconstant 0

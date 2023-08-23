@@ -25,6 +25,9 @@ genNft = TokenName $ BuiltinByteString $ mkByteString $ T.pack "4e46545f546f6b65
 genX :: TokenName
 genX = TokenName $ BuiltinByteString $ mkByteString $ T.pack "415f546f6b656e5f6e65775f706f6f6c0a"
 
+genFakeTokenName :: TokenName
+genFakeTokenName = TokenName $ BuiltinByteString $ mkByteString $ T.pack "66616B65546F6B656E"
+
 genY :: TokenName
 genY = TokenName $ BuiltinByteString $ mkByteString $ T.pack "425f546f6b656e5f6e65775f706f6f6c0a"
 
@@ -56,6 +59,9 @@ genAssetClasses =
     x   = genX
     y   = genY
   in (mkAssetClass cs x, mkAssetClass cs y, mkAssetClass cs nft, mkAssetClass cs lq)
+
+genFakeToken :: AssetClass
+genFakeToken = mkAssetClass genCS genFakeTokenName
 
 genRandomAssetClasses :: MonadGen f => f (AssetClass, AssetClass, AssetClass, AssetClass)
 genRandomAssetClasses = do

@@ -35,6 +35,7 @@ checkPool = testGroup "CheckPoolContract"
   , HH.testProperty "pool_change_stake_part_is_incorrect (incorrect minting)" failedPoolChangeStakePartIncorrectMinting
   , HH.testProperty "pool_deposit_is_correct" successPoolDeposit
   , HH.testProperty "pool_swap_is_correct" successPoolSwap
+  , HH.testProperty "incorrect_final_pool_tokens_qty" incorrectPoolTokensQtyInFinalValue
   , HH.testProperty "pool_swap_insufficient_lq_for_bound" poolSwapInsufficientLiqudityForBound
   , HH.testProperty "pool_redeem_is_correct" successPoolRedeem
   , HH.testProperty "pool_swap_additional_tokens" incorrectPoolSwapAdditionalTokens
@@ -239,6 +240,35 @@ successPoolSwap = property $ do
     result = eraseRight $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
 
   result === Right ()
+
+incorrectPoolTokensQtyInFinalValue :: Property
+incorrectPoolTokensQtyInFinalValue = withTests 1 $ property $ do
+  let 
+    (x, y, nft, lq) = genAssetClasses
+    fakeToken       = genFakeToken
+  pkh             <- forAll genPkh
+  orderTxRef      <- forAll genTxOutRef
+  let
+    (cfgData, dh) = genSConfig x y nft 995 500000 1 pkh 10 4
+    orderTxIn     = genSTxIn orderTxRef dh x 10 3813762
+    orderTxOut    = genSTxOut dh y 4 1813762 pkh
+  
+  poolTxRef <- forAll genTxOutRef
+  let
+    (pcfg, pdh) = genPConfig x y nft lq 995 [] 0
+    poolTxIn    = genPTxIn poolTxRef pdh x 10 y 10 lq 9223372036854775797 nft 1 1000000000
+    poolTxOut   = genPTxOutWithIncorrectTokensQty pdh fakeToken 100 x 20 y 6 lq 9223372036854775797 nft 1 3000000
+  
+  let
+    txInfo  = mkTxInfo poolTxIn orderTxIn poolTxOut orderTxOut
+    purpose = mkPurpose poolTxRef
+
+    cxtToData        = toData $ mkContext txInfo purpose
+    poolRedeemToData = toData $ mkPoolRedeemer 0 Pool.Swap
+
+    result = eraseLeft $ evalWithArgs (wrapValidator PPool.poolValidatorT) [pcfg, poolRedeemToData, cxtToData]
+
+  result === Left ()
 
 incorrectPoolSwapAdditionalTokens :: Property
 incorrectPoolSwapAdditionalTokens = property $ do

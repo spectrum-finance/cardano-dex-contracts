@@ -23,7 +23,7 @@ import Plutarch.Builtin             (pasInt, pforgetData, pfromData, pdata, PIsD
 import Plutarch.Unsafe              (punsafeCoerce)
 import Plutarch.Internal.PlutusType (PInner, PlutusType, pcon', pmatch')
 
-import PExtra.API                   (PAssetClass, assetClassValueOf, ptryFromData, assetClass)
+import PExtra.API                   (PAssetClass, assetClassValueOf, ptryFromData, assetClass, pValueLength)
 import PExtra.List                  (pelemAt)
 import PExtra.Monadic               (tcon, tlet, tletField, tmatch)
 
@@ -250,8 +250,8 @@ poolValidatorT = plam $ \conf redeemer' ctx' -> unTermCont $ do
                 succesorValue <- tletUnwrap $ getField @"value" successor
 
                 let 
-                    selfValueLength = plength # (pto . pto $ selfValue)
-                    succesorValueLength = plength # (pto . pto $ succesorValue)
+                    selfValueLength = pValueLength # selfValue
+                    succesorValueLength = pValueLength # succesorValue
 
                     noMoreTokens = selfValueLength #== succesorValueLength
 

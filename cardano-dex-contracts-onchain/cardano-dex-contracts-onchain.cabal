@@ -106,7 +106,6 @@ library
     ErgoDex.PMintingValidators
     ErgoDex.PValidators
     ErgoDex.PConstants
-    ErgoDex.Utils
     PExtra.Ada
     PExtra.API
     PExtra.Integer
