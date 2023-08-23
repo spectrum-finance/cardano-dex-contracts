@@ -4,7 +4,7 @@ module Eval where
 import Plutarch.Prelude
 import PExtra.API
 import Data.Text (Text, pack)
-import Plutarch.Evaluate (evalScript, EvalError)
+import Plutarch.Evaluate (evalScript, EvalError, evalTerm)
 import Plutarch (ClosedTerm, compile, Config(..), TracingMode (..))
 import PlutusLedgerApi.V1 (Data, ExBudget)
 import PlutusLedgerApi.V1.Scripts (Script (unScript), applyArguments)
@@ -20,7 +20,6 @@ evalWithArgs :: ClosedTerm a -> [Data] -> Either Text (ExBudget, [Text], Program
 evalWithArgs x args = do
   cmp <- compile evalConfig x
   let (escr, budg, trc) = evalScript $ applyArguments cmp args
-  -- traceM $ show budg
   scr <- left (pack . show) escr
   pure (budg, trc, unScript scr)
 
