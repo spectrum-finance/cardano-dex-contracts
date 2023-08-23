@@ -4,7 +4,7 @@ module Eval where
 import Plutarch.Prelude
 import PExtra.API
 import Data.Text (Text, pack)
-import Plutarch.Evaluate (evalScript, EvalError)
+import Plutarch.Evaluate (evalScript, EvalError, evalTerm)
 import Plutarch (ClosedTerm, compile, Config(..), TracingMode (..))
 import PlutusLedgerApi.V1 (Data, ExBudget)
 import PlutusLedgerApi.V1.Scripts (Script (unScript), applyArguments)

@@ -148,6 +148,7 @@ test-suite cardano-dex-contracts-test
     Tests.Redeem
     Tests.Staking
     Tests.StakeMinting
+    Tests.Api
     Eval
   build-depends:
     , base
