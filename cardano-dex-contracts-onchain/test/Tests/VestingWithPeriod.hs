@@ -10,6 +10,7 @@ import Eval
 import Gen.Utils
 import Gen.VestingWithPeriodGen
 
+import Plutarch.Prelude
 import PlutusLedgerApi.V2
 import PlutusLedgerApi.V1.Time
 
@@ -62,7 +63,7 @@ correctVesting = property $ do
     vestingWPCfg          = genVestingWithPeriodConfig vestingStart vestingPeriodDuration totalVested periodVested [firstPkh, secondPkh] vestingAC
     vestingWPCfgData      = toData vestingWPCfg
     vestingWPDatum        = OutputDatum $ mkDatum vestingWPCfg
-    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested
+    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested 2
     periodsList           = [1..maxPeriodId]
   
     (_, result) = 
@@ -72,7 +73,7 @@ correctVesting = property $ do
 
             vestingRedeemToData = toData $ PPVestingWP.VestingWithPeriodRedeemer 0 periodId
 
-            newVestingBox = genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested)
+            newVestingBox = genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested) 2
             
             newVestingBoxInput = mkTxIn vestingOutTxRef newVestingBox
 
@@ -89,7 +90,7 @@ correctVesting = property $ do
 
             cxtData      = toData $ mkContext txInfo purpose
 
-            resultEither = eraseRight $ evalWithArgs (wrapValidator PVestingWP.vestingWithPeriodValidatorT) [vestingWPCfgData, vestingRedeemToData, cxtData]
+            resultEither = eraseRight $ evalWithArgs (wrapValidator (PVestingWP.vestingWithPeriodValidatorT (pconstant 2))) [vestingWPCfgData, vestingRedeemToData, cxtData]
             
            in (newVestingBoxInput, prevResult && isRight resultEither)
       ) (initialVestingWPTxIn, True) periodsList
@@ -127,7 +128,7 @@ incorrectSignatureQtyVesting = property $ do
     vestingWPCfg          = genVestingWithPeriodConfig vestingStart vestingPeriodDuration totalVested periodVested [firstPkh, secondPkh] vestingAC
     vestingWPCfgData      = toData vestingWPCfg
     vestingWPDatum        = OutputDatum $ mkDatum vestingWPCfg
-    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested
+    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested 2
     periodsList           = [1..maxPeriodId]
   
   let
@@ -138,7 +139,7 @@ incorrectSignatureQtyVesting = property $ do
 
             vestingRedeemToData = toData $ PPVestingWP.VestingWithPeriodRedeemer 0 periodId
 
-            newVestingBox = genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested)
+            newVestingBox = genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested) 2
             
             newVestingBoxInput = mkTxIn vestingOutTxRef newVestingBox
 
@@ -153,7 +154,7 @@ incorrectSignatureQtyVesting = property $ do
 
             cxtData      = toData $ mkContext txInfo purpose
 
-            resultEither = eraseRight $ evalWithArgs (wrapValidator PVestingWP.vestingWithPeriodValidatorT) [vestingWPCfgData, vestingRedeemToData, cxtData]
+            resultEither = eraseRight $ evalWithArgs (wrapValidator (PVestingWP.vestingWithPeriodValidatorT (pconstant 2))) [vestingWPCfgData, vestingRedeemToData, cxtData]
             
           in (newVestingBoxInput, prevResult && isRight resultEither)
       ) (initialVestingWPTxIn, True) periodsList
@@ -191,7 +192,7 @@ incorrectTimeVesting = property $ do
     vestingWPCfg          = genVestingWithPeriodConfig vestingStart vestingPeriodDuration totalVested periodVested [firstPkh, secondPkh] vestingAC
     vestingWPCfgData      = toData vestingWPCfg
     vestingWPDatum        = OutputDatum $ mkDatum vestingWPCfg
-    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested
+    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested 1
     periodsList           = [1..maxPeriodId]
   let
     (_, result) = 
@@ -202,7 +203,7 @@ incorrectTimeVesting = property $ do
 
             vestingRedeemToData = toData $ PPVestingWP.VestingWithPeriodRedeemer 0 periodId
 
-            newVestingBox = genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested)
+            newVestingBox = genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested) 1
             
             newVestingBoxInput = mkTxIn vestingOutTxRef newVestingBox
 
@@ -217,7 +218,7 @@ incorrectTimeVesting = property $ do
 
             cxtData      = toData $ mkContext txInfo purpose
 
-            resultEither = eraseRight $ evalWithArgs (wrapValidator PVestingWP.vestingWithPeriodValidatorT) [vestingWPCfgData, vestingRedeemToData, cxtData]
+            resultEither = eraseRight $ evalWithArgs (wrapValidator (PVestingWP.vestingWithPeriodValidatorT (pconstant 1))) [vestingWPCfgData, vestingRedeemToData, cxtData]
             
           in (newVestingBoxInput, prevResult && isRight resultEither)
       ) (initialVestingWPTxIn, True) periodsList
@@ -255,7 +256,7 @@ incorrectValueVesting = property $ do
     vestingWPCfg          = genVestingWithPeriodConfig vestingStart vestingPeriodDuration totalVested periodVested [firstPkh, secondPkh] vestingAC
     vestingWPCfgData      = toData vestingWPCfg
     vestingWPDatum        = OutputDatum $ mkDatum vestingWPCfg
-    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested
+    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested 1
     periodsList           = [1..maxPeriodId]
   let
     (_, result) = 
@@ -267,8 +268,8 @@ incorrectValueVesting = property $ do
 
             newVestingBox = 
               if (totalVested - periodId * periodVested >= 10) 
-              then genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested - 10)
-              else genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested)
+              then genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested - 10) 1
+              else genVestingWPTxOut vestingWPDatum vestingAC (totalVested - periodId * periodVested) 1
             
             newVestingBoxInput = mkTxIn vestingOutTxRef newVestingBox
 
@@ -283,7 +284,7 @@ incorrectValueVesting = property $ do
 
             cxtData      = toData $ mkContext txInfo purpose
 
-            resultEither = eraseRight $ evalWithArgs (wrapValidator PVestingWP.vestingWithPeriodValidatorT) [vestingWPCfgData, vestingRedeemToData, cxtData]
+            resultEither = eraseRight $ evalWithArgs (wrapValidator (PVestingWP.vestingWithPeriodValidatorT (pconstant 1))) [vestingWPCfgData, vestingRedeemToData, cxtData]
             
           in (newVestingBoxInput, prevResult && isRight resultEither)
       ) (initialVestingWPTxIn, True) periodsList
@@ -322,19 +323,19 @@ incorrectDatumVesting = property $ do
     vestingWPCfg          = genVestingWithPeriodConfig vestingStart vestingPeriodDuration totalVested periodVested [firstPkh, secondPkh] vestingAC
     vestingWPCfgData      = toData vestingWPCfg
     vestingWPDatum        = OutputDatum $ mkDatum vestingWPCfg
-    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested
+    initialVestingWPTxIn  = genVestingWPTxIn vestingOutTxRef vestingWPDatum vestingAC totalVested 1
     periodsList           = [1..maxPeriodId]
 
     deadline      = vestingStart + vestingPeriodDuration * periodId
 
     vestingRedeemToData = toData $ PPVestingWP.VestingWithPeriodRedeemer 0 periodId
 
-    newVestingBox = genVestingWPTxOut NoOutputDatum vestingAC (totalVested - periodId * periodVested)
+    newVestingBox = genVestingWPTxOut NoOutputDatum vestingAC (totalVested - periodId * periodVested) 1
     
     userTxOut    = genUserTxOut vestingAC periodVested firstPkh
     txInfo       = mkVestingTxInfo [initialVestingWPTxIn] [newVestingBox, userTxOut] (deadline + 5) (deadline + 10) [secondPkh]
     purpose      = mkPurpose vestingOutTxRef
     cxtData      = toData $ mkContext txInfo purpose
-    resultEither = eraseLeft $ evalWithArgs (wrapValidator PVestingWP.vestingWithPeriodValidatorT) [vestingWPCfgData, vestingRedeemToData, cxtData]
+    resultEither = eraseLeft $ evalWithArgs (wrapValidator (PVestingWP.vestingWithPeriodValidatorT (pconstant 1))) [vestingWPCfgData, vestingRedeemToData, cxtData]
     
   resultEither === Left ()

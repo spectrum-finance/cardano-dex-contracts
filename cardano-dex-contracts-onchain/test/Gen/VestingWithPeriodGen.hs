@@ -28,11 +28,11 @@ genVestingWithPeriodConfig vestingStart vestingPeriodDuration totalVested period
     , vestingAC = vestingAC
     }
 
-genVestingWPTxIn :: TxOutRef -> OutputDatum -> AssetClass -> Integer -> TxInInfo
-genVestingWPTxIn txOutRef vestingDatum vestingAC vestingTokenQty =
+genVestingWPTxIn :: TxOutRef -> OutputDatum -> AssetClass -> Integer -> Integer -> TxInInfo
+genVestingWPTxIn txOutRef vestingDatum vestingAC vestingTokenQty threshold =
   let
     value = mkValues [mkValue vestingAC vestingTokenQty, mkAdaValue 1000] mempty
-    txOut = mkTxOut vestingDatum value mkVestingWithPeriodValidator
+    txOut = mkTxOut vestingDatum value (mkVestingWithPeriodValidator threshold)
   in mkTxIn txOutRef txOut
 
 genUserTxOut :: AssetClass -> Integer -> PubKeyHash -> TxOut
@@ -41,11 +41,11 @@ genUserTxOut vestingAC vestingTokenQty userPkh =
     value = mkValues [mkValue vestingAC vestingTokenQty, mkAdaValue 1000] mempty
   in mkTxOut' NoOutputDatum value userPkh
 
-genVestingWPTxOut :: OutputDatum -> AssetClass -> Integer -> TxOut
-genVestingWPTxOut vestingDatum vestingAC vestingTokenQty =
+genVestingWPTxOut :: OutputDatum -> AssetClass -> Integer -> Integer -> TxOut
+genVestingWPTxOut vestingDatum vestingAC vestingTokenQty threshold =
   let
     value = mkValues [mkValue vestingAC vestingTokenQty, mkAdaValue 1000] mempty
-  in mkTxOut vestingDatum value mkVestingWithPeriodValidator
+  in mkTxOut vestingDatum value (mkVestingWithPeriodValidator threshold)
 
 mkVestingTxInfo :: [TxInInfo] -> [TxOut] -> Integer -> Integer -> [PubKeyHash] -> TxInfo
 mkVestingTxInfo txIns txOuts validRangeStart validRangeEnd signers =

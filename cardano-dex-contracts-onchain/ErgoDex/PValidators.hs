@@ -55,8 +55,8 @@ redeemValidator = mkValidator cfgForValidator $ wrapValidator PR.redeemValidator
 vestingValidator :: Validator
 vestingValidator = mkValidator cfgForValidator $ wrapValidator PV.vestingValidatorT
 
-vestingWithPeriodValidator :: Validator
-vestingWithPeriodValidator = mkValidator cfgForValidator $ wrapValidator PVWP.vestingWithPeriodValidatorT
+vestingWithPeriodValidator :: Integer -> Validator
+vestingWithPeriodValidator threshold = mkValidator cfgForValidator $ wrapValidator (PVWP.vestingWithPeriodValidatorT (pconstant threshold))
 
 validatorAddress :: Validator -> Address
 validatorAddress = scriptHashAddress . validatorHash

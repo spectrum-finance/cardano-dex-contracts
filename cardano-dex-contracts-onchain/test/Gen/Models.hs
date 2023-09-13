@@ -176,8 +176,8 @@ mkSwapValidator = validatorHash PScripts.swapValidator
 mkVestingValidator :: ValidatorHash
 mkVestingValidator = validatorHash PScripts.vestingValidator
 
-mkVestingWithPeriodValidator :: ValidatorHash
-mkVestingWithPeriodValidator = validatorHash PScripts.vestingWithPeriodValidator
+mkVestingWithPeriodValidator :: Integer -> ValidatorHash
+mkVestingWithPeriodValidator threshold = validatorHash (PScripts.vestingWithPeriodValidator threshold)
 
 mkTxOut :: OutputDatum -> Value -> ValidatorHash -> TxOut
 mkTxOut od v vh =

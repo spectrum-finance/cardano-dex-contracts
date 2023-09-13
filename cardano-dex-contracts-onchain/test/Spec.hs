@@ -6,7 +6,6 @@ import Tests.Deposit
 import Tests.Pool 
 import Tests.Swap
 import Tests.Redeem
-import Tests.Staking
 import Tests.StakeMinting
 import Tests.Vesting
 import Tests.VestingWithPeriod

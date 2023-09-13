@@ -70,8 +70,8 @@ deriving via (DerivePConstantViaData VWP.VestingWithPeriodConfig VestingWithPeri
 
 instance PTryFrom PData (PAsData VestingWithPeriodConfig)
 
-vestingWithPeriodValidatorT :: ClosedTerm (VestingWithPeriodConfig :--> VestingWithPeriodRedeemer :--> PScriptContext :--> PBool)
-vestingWithPeriodValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
+vestingWithPeriodValidatorT :: Term s PInteger -> Term s (VestingWithPeriodConfig :--> VestingWithPeriodRedeemer :--> PScriptContext :--> PBool)
+vestingWithPeriodValidatorT threshold = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   ctx <- pletFieldsC @'["txInfo", "purpose"] ctx'
   let txinfo' = getField @"txInfo" ctx
 
@@ -102,7 +102,9 @@ vestingWithPeriodValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   
       periodStartTime = periodAdditionalTime + vestingStart
       validTime       = pbefore # periodStartTime # validRange
-      validSignature  = pall # (containsSignature' # sigs) # pkhs
+
+      validSignaturesQty = 
+          pfoldl # plam (\acc pkh -> pif (containsSignature' # sigs # pkh) (acc + 1) acc) # 0 # pkhs
 
       maxPeriodsQty = pdiv # totalVested # periodVested
       isLastPeriod  = maxPeriodsQty #<= vestingPeriodIdx
@@ -117,6 +119,8 @@ vestingWithPeriodValidatorT = plam $ \conf' redeemer' ctx' -> unTermCont $ do
   let 
     selfInRef    = getField @"outRef" selfIn
     selfIdentity = selfRef #== selfInRef -- self is the output currently validated by this script
+
+  validSignature <- tlet $ threshold #<= validSignaturesQty
 
   correctReward <- 
      tlet $ 
