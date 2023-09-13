@@ -26,7 +26,7 @@ import ErgoDex.PConstants
 import Eval
 
 import Gen.Models
-import Gen.DepositGen
+import Gen.DepositGen hiding (mkByteString)
 import Gen.PoolGen
 import Gen.SwapGen
 import Gen.RedeemGen

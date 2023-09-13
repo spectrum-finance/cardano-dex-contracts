@@ -7,10 +7,10 @@ module ErgoDex.Contracts.Typed where
 
 import qualified Prelude as Haskell
 
-import Data.Aeson (FromJSON, ToJSON)
 import ErgoDex.Contracts.Class
 import qualified ErgoDex.Contracts.Pool as P
 import ErgoDex.Contracts.Types
+import Plutus.V1.Ledger.Value (CurrencySymbol(..))
 import GHC.Generics (Generic)
 import PlutusTx.Prelude
 
@@ -20,6 +20,8 @@ data PoolConfig = PoolConfig
     , poolY :: Coin Y
     , poolLq :: Coin Liquidity
     , poolFeeNum :: Integer
+    , stakeAdminPolicy :: [CurrencySymbol]
+    , lqBound          :: Integer
     }
     deriving (Haskell.Show, Haskell.Eq, Generic)
 
@@ -31,6 +33,8 @@ instance UnliftErased PoolConfig P.PoolConfig where
             , poolY = unCoin poolY
             , poolLq = unCoin poolLq
             , poolFeeNum = poolFeeNum
+            , stakeAdminPolicy = stakeAdminPolicy
+            , lqBound = lqBound
             }
 
     unlift P.PoolConfig{..} =
@@ -40,4 +44,6 @@ instance UnliftErased PoolConfig P.PoolConfig where
             , poolY = Coin poolY
             , poolLq = Coin poolLq
             , poolFeeNum = poolFeeNum
+            , stakeAdminPolicy = stakeAdminPolicy
+            , lqBound = lqBound
             }

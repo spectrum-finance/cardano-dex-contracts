@@ -2,12 +2,13 @@ module Main(main) where
 
 import ErgoDex.PMintingValidators
 
-import Tests.Deposit 
+import Tests.Deposit
 import Tests.Pool 
 import Tests.Swap
 import Tests.Redeem
-import Tests.Staking
-import Tests.StakeMinting 
+import Tests.StakeMinting
+import Tests.Vesting
+import Tests.VestingWithPeriod
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -37,5 +38,7 @@ tests = testGroup "Contracts"
   , checkSwap
   , checkSwapRedeemer
   , checkSwapIdentity
+  , checkVesting
+  , checkVestingWithPeriod
   , checkPkhLockStaking
   ]

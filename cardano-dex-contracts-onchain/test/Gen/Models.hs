@@ -22,12 +22,15 @@ module Gen.Models
   , mkRedeemer
   , mkDatum
   , mkDatumHash
+  , mkOrderRedeemerRefund
   , mkMaxLq
   , mkTxInType
   , mkScriptCredential
   , genPkh
   , mkDepositValidator
   , mkSwapValidator
+  , mkVestingValidator
+  , mkVestingWithPeriodValidator
   , mkPoolValidator
   , mkTxOut
   , mkUserTxOut
@@ -66,6 +69,7 @@ import qualified ErgoDex.PValidators             as PScripts
 import qualified ErgoDex.Contracts.Pool          as P
 import qualified ErgoDex.Contracts.Proxy.Deposit as D
 import qualified ErgoDex.Contracts.Proxy.Order   as O
+import qualified ErgoDex.Contracts.Proxy.Vesting as V
 import PlutusTx.Builtins as Builtins
 
 genBuiltinByteString :: MonadGen f => Int -> f BuiltinByteString
@@ -96,7 +100,7 @@ genTokenName = do
 
 genCurrencySymbol :: MonadGen f => f CurrencySymbol
 genCurrencySymbol = do
-  bs <- random32bs
+  bs <- random28bs
   return $ CurrencySymbol bs
 
 mkAssetClass :: CurrencySymbol -> TokenName -> AssetClass
@@ -136,6 +140,9 @@ mkDepositRedeemer a b c = O.OrderRedeemer a b c O.Apply
 mkOrderRedeemer :: Integer -> Integer -> Integer -> O.OrderRedeemer
 mkOrderRedeemer a b c = O.OrderRedeemer a b c O.Apply
 
+mkOrderRedeemerRefund :: Integer -> Integer -> Integer -> O.OrderRedeemer
+mkOrderRedeemerRefund a b c = O.OrderRedeemer a b c O.Refund
+
 mkRedeemer :: ToData a => a -> Redeemer
 mkRedeemer = Redeemer . toBuiltinData
 
@@ -165,6 +172,12 @@ mkPoolValidator = validatorHash PScripts.poolValidator
 
 mkSwapValidator :: ValidatorHash
 mkSwapValidator = validatorHash PScripts.swapValidator
+
+mkVestingValidator :: ValidatorHash
+mkVestingValidator = validatorHash PScripts.vestingValidator
+
+mkVestingWithPeriodValidator :: Integer -> ValidatorHash
+mkVestingWithPeriodValidator threshold = validatorHash (PScripts.vestingWithPeriodValidator threshold)
 
 mkTxOut :: OutputDatum -> Value -> ValidatorHash -> TxOut
 mkTxOut od v vh =

@@ -14,6 +14,8 @@ import qualified ErgoDex.PContracts.PDeposit as PD
 import qualified ErgoDex.PContracts.PPool as PP
 import qualified ErgoDex.PContracts.PRedeem as PR
 import qualified ErgoDex.PContracts.PSwap as PS
+import qualified ErgoDex.PContracts.PVesting as PV
+import qualified ErgoDex.PContracts.PVestingWithPeriod as PVWP
 
 import Plutarch
 import Plutarch.Api.V2 (mkValidator, validatorHash)
@@ -42,6 +44,12 @@ depositValidator = mkValidator $ wrapValidator PD.depositValidatorT
 
 redeemValidator :: Validator
 redeemValidator = mkValidator $ wrapValidator PR.redeemValidatorT
+
+vestingValidator :: Validator
+vestingValidator = mkValidator $ wrapValidator PV.vestingValidatorT
+
+vestingWithPeriodValidator :: Validator
+vestingWithPeriodValidator = mkValidator $ wrapValidator PVWP.vestingWithPeriodValidatorT
 
 validatorAddress :: Validator -> Address
 validatorAddress = scriptHashAddress . validatorHash

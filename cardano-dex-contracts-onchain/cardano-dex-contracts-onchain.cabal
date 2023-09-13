@@ -91,6 +91,8 @@ library
     ErgoDex.Contracts.Proxy.Swap
     ErgoDex.Contracts.Proxy.Order
     ErgoDex.Contracts.Proxy.Redeem
+    ErgoDex.Contracts.Proxy.Vesting
+    ErgoDex.Contracts.Proxy.VestingWithPeriod
     ErgoDex.Contracts.Pool
     ErgoDex.PContracts.PApi
     ErgoDex.PContracts.PAssets
@@ -103,10 +105,12 @@ library
     ErgoDex.PContracts.PStakingWithPkhLock
     ErgoDex.PContracts.PPoolStakeChangeMintPolicy
     ErgoDex.PStakingValidators
+    ErgoDex.PContracts.PVesting
+    ErgoDex.PContracts.PVestingWithPeriod
     ErgoDex.PMintingValidators
     ErgoDex.PValidators
     ErgoDex.PConstants
-    ErgoDex.Utils
+    PExtra.Time
     PExtra.Ada
     PExtra.API
     PExtra.Integer
@@ -142,13 +146,16 @@ test-suite cardano-dex-contracts-test
     Gen.SwapGen
     Gen.RedeemGen
     Gen.DestroyGen
+    Gen.VestingGen
+    Gen.VestingWithPeriodGen
     Gen.Utils
     Tests.Deposit
     Tests.Pool
     Tests.Swap
     Tests.Redeem
-    Tests.Staking
     Tests.StakeMinting
+    Tests.Vesting
+    Tests.VestingWithPeriod
     Eval
   build-depends:
     , base

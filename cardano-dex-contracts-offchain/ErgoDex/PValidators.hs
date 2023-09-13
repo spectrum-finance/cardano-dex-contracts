@@ -3,6 +3,8 @@ module ErgoDex.PValidators (
     swapValidator,
     depositValidator,
     redeemValidator,
+    vestingValidator,
+    vestingWithPeriodValidator,
     simpleStakingValidator,
     lockPkhStakingValidator
 ) where
@@ -50,6 +52,18 @@ lockPkhStakingValidatorDataFileName = "stakinWithPkh.uplc"
 
 lockPkhStakingValidator :: (MonadIO m) => m PV2.Validator
 lockPkhStakingValidator = readValidatorFromFile lockPkhStakingValidatorDataFileName
+
+vestingValidatorDataFileName :: String
+vestingValidatorDataFileName = "vesting.uplc"
+
+vestingValidator :: (MonadIO m) => m PV2.Validator
+vestingValidator = readValidatorFromFile vestingValidatorDataFileName
+
+vestingWithPeriodValidatorDataFileName :: String
+vestingWithPeriodValidatorDataFileName = "vestingWithPeriod.uplc"
+
+vestingWithPeriodValidator :: (MonadIO m) => m PV2.Validator
+vestingWithPeriodValidator = readValidatorFromFile vestingWithPeriodValidatorDataFileName
 
 readValidatorFromFile :: (MonadIO m) => String -> m PV2.Validator
 readValidatorFromFile dataFieldName = do
